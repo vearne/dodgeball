@@ -84,19 +84,6 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 添加统一尺寸的“身体”圆形（视觉与碰撞一致）
-    final body = CircleComponent(
-      radius: radius,
-      anchor: Anchor.center,
-      paint: ui.Paint()
-        ..color = _color
-        ..style = ui.PaintingStyle.fill,
-    );
-    add(body);
-
-    // 添加圆形碰撞检测（与视觉半径一致）
-    add(CircleHitbox(radius: radius));
-
     // 设置玩家视觉效果
     _setupPlayerVisuals();
 
@@ -131,11 +118,7 @@ class PlayerComponent extends PositionComponent
 
   void _setupPlayerVisuals() {
     // 添加箭头图标
-    _arrowIcon = ArrowComponent(
-      size: radius * 2,
-      color: _color,
-      angle: 0.0, // 初始方向向右
-    );
+    _arrowIcon = ArrowComponent(sideLength: radius * 2, color: _color);
     add(_arrowIcon!);
 
     if (controllerType == PlayerControllerType.human) {
@@ -150,52 +133,40 @@ class PlayerComponent extends PositionComponent
   void _setupHumanPlayerVisuals() {
     // 为人类玩家添加特殊的视觉效果
 
-    // 1. 添加王冠图标
+    // 1. 添加王冠图标（挂载到箭头内部）
     _crownIcon = CrownComponent(
-      size: radius * 0.8,
-      color: const ui.Color(0xFFFFD700), // 金色王冠
+      size: radius * 0.6,
+      color: const ui.Color(0xFFFFD700),
     );
-    // 王冠继承自Component，需要用PositionComponent包装
-    final crownWrapper = PositionComponent(
-      position: Vector2(0, -radius * 0.3),
+    // 将王冠放在箭头主体靠左上侧
+    final crownHolder = PositionComponent(
+      anchor: Anchor.center,
+      position: Vector2(radius * 0.6, radius * 0.6),
       children: [_crownIcon!],
     );
-    add(crownWrapper);
+    _arrowIcon?.add(crownHolder);
 
     // 2. 添加"HUMAN"标识
     _playerLabel = TextComponent(
       text: 'YOU',
       textRenderer: TextPaint(
         style: const TextStyle(
-          fontSize: 8,
+          fontSize: 6,
           fontWeight: FontWeight.bold,
-          color: ui.Color(0xFFFFFFFF), // 白色
+          color: ui.Color(0xFFFFFFFF),
         ),
       ),
       anchor: Anchor.center,
-      position: Vector2(0, radius * 0.7), // 位于玩家下方
+      // 放在箭头主体中部略偏右
+      position: Vector2(radius * 1.0, radius * 1.0),
     );
-    add(_playerLabel!);
+    _arrowIcon?.add(_playerLabel!);
 
     // 3. 更新箭头颜色，让人类玩家更亮
     final brightColor = _getBrightTeamColor(team);
     _arrowIcon?.color = brightColor;
 
-    // 4. 添加发光边框效果
-    final glowPaint = ui.Paint()
-      ..color = const ui.Color(0x50FFFFFF)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-
-    add(
-      CircleComponent(
-        radius: radius + 2,
-        paint: glowPaint,
-        anchor: Anchor.center,
-      ),
-    );
-
-    // 5. 添加呼吸动画效果
+    // 4. 添加呼吸动画效果
     _breathingTimer = TimerComponent(
       period: 1.0,
       repeat: true,
@@ -210,20 +181,20 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupAIPlayerVisuals() {
-    // AI玩家保持原始外观，但添加"AI"标识
+    // AI玩家：在箭头内部添加"AI"标识
     _playerLabel = TextComponent(
       text: 'AI',
       textRenderer: TextPaint(
         style: const TextStyle(
-          fontSize: 8,
+          fontSize: 6,
           fontWeight: FontWeight.bold,
-          color: ui.Color(0xFFFFFFFF), // 白色
+          color: ui.Color(0xFFFFFFFF),
         ),
       ),
       anchor: Anchor.center,
       position: Vector2.zero(),
     );
-    add(_playerLabel!);
+    _arrowIcon?.add(_playerLabel!);
   }
 
   ui.Color _getBrightTeamColor(Team team) {

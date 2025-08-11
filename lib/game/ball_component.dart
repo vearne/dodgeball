@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 
+import 'arrow_component.dart';
+import 'player_component.dart';
 import 'team.dart';
 
 class BallComponent extends CircleComponent
@@ -14,6 +16,7 @@ class BallComponent extends CircleComponent
     required Vector2 initialVelocity,
     required this.bounceCount,
     double radius = 8,
+    this.onHitPlayer,
   }) : super(
          position: position,
          radius: radius,
@@ -36,6 +39,7 @@ class BallComponent extends CircleComponent
   int bounceCount; // 初始为 1..5 的随机数
   late final TextComponent remainingLabel;
   bool collidedOnce = false; // 首次与墙/玩家发生碰撞后置为 true
+  final void Function(BallComponent ball, PlayerComponent hitPlayer)? onHitPlayer;
 
   @override
   Future<void> onLoad() async {
@@ -82,6 +86,25 @@ class BallComponent extends CircleComponent
     remainingLabel.text = '$bounceCount';
     if (bounceCount <= 0) {
       removeFromParent();
+    }
+  }
+
+  @override
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollisionStart(intersectionPoints, other);
+
+    // 与玩家箭头发生碰撞：只对敌方有效
+    if (other is ArrowComponent) {
+      final parentComponent = other.parent;
+      if (parentComponent is PlayerComponent) {
+        final player = parentComponent;
+        if (!player.isEliminated && player.team != team) {
+          player.eliminate();
+          hitPlayerAndContinue();
+          // 交由游戏回调处理计分等逻辑
+          onHitPlayer?.call(this, player);
+        }
+      }
     }
   }
 }

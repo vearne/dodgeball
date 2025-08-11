@@ -138,7 +138,6 @@ class DodgeballGame extends FlameGame
 
     if (gameState == GameState.playing) {
       _handleWallBounces();
-      _handleBallPlayerCollisions();
       _checkVictoryConditions();
     }
 
@@ -196,24 +195,7 @@ class DodgeballGame extends FlameGame
     }
   }
 
-  void _handleBallPlayerCollisions() {
-    final balls = children.whereType<BallComponent>().toList();
-    final players = children.whereType<PlayerComponent>().toList();
-
-    for (final ball in balls) {
-      for (final player in players) {
-        if (player.team == ball.team) continue; // 不打同队
-        if (player.isEliminated) continue;
-        final distance = ball.absoluteCenter.distanceTo(player.absoluteCenter);
-        if (distance <= ball.radius + player.radius) {
-          player.eliminate();
-          ball.hitPlayerAndContinue();
-          _awardScoreForHit(ball);
-          // 直接继续运行，球可能还有剩余反弹次数
-        }
-      }
-    }
-  }
+  // 基于碰撞系统，不再手动检测球-玩家距离
 
   void _awardScoreForHit(BallComponent ball) {
     // 若发球者是人类玩家（默认红队第一个）则加分
@@ -269,6 +251,9 @@ class DodgeballGame extends FlameGame
       position: thrower.absoluteCenter.clone(),
       initialVelocity: velocity,
       bounceCount: randomBounces,
+      onHitPlayer: (b, hitPlayer) {
+        _awardScoreForHit(b);
+      },
     );
     add(ball);
 
@@ -309,6 +294,9 @@ class DodgeballGame extends FlameGame
       position: thrower.absoluteCenter.clone(),
       initialVelocity: velocity,
       bounceCount: randomBounces,
+      onHitPlayer: (b, hitPlayer) {
+        _awardScoreForHit(b);
+      },
     );
     add(ball);
 
@@ -352,6 +340,9 @@ class DodgeballGame extends FlameGame
       position: thrower.absoluteCenter.clone(),
       initialVelocity: velocity,
       bounceCount: randomBounces,
+      onHitPlayer: (b, hitPlayer) {
+        _awardScoreForHit(b);
+      },
     );
     add(ball);
 
