@@ -30,7 +30,7 @@ class PlayerComponent extends PositionComponent
        ) {
     // 设置随机初始冷却时间（1-10秒）
     final random = math.Random();
-    _lastThrowTime = -(1.0 + random.nextDouble() * 9.0); // 负值表示还在初始冷却中
+    _lastThrowTime = (1.0 + random.nextDouble() * 9.0); // 负值表示还在初始冷却中
   }
 
   final Team team;

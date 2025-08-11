@@ -66,7 +66,7 @@ class GameModeSelectorScreen extends StatelessWidget {
                     _GameModeCard(
                       title: '单人模式',
                       subtitle: '与AI对战',
-                      description: '除了您之外，所有玩家都由电脑控制\n体验智能AI的挑战',
+                      description: '除了您之外\n所有玩家都由电脑控制',
                       icon: Icons.person,
                       color: Colors.green,
                       onTap: () => _startGame(context, GameMode.singlePlayer),
