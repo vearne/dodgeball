@@ -436,8 +436,9 @@ class DodgeballGame extends FlameGame
     _updateTeamCountDisplay();
 
     // 检查红队是否全部被淘汰
-    final redAlive = redPlayers.where((p) => !p.isEliminated).length;
-    final blueAlive = bluePlayers.where((p) => !p.isEliminated).length;
+    // 由于被淘汰的玩家已经从列表中移除，直接检查列表长度
+    final redAlive = redPlayers.length;
+    final blueAlive = bluePlayers.length;
 
     if (redAlive == 0) {
       _handleVictory(GameState.blueWins);
@@ -579,11 +580,28 @@ class DodgeballGame extends FlameGame
 
   /// 更新队伍统计显示
   void _updateTeamCountDisplay() {
-    final redAlive = redPlayers.where((p) => !p.isEliminated).length;
-    final blueAlive = bluePlayers.where((p) => !p.isEliminated).length;
+    // 由于被淘汰的玩家已经从列表中移除，直接计算列表长度
+    final redAlive = redPlayers.length;
+    final blueAlive = bluePlayers.length;
 
     redTeamCountText?.text = '红队: $redAlive';
     blueTeamCountText?.text = '蓝队: $blueAlive';
+  }
+
+  /// 当玩家被淘汰时调用
+  void onPlayerEliminated(PlayerComponent player) {
+    // 从玩家列表中移除被淘汰的玩家
+    if (player.team == Team.red) {
+      redPlayers.remove(player);
+    } else {
+      bluePlayers.remove(player);
+    }
+
+    // 从锁定列表中移除
+    playersLocked.remove(player.playerId);
+
+    // 更新统计显示
+    _updateTeamCountDisplay();
   }
 
   /// 添加外围边界墙壁

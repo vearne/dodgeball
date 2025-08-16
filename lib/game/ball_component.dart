@@ -5,7 +5,6 @@ import 'package:flame/components.dart';
 
 import 'arrow_component.dart';
 import 'dodgeball_game.dart';
-import 'game_mode.dart';
 import 'player_component.dart';
 import 'team.dart';
 
@@ -91,20 +90,18 @@ class BallComponent extends CircleComponent
 
   /// 处理与玩家的碰撞
   void _handlePlayerCollision(PlayerComponent player) {
-    if (player.isEliminated || player.team == team) return;
+    // 检查玩家是否已经被淘汰或正在被移除
+    if (player.isEliminated || player.team == team) {
+      return;
+    }
 
     // 验证碰撞的有效性
     if (_isValidPlayerCollision(player)) {
       // 根据游戏模式处理碰撞
       final game = findGame();
       if (game != null && game is DodgeballGame) {
-        if (game.gameplayMode == GameplayMode.elimination) {
-          // 淘汰赛：直接淘汰
-          player.eliminate();
-        } else if (game.gameplayMode == GameplayMode.timeLimit) {
-          // 限时赛：受到伤害但不立即淘汰
-          player.takeDamage();
-        }
+        // 统一处理：玩家受到伤害
+        player.takeDamage();
       } else {
         // 默认行为：淘汰
         player.eliminate();

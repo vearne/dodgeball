@@ -44,7 +44,7 @@ class AIController extends Component {
   void _setupBehaviorTimers() {
     // 根据难度调整AI行为参数
     _movementSpeed = 60.0 + (difficultyLevel * 40.0);
-    _thinkInterval = 3.0 - (difficultyLevel * 1.0);
+    _thinkInterval = 1.5 - (difficultyLevel * 0.5); // AI思考间隔更短，反应更快
     _aggressiveness = 0.5 + (difficultyLevel * 0.3);
   }
 
@@ -98,7 +98,8 @@ class AIController extends Component {
       final ballVelocity = ball.velocity;
 
       // 如果球在朝玩家方向移动，且距离较近
-      if (toBall.dot(ballVelocity) < 0 && toBall.length < 150) {
+      if (toBall.dot(ballVelocity) < 0 && toBall.length < 250) {
+        // 增加威胁检测距离
         balls.add(ball);
       }
     }
@@ -121,17 +122,37 @@ class AIController extends Component {
     }
 
     if (mostDangerous != null) {
-      // 计算垂直于球移动方向的躲避位置
+      // 计算更智能的躲避位置
+      const dodgeDistance = 80.0;
       final ballVelocity = mostDangerous.velocity.normalized();
-      final perpendicular = Vector2(-ballVelocity.y, ballVelocity.x);
+      final perpendicular1 = Vector2(-ballVelocity.y, ballVelocity.x);
+      final target1 = player.position + perpendicular1 * dodgeDistance;
+      final target2 = player.position - perpendicular1 * dodgeDistance;
 
-      // 随机选择左右方向
-      if (_random.nextBool()) {
-        perpendicular.negate();
+      final isTarget1Valid =
+          _isValidPosition(target1) && !_wouldOverlapWithOtherPlayers(target1);
+      final isTarget2Valid =
+          _isValidPosition(target2) && !_wouldOverlapWithOtherPlayers(target2);
+
+      final validTargets = <Vector2>[];
+      if (isTarget1Valid) {
+        validTargets.add(target1);
+      }
+      if (isTarget2Valid) {
+        validTargets.add(target2);
       }
 
-      _targetPosition = player.position + perpendicular * 80.0;
-      _clampToValidPosition();
+      if (validTargets.isNotEmpty) {
+        // 从有效的躲避方向中随机选择一个
+        _targetPosition = validTargets[_random.nextInt(validTargets.length)];
+      } else {
+        // 如果两侧都无法躲避，尝试后退
+        final awayDirection = (player.position - mostDangerous.position)
+            .normalized();
+        _targetPosition = player.position + awayDirection * dodgeDistance;
+      }
+
+      _clampToValidPosition(); // 确保最终目标位置在有效区域内
       _isMoving = true;
     }
   }
@@ -165,6 +186,8 @@ class AIController extends Component {
       if (target != null) {
         // 检查玩家的投球冷却时间
         if (player.canThrow) {
+          // 停止移动以进行瞄准和投掷
+          _isMoving = false;
           // 请求投球（将通过游戏主逻辑处理）
           _requestThrow(target.position);
         }
@@ -269,12 +292,11 @@ class AIController extends Component {
   void _requestThrow(Vector2 targetPosition) {
     final game = findGame();
     if (game != null && game is HasThrowRequest) {
-      // 使用玩家的当前朝向方向作为投掷方向
-      Vector2 throwDirection = player.currentDirection;
-      if (throwDirection.length <= 0.1) {
-        // 如果没有朝向方向，计算到目标的方向
-        throwDirection = (targetPosition - player.position).normalized();
-      }
+      // 投掷方向应始终朝向目标
+      final throwDirection = (targetPosition - player.position).normalized();
+
+      // 更新玩家朝向以面对目标
+      player.setDirection(throwDirection);
 
       final throwDistance = 200.0;
       final actualTargetPosition =

@@ -86,9 +86,7 @@ class GameModeSelectorScreen extends StatelessWidget {
                       color: Colors.red,
                       onTap: () => _showEliminationSettings(context),
                     ),
-
                     const SizedBox(height: 20),
-
                     // 限时赛模式卡片
                     _GameModeCard(
                       title: '限时赛',
@@ -97,30 +95,6 @@ class GameModeSelectorScreen extends StatelessWidget {
                       icon: Icons.timer,
                       color: Colors.green,
                       onTap: () => _showTimeLimitSettings(context),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // 单人模式卡片
-                    _GameModeCard(
-                      title: '单人模式',
-                      subtitle: '与AI对战',
-                      description: '除了您之外\n所有玩家都由电脑控制',
-                      icon: Icons.person,
-                      color: Colors.orange,
-                      onTap: () => _showEliminationSettings(context),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // 多人模式卡片
-                    _GameModeCard(
-                      title: '多人模式',
-                      subtitle: '玩家手动控制',
-                      description: '所有玩家都可以手动控制\n与朋友一起游戏',
-                      icon: Icons.group,
-                      color: Colors.purple,
-                      onTap: () => _showEliminationSettings(context),
                     ),
                   ],
                 ),
@@ -145,8 +119,6 @@ class GameModeSelectorScreen extends StatelessWidget {
       builder: (context) => const _TimeLimitSettingsDialog(),
     );
   }
-
-
 }
 
 // 淘汰赛设置对话框
