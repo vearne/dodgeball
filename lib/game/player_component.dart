@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'ai_controller.dart';
 import 'arrow_component.dart';
 import 'crown_component.dart';
+import 'dodgeball_game.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
@@ -39,6 +40,7 @@ class PlayerComponent extends PositionComponent
   final double radius;
   final ui.Color _color;
   bool isEliminated = false;
+  bool _pendingRemoval = false; // 新增：标记是否待移除
 
   // 新增：生命值系统
   int _maxHealth = 3; // 默认最大生命值
@@ -55,16 +57,20 @@ class PlayerComponent extends PositionComponent
   void setMaxHealth(int health) {
     _maxHealth = health;
     _currentHealth = health;
+    // 更新生命值显示
+    _healthText?.text = '$_currentHealth/$_maxHealth';
   }
 
   // 受到伤害
   void takeDamage() {
-    if (_currentHealth > 0) {
+    if (_currentHealth > 0 && !isEliminated) {
       _currentHealth--;
       // 更新生命值显示
       _healthText?.text = '$_currentHealth/$_maxHealth';
       if (_currentHealth <= 0) {
         isEliminated = true;
+        // 当生命值耗尽时，从游戏中移除玩家
+        eliminate();
       }
     }
   }
@@ -79,6 +85,7 @@ class PlayerComponent extends PositionComponent
     _currentHealth = _maxHealth;
     _score = 0;
     isEliminated = false;
+    _pendingRemoval = false; // 重置移除标志
     // 更新生命值显示
     _healthText?.text = '$_currentHealth/$_maxHealth';
   }
@@ -288,6 +295,13 @@ class PlayerComponent extends PositionComponent
   void update(double dt) {
     super.update(dt);
 
+    // 检查是否应该移除
+    if (_pendingRemoval) {
+      _pendingRemoval = false;
+      removeFromParent();
+      return;
+    }
+
     if (isEliminated) return;
 
     // 更新投球冷却时间
@@ -391,8 +405,16 @@ class PlayerComponent extends PositionComponent
   }
 
   void eliminate() {
-    if (isEliminated) return;
+    if (isEliminated && _pendingRemoval) return; // 如果已经标记为待移除，直接返回
     isEliminated = true;
+    _pendingRemoval = true; // 标记待移除
+
+    // 通知游戏主类玩家被淘汰
+    final game = findGame();
+    if (game != null && game is DodgeballGame) {
+      game.onPlayerEliminated(this);
+    }
+
     // 停止控制器
     _aiController?.removeFromParent();
     _inputController?.removeFromParent();
@@ -402,7 +424,6 @@ class PlayerComponent extends PositionComponent
     _playerLabel?.removeFromParent();
     _breathingTimer?.removeFromParent();
     _healthText?.removeFromParent();
-    removeFromParent();
   }
 
   // 简单投掷接口：朝向某个方向扔球
