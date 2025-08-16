@@ -197,7 +197,7 @@ class DodgeballGame extends FlameGame
 
   void _handleWallBounces() {
     for (final ball in children.whereType<BallComponent>()) {
-      final r = ball.radius;
+      final r = ball.ballRadius;
       final px = ball.position.x;
       final py = ball.position.y;
       final wallThickness = FieldConfig.wallThickness;
