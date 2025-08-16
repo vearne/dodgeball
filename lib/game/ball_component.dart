@@ -28,8 +28,8 @@ class BallComponent extends CircleComponent
     remainingLabel = TextComponent(
       text: '$bounceCount',
       anchor: Anchor.center,
-      position: Vector2.zero(),
-      scale: Vector2.all(0.7),
+      position: Vector2(radius * 0.8, radius * 0.8),
+      scale: Vector2.all(0.5), // 调小字体大小
       priority: 1,
     );
   }
