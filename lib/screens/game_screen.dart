@@ -4,9 +4,18 @@ import '../game/dodgeball_game.dart';
 import '../game/game_mode.dart';
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key, required this.gameMode});
+  const GameScreen({
+    super.key,
+    required this.gameMode,
+    this.gameplayMode = GameplayMode.elimination,
+    this.maxHealth,
+    this.timeLimit,
+  });
 
   final GameMode gameMode;
+  final GameplayMode gameplayMode;
+  final int? maxHealth;
+  final TimeLimitOption? timeLimit;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -18,7 +27,12 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    game = DodgeballGame(gameMode: widget.gameMode);
+    game = DodgeballGame(
+      gameMode: widget.gameMode,
+      gameplayMode: widget.gameplayMode,
+      maxHealth: widget.maxHealth,
+      timeLimit: widget.timeLimit,
+    );
   }
 
   @override
@@ -162,6 +176,50 @@ class _GameScreenState extends State<GameScreen> {
             ),
           ),
 
+          // 限时赛倒计时显示
+          if (widget.gameplayMode == GameplayMode.timeLimit)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: ValueListenableBuilder<int>(
+                valueListenable: game.remainingTimeNotifier,
+                builder: (context, remainingTime, _) {
+                  final minutes = remainingTime ~/ 60;
+                  final seconds = remainingTime % 60;
+                  final timeString =
+                      '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: remainingTime <= 10
+                          ? Colors.red.shade700
+                          : Colors.black54,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.timer, color: Colors.white, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          timeString,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
           // 控制说明
           Positioned(
             bottom: 10,
@@ -203,40 +261,51 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   String _getGameModeTitle() {
-    switch (widget.gameMode) {
-      case GameMode.singlePlayer:
-        return '单人模式';
-      case GameMode.multiPlayer:
-        return '多人模式';
-    }
+    final modeName = switch (widget.gameMode) {
+      GameMode.singlePlayer => '单人模式',
+      GameMode.multiPlayer => '多人模式',
+    };
+
+    final gameplayName = switch (widget.gameplayMode) {
+      GameplayMode.elimination => '淘汰赛',
+      GameplayMode.timeLimit => '限时赛',
+    };
+
+    return '$modeName - $gameplayName';
   }
 
   IconData _getGameModeIcon() {
-    switch (widget.gameMode) {
-      case GameMode.singlePlayer:
-        return Icons.person;
-      case GameMode.multiPlayer:
-        return Icons.group;
+    switch (widget.gameplayMode) {
+      case GameplayMode.elimination:
+        return Icons.sports_volleyball;
+      case GameplayMode.timeLimit:
+        return Icons.timer;
     }
   }
 
   String _getControlInstructions() {
-    switch (widget.gameMode) {
-      case GameMode.singlePlayer:
-        return '控制说明：\n'
-            'WASD移动 • 方向键瞄准 • 空格投球\n'
-            '点击屏幕也可投球 • AI玩家自动行动';
-      case GameMode.multiPlayer:
-        return '控制说明：\n'
-            '玩家1：WASD移动 • 方向键瞄准 • 空格投球\n'
-            '玩家2：IJKL移动 • 数字键瞄准 • 0键投球\n'
-            '也可点击屏幕投球';
-    }
+    final controlText = switch (widget.gameMode) {
+      GameMode.singlePlayer => 'WASD移动 • 方向键瞄准 • 空格投球\n点击屏幕也可投球 • AI玩家自动行动',
+      GameMode.multiPlayer =>
+        '玩家1：WASD移动 • 方向键瞄准 • 空格投球\n玩家2：IJKL移动 • 数字键瞄准 • 0键投球\n也可点击屏幕投球',
+    };
+
+    final gameplayText = switch (widget.gameplayMode) {
+      GameplayMode.elimination => '被击中即淘汰 • 最后存活队伍获胜',
+      GameplayMode.timeLimit => '被击中得分 • 时间到统计分数',
+    };
+
+    return '控制说明：\n$controlText\n\n$gameplayText';
   }
 
   void _restartGame() {
     setState(() {
-      game = DodgeballGame(gameMode: widget.gameMode);
+      game = DodgeballGame(
+        gameMode: widget.gameMode,
+        gameplayMode: widget.gameplayMode,
+        maxHealth: widget.maxHealth,
+        timeLimit: widget.timeLimit,
+      );
     });
   }
 
@@ -252,9 +321,12 @@ class _GameScreenState extends State<GameScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.gameMode == GameMode.singlePlayer) ...[
-                  const Text(
-                    '单人模式',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    '单人模式 - ${widget.gameplayMode == GameplayMode.elimination ? "淘汰赛" : "限时赛"}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _buildControlSection('键盘控制', [
@@ -278,9 +350,12 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                   ),
                 ] else ...[
-                  const Text(
-                    '多人模式',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    '多人模式 - ${widget.gameplayMode == GameplayMode.elimination ? "淘汰赛" : "限时赛"}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   _buildControlSection('玩家1控制', [
@@ -305,9 +380,11 @@ class _GameScreenState extends State<GameScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 5),
-                const Text(
-                  '用球击中对方队员将其淘汰，保护自己的队员不被击中。球会在墙壁上反弹，利用反弹击中敌人！',
-                  style: TextStyle(color: Colors.grey),
+                Text(
+                  widget.gameplayMode == GameplayMode.elimination
+                      ? '用球击中对方队员将其淘汰，保护自己的队员不被击中。球会在墙壁上反弹，利用反弹击中敌人！'
+                      : '用球击中对方队员得分，时间到统计各队分数。球会在墙壁上反弹，利用反弹击中敌人！',
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),

@@ -30,7 +30,7 @@ class PlayerComponent extends PositionComponent
        ) {
     // 设置随机初始冷却时间（1-10秒）
     final random = math.Random();
-    _lastThrowTime = -(1.0 + random.nextDouble() * 9.0); // 负值表示还在初始冷却中
+    _lastThrowTime = (1.0 + random.nextDouble() * 9.0); // 负值表示还在初始冷却中
   }
 
   final Team team;
@@ -39,6 +39,49 @@ class PlayerComponent extends PositionComponent
   final double radius;
   final ui.Color _color;
   bool isEliminated = false;
+
+  // 新增：生命值系统
+  int _maxHealth = 3; // 默认最大生命值
+  int _currentHealth = 3; // 当前生命值
+  int _score = 0; // 得分（限时赛用）
+
+  // 生命值访问器
+  int get maxHealth => _maxHealth;
+  int get currentHealth => _currentHealth;
+  int get score => _score;
+  bool get isAlive => _currentHealth > 0;
+
+  // 设置最大生命值（淘汰赛用）
+  void setMaxHealth(int health) {
+    _maxHealth = health;
+    _currentHealth = health;
+  }
+
+  // 受到伤害
+  void takeDamage() {
+    if (_currentHealth > 0) {
+      _currentHealth--;
+      // 更新生命值显示
+      _healthText?.text = '$_currentHealth/$_maxHealth';
+      if (_currentHealth <= 0) {
+        isEliminated = true;
+      }
+    }
+  }
+
+  // 增加得分（限时赛用）
+  void addScore(int points) {
+    _score += points;
+  }
+
+  // 重置生命值和得分
+  void reset() {
+    _currentHealth = _maxHealth;
+    _score = 0;
+    isEliminated = false;
+    // 更新生命值显示
+    _healthText?.text = '$_currentHealth/$_maxHealth';
+  }
 
   AIController? _aiController;
   InputController? _inputController;
@@ -50,6 +93,7 @@ class PlayerComponent extends PositionComponent
   double movementSpeed = 120.0;
   Vector2 _velocity = Vector2.zero();
   Vector2 _targetDirection = Vector2.zero();
+  Vector2 _currentDirection = Vector2(1, 0); // 当前朝向方向，默认为向右
 
   // 投球冷却
   double _lastThrowTime = 0.0;
@@ -65,11 +109,22 @@ class PlayerComponent extends PositionComponent
     _lastThrowTime = 0.0;
   }
 
+  // 设置朝向方向（供AI控制器使用）
+  void setDirection(Vector2 direction) {
+    if (direction.length > 0.1) {
+      _currentDirection = direction.normalized();
+    }
+  }
+
+  // 获取当前朝向方向
+  Vector2 get currentDirection => _currentDirection;
+
   // 视觉组件
   ArrowComponent? _arrowIcon;
   CrownComponent? _crownIcon;
   TextComponent? _playerLabel;
   TimerComponent? _breathingTimer;
+  TextComponent? _healthText; // 生命值显示
 
   static ui.Color _teamColor(Team team) {
     switch (team) {
@@ -84,17 +139,7 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 添加统一尺寸的“身体”圆形（视觉与碰撞一致）
-    final body = CircleComponent(
-      radius: radius,
-      anchor: Anchor.center,
-      paint: ui.Paint()
-        ..color = _color
-        ..style = ui.PaintingStyle.fill,
-    );
-    add(body);
-
-    // 添加圆形碰撞检测（与视觉半径一致）
+    // 添加玩家碰撞体
     add(CircleHitbox(radius: radius));
 
     // 设置玩家视觉效果
@@ -106,6 +151,9 @@ class PlayerComponent extends PositionComponent
     } else {
       _setupInputController();
     }
+
+    // 添加生命值显示
+    _setupHealthDisplay();
   }
 
   void _setupAIController() {
@@ -131,11 +179,7 @@ class PlayerComponent extends PositionComponent
 
   void _setupPlayerVisuals() {
     // 添加箭头图标
-    _arrowIcon = ArrowComponent(
-      size: radius * 2,
-      color: _color,
-      angle: 0.0, // 初始方向向右
-    );
+    _arrowIcon = ArrowComponent(sideLength: radius * 2, color: _color);
     add(_arrowIcon!);
 
     if (controllerType == PlayerControllerType.human) {
@@ -150,52 +194,40 @@ class PlayerComponent extends PositionComponent
   void _setupHumanPlayerVisuals() {
     // 为人类玩家添加特殊的视觉效果
 
-    // 1. 添加王冠图标
+    // 1. 添加王冠图标（挂载到箭头内部）
     _crownIcon = CrownComponent(
-      size: radius * 0.8,
-      color: const ui.Color(0xFFFFD700), // 金色王冠
+      size: radius * 0.6,
+      color: const ui.Color(0xFFFFD700),
     );
-    // 王冠继承自Component，需要用PositionComponent包装
-    final crownWrapper = PositionComponent(
-      position: Vector2(0, -radius * 0.3),
+    // 将王冠放在箭头主体靠左上侧
+    final crownHolder = PositionComponent(
+      anchor: Anchor.center,
+      position: Vector2(radius * 0.6, radius * 0.6),
       children: [_crownIcon!],
     );
-    add(crownWrapper);
+    _arrowIcon?.add(crownHolder);
 
     // 2. 添加"HUMAN"标识
     _playerLabel = TextComponent(
       text: 'YOU',
       textRenderer: TextPaint(
         style: const TextStyle(
-          fontSize: 8,
+          fontSize: 6,
           fontWeight: FontWeight.bold,
-          color: ui.Color(0xFFFFFFFF), // 白色
+          color: ui.Color(0xFFFFFFFF),
         ),
       ),
       anchor: Anchor.center,
-      position: Vector2(0, radius * 0.7), // 位于玩家下方
+      // 放在箭头主体中部略偏右
+      position: Vector2(radius * 1.0, radius * 1.0),
     );
-    add(_playerLabel!);
+    _arrowIcon?.add(_playerLabel!);
 
     // 3. 更新箭头颜色，让人类玩家更亮
     final brightColor = _getBrightTeamColor(team);
     _arrowIcon?.color = brightColor;
 
-    // 4. 添加发光边框效果
-    final glowPaint = ui.Paint()
-      ..color = const ui.Color(0x50FFFFFF)
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-
-    add(
-      CircleComponent(
-        radius: radius + 2,
-        paint: glowPaint,
-        anchor: Anchor.center,
-      ),
-    );
-
-    // 5. 添加呼吸动画效果
+    // 4. 添加呼吸动画效果
     _breathingTimer = TimerComponent(
       period: 1.0,
       repeat: true,
@@ -210,20 +242,37 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupAIPlayerVisuals() {
-    // AI玩家保持原始外观，但添加"AI"标识
+    // AI玩家：在箭头内部添加"AI"标识
     _playerLabel = TextComponent(
       text: 'AI',
       textRenderer: TextPaint(
         style: const TextStyle(
-          fontSize: 8,
+          fontSize: 6,
           fontWeight: FontWeight.bold,
-          color: ui.Color(0xFFFFFFFF), // 白色
+          color: ui.Color(0xFFFFFFFF),
         ),
       ),
       anchor: Anchor.center,
       position: Vector2.zero(),
     );
-    add(_playerLabel!);
+    _arrowIcon?.add(_playerLabel!);
+  }
+
+  void _setupHealthDisplay() {
+    // 生命值显示在玩家上方
+    _healthText = TextComponent(
+      text: '$_currentHealth/$_maxHealth',
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: ui.Color(0xFFFFFFFF),
+        ),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(0, -radius - 15), // 在玩家上方显示
+    );
+    add(_healthText!);
   }
 
   ui.Color _getBrightTeamColor(Team team) {
@@ -249,9 +298,9 @@ class PlayerComponent extends PositionComponent
       _updateMovement(dt);
     }
 
-    // 更新箭头方向
-    if (_velocity.length > 1.0) {
-      _arrowIcon?.updateDirection(_velocity.normalized());
+    // 更新箭头方向 - 使用当前朝向方向
+    if (_currentDirection.length > 0.1) {
+      _arrowIcon?.updateDirection(_currentDirection);
     }
   }
 
@@ -260,6 +309,9 @@ class PlayerComponent extends PositionComponent
     _velocity = _velocity * 0.9 + _targetDirection * movementSpeed * 0.1;
 
     if (_velocity.length > 1.0) {
+      // 更新当前朝向方向为移动方向
+      _currentDirection = _velocity.normalized();
+
       final newPosition = position + _velocity * dt;
 
       // 边界检查和玩家重叠检查
@@ -306,6 +358,10 @@ class PlayerComponent extends PositionComponent
   void _handleMovementInput(Vector2 direction) {
     if (!isEliminated) {
       _targetDirection = direction;
+      // 如果有移动输入，立即更新朝向方向
+      if (direction.length > 0.1) {
+        _currentDirection = direction;
+      }
     }
   }
 
@@ -319,9 +375,10 @@ class PlayerComponent extends PositionComponent
 
     final game = findGame();
     if (game != null && game is HasPlayerThrowRequest) {
-      // 计算投掷目标位置
+      // 使用当前朝向方向作为投掷方向
+      final throwDirection = _currentDirection;
       final throwDistance = 200.0;
-      final targetPosition = absoluteCenter + direction * throwDistance;
+      final targetPosition = absoluteCenter + throwDirection * throwDistance;
 
       (game as HasPlayerThrowRequest).requestThrowFromPlayer(
         this,
@@ -344,6 +401,7 @@ class PlayerComponent extends PositionComponent
     _crownIcon?.removeFromParent();
     _playerLabel?.removeFromParent();
     _breathingTimer?.removeFromParent();
+    _healthText?.removeFromParent();
     removeFromParent();
   }
 

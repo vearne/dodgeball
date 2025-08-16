@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../game/game_mode.dart';
 import 'game_screen.dart';
+import 'audio_settings_screen.dart';
 
 class GameModeSelectorScreen extends StatelessWidget {
   const GameModeSelectorScreen({super.key});
@@ -13,6 +14,20 @@ class GameModeSelectorScreen extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          // 音频设置按钮
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AudioSettingsScreen(),
+                ),
+              );
+            },
+            tooltip: '音频设置',
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -62,14 +77,38 @@ class GameModeSelectorScreen extends StatelessWidget {
                 // 游戏模式选择卡片
                 Column(
                   children: [
+                    // 淘汰赛模式卡片
+                    _GameModeCard(
+                      title: '淘汰赛',
+                      subtitle: '经典模式',
+                      description: '被球击中即淘汰\n最后存活的队伍获胜',
+                      icon: Icons.sports_volleyball,
+                      color: Colors.red,
+                      onTap: () => _showEliminationSettings(context),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // 限时赛模式卡片
+                    _GameModeCard(
+                      title: '限时赛',
+                      subtitle: '得分模式',
+                      description: '被击中得分\n时间到统计分数',
+                      icon: Icons.timer,
+                      color: Colors.green,
+                      onTap: () => _showTimeLimitSettings(context),
+                    ),
+
+                    const SizedBox(height: 20),
+
                     // 单人模式卡片
                     _GameModeCard(
                       title: '单人模式',
                       subtitle: '与AI对战',
-                      description: '除了您之外，所有玩家都由电脑控制\n体验智能AI的挑战',
+                      description: '除了您之外\n所有玩家都由电脑控制',
                       icon: Icons.person,
-                      color: Colors.green,
-                      onTap: () => _startGame(context, GameMode.singlePlayer),
+                      color: Colors.orange,
+                      onTap: () => _showEliminationSettings(context),
                     ),
 
                     const SizedBox(height: 20),
@@ -80,8 +119,8 @@ class GameModeSelectorScreen extends StatelessWidget {
                       subtitle: '玩家手动控制',
                       description: '所有玩家都可以手动控制\n与朋友一起游戏',
                       icon: Icons.group,
-                      color: Colors.orange,
-                      onTap: () => _startGame(context, GameMode.multiPlayer),
+                      color: Colors.purple,
+                      onTap: () => _showEliminationSettings(context),
                     ),
                   ],
                 ),
@@ -93,10 +132,208 @@ class GameModeSelectorScreen extends StatelessWidget {
     );
   }
 
-  void _startGame(BuildContext context, GameMode mode) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => GameScreen(gameMode: mode)));
+  void _showEliminationSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const _EliminationSettingsDialog(),
+    );
+  }
+
+  void _showTimeLimitSettings(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => const _TimeLimitSettingsDialog(),
+    );
+  }
+
+
+}
+
+// 淘汰赛设置对话框
+class _EliminationSettingsDialog extends StatefulWidget {
+  const _EliminationSettingsDialog();
+
+  @override
+  State<_EliminationSettingsDialog> createState() =>
+      _EliminationSettingsDialogState();
+}
+
+class _EliminationSettingsDialogState
+    extends State<_EliminationSettingsDialog> {
+  int _selectedMaxHealth = 3;
+  GameMode _selectedGameMode = GameMode.singlePlayer;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('淘汰赛设置'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 生命值设置
+          const Text('设置玩家生命值：'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            value: _selectedMaxHealth,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: '最大生命值',
+            ),
+            items: [1, 2, 3, 4, 5].map((health) {
+              return DropdownMenuItem(value: health, child: Text('$health 次'));
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedMaxHealth = value!;
+              });
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // 游戏模式选择
+          const Text('选择游戏模式：'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<GameMode>(
+            value: _selectedGameMode,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: '游戏模式',
+            ),
+            items: [
+              DropdownMenuItem(
+                value: GameMode.singlePlayer,
+                child: const Text('单人模式（与AI对战）'),
+              ),
+              DropdownMenuItem(
+                value: GameMode.multiPlayer,
+                child: const Text('多人模式（手动控制）'),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedGameMode = value!;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => GameScreen(
+                  gameMode: _selectedGameMode,
+                  gameplayMode: GameplayMode.elimination,
+                  maxHealth: _selectedMaxHealth,
+                ),
+              ),
+            );
+          },
+          child: const Text('开始游戏'),
+        ),
+      ],
+    );
+  }
+}
+
+// 限时赛设置对话框
+class _TimeLimitSettingsDialog extends StatefulWidget {
+  const _TimeLimitSettingsDialog();
+
+  @override
+  State<_TimeLimitSettingsDialog> createState() =>
+      _TimeLimitSettingsDialogState();
+}
+
+class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
+  TimeLimitOption _selectedTimeLimit = TimeLimitOption.oneMinute;
+  GameMode _selectedGameMode = GameMode.singlePlayer;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('限时赛设置'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // 时间设置
+          const Text('选择游戏时间：'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<TimeLimitOption>(
+            value: _selectedTimeLimit,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: '游戏时间',
+            ),
+            items: TimeLimitOption.values.map((timeLimit) {
+              return DropdownMenuItem(
+                value: timeLimit,
+                child: Text(timeLimit.displayName),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                _selectedTimeLimit = value!;
+              });
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // 游戏模式选择
+          const Text('选择游戏模式：'),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<GameMode>(
+            value: _selectedGameMode,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: '游戏模式',
+            ),
+            items: [
+              DropdownMenuItem(
+                value: GameMode.singlePlayer,
+                child: const Text('单人模式（与AI对战）'),
+              ),
+              DropdownMenuItem(
+                value: GameMode.multiPlayer,
+                child: const Text('多人模式（手动控制）'),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _selectedGameMode = value!;
+              });
+            },
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => GameScreen(
+                  gameMode: _selectedGameMode,
+                  gameplayMode: GameplayMode.timeLimit,
+                  timeLimit: _selectedTimeLimit,
+                ),
+              ),
+            );
+          },
+          child: const Text('开始游戏'),
+        ),
+      ],
+    );
   }
 }
 

@@ -1,16 +1,66 @@
-# app
+# 躲避球大战 (Dodgeball Battle)
 
-A new Flutter project.
+一个基于Flutter和Flame引擎开发的躲避球游戏。
 
-## Getting Started
+## 游戏特色
 
-This project is a starting point for a Flutter application.
+### 游戏模式
 
-A few resources to get you started if this is your first Flutter project:
+#### 1. 淘汰赛模式
+- **经典玩法**：被球击中即淘汰，最后存活的队伍获胜
+- **可自定义生命值**：支持设置1-5次生命值
+- **支持单人/多人**：可以与AI对战或与朋友一起游戏
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+#### 2. 限时赛模式
+- **得分玩法**：被击中得分，时间到统计分数
+- **时间选项**：支持1分钟和3分钟两种时长
+- **排行榜显示**：游戏结束后显示各队得分和获胜队伍
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 控制方式
+
+#### 键盘控制
+- **WASD键** - 移动玩家
+- **方向键** - 瞄准方向
+- **空格键** - 投掷球
+
+#### 触屏控制
+- **点击屏幕** - 投掷球到点击位置
+- **双击屏幕** - AI队友投球
+
+### 游戏特性
+
+- **物理引擎**：球会在墙壁上反弹，利用反弹击中敌人
+- **AI对手**：智能AI控制其他玩家
+- **音效系统**：背景音乐、投掷音效、击中音效、胜利音效
+- **移动端支持**：虚拟摇杆和触屏控制
+- **生命值系统**：淘汰赛模式下可设置玩家生命值
+- **计时系统**：限时赛模式下实时倒计时显示
+
+## 技术栈
+
+- **Flutter** - UI框架
+- **Flame** - 游戏引擎
+- **Dart** - 编程语言
+
+## 运行项目
+
+1. 确保已安装Flutter SDK
+2. 克隆项目到本地
+3. 运行 `flutter pub get` 安装依赖
+4. 运行 `flutter run` 启动游戏
+
+## 游戏截图
+
+[游戏截图将在这里显示]
+
+## 开发计划
+
+- [x] 基础躲避球游戏
+- [x] 淘汰赛模式
+- [x] 限时赛模式
+- [x] 生命值系统
+- [x] 得分统计
+- [x] 音效系统
+- [ ] 更多游戏模式
+- [ ] 网络对战
+- [ ] 成就系统

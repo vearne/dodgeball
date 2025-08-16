@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'game/audio_manager.dart';
 import 'screens/game_mode_selector.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化音频管理器
+  await AudioManager.instance.initialize();
+
+  runApp(const Dodgeball());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class Dodgeball extends StatelessWidget {
+  const Dodgeball({super.key});
 
   // This widget is the root of your application.
   @override

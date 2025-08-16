@@ -1,71 +1,68 @@
-import 'dart:ui' as ui;
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
+import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 
-/// 箭头组件，用于表示玩家和移动方向
-class ArrowComponent extends Component {
-  ArrowComponent({
-    required this.size,
-    required this.color,
-    this.angle = 0.0, // 箭头角度（弧度）
-  });
+/// 箭头组件：负责渲染箭头、承载王冠/文字，并提供与箭头形状一致的碰撞体
+class ArrowComponent extends PositionComponent with CollisionCallbacks {
+  ArrowComponent({required double sideLength, required this.color})
+    : super(size: Vector2.all(sideLength), anchor: Anchor.center);
 
-  final double size;
   ui.Color color;
-  double angle;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    // 使用两个凸多边形近似箭头：一个矩形（箭身）+ 一个三角形（箭头）
+    // 调整碰撞体大小，提高碰撞检测精度
+    add(
+      PolygonHitbox.relative([
+        Vector2(0.15, 0.30), // 稍微扩大碰撞区域
+        Vector2(0.65, 0.30),
+        Vector2(0.65, 0.70),
+        Vector2(0.15, 0.70),
+      ], parentSize: size),
+    );
+
+    add(
+      PolygonHitbox.relative([
+        Vector2(0.65, 0.15), // 扩大箭头部分碰撞区域
+        Vector2(0.95, 0.50),
+        Vector2(0.65, 0.85),
+      ], parentSize: size),
+    );
+  }
 
   @override
   void render(ui.Canvas canvas) {
+    final double s = size.x; // 正方形尺寸
+
     final paint = ui.Paint()
       ..color = color
       ..style = ui.PaintingStyle.fill;
 
     final strokePaint = ui.Paint()
-      ..color = ui.Color.fromARGB(255, 0, 0, 0)
+      ..color = const ui.Color.fromARGB(255, 0, 0, 0)
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
-    canvas.save();
+    // 绘制箭头形状（本地坐标，旋转由组件的 angle 控制）
+    final path = ui.Path()
+      ..moveTo(s * 0.9, s * 0.5)
+      ..lineTo(s * 0.6, s * 0.2)
+      ..lineTo(s * 0.6, s * 0.35)
+      ..lineTo(s * 0.1, s * 0.35)
+      ..lineTo(s * 0.1, s * 0.65)
+      ..lineTo(s * 0.6, s * 0.65)
+      ..lineTo(s * 0.6, s * 0.8)
+      ..close();
 
-    // 旋转画布到指定角度
-    canvas.translate(size / 2, size / 2);
-    canvas.rotate(angle);
-    canvas.translate(-size / 2, -size / 2);
-
-    // 绘制箭头形状
-    final path = ui.Path();
-
-    // 箭头尖端
-    path.moveTo(size * 0.9, size * 0.5);
-
-    // 箭头上边
-    path.lineTo(size * 0.6, size * 0.2);
-
-    // 箭头主体上边
-    path.lineTo(size * 0.6, size * 0.35);
-    path.lineTo(size * 0.1, size * 0.35);
-
-    // 箭头主体下边
-    path.lineTo(size * 0.1, size * 0.65);
-    path.lineTo(size * 0.6, size * 0.65);
-
-    // 箭头下边
-    path.lineTo(size * 0.6, size * 0.8);
-
-    // 回到箭头尖端
-    path.close();
-
-    // 绘制填充
     canvas.drawPath(path, paint);
-
-    // 绘制边框
     canvas.drawPath(path, strokePaint);
-
-    canvas.restore();
   }
 
-  /// 更新箭头方向
+  /// 更新箭头方向（旋转组件，使碰撞体与渲染一致）
   void updateDirection(Vector2 direction) {
     if (direction.length > 0.1) {
       angle = math.atan2(direction.y, direction.x);
