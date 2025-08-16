@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 
@@ -8,7 +6,7 @@ import 'dodgeball_game.dart';
 import 'player_component.dart';
 import 'team.dart';
 
-class BallComponent extends CircleComponent
+class BallComponent extends SpriteComponent
     with CollisionCallbacks, HasGameReference {
   BallComponent({
     required this.team,
@@ -18,17 +16,17 @@ class BallComponent extends CircleComponent
     required this.bounceCount,
     double radius = 8,
     this.onHitPlayer,
-  }) : super(
+  }) : ballRadius = radius,
+       super(
          position: position,
-         radius: radius,
+         size: Vector2.all(radius * 2), // sprite需要size而不是radius
          anchor: Anchor.center,
-         paint: ui.Paint()..color = _colorForTeam(team),
        ) {
     velocity = initialVelocity;
     remainingLabel = TextComponent(
       text: '$bounceCount',
       anchor: Anchor.center,
-      position: Vector2(radius * 0.8, radius * 0.8),
+      position: Vector2(ballRadius * 0.8, ballRadius * 0.8),
       scale: Vector2.all(0.5), // 调小字体大小
       priority: 1,
     );
@@ -42,20 +40,27 @@ class BallComponent extends CircleComponent
   bool collidedOnce = false; // 首次与墙/玩家发生碰撞后置为 true
   final void Function(BallComponent ball, PlayerComponent hitPlayer)?
   onHitPlayer;
+  final double ballRadius; // 球的半径，用于碰撞检测
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    add(CircleHitbox());
+
+    // 根据队伍加载相应的球图片
+    final spritePath = _getSpritePathForTeam(team);
+    sprite = await Sprite.load(spritePath);
+
+    // 添加圆形碰撞箱，使用ballRadius
+    add(CircleHitbox(radius: ballRadius));
     add(remainingLabel);
   }
 
-  static ui.Color _colorForTeam(Team team) {
+  static String _getSpritePathForTeam(Team team) {
     switch (team) {
       case Team.red:
-        return const ui.Color(0xFFFF5252); // 红队：红色球
+        return 'red_ball.png'; // 红队：红色球图片
       case Team.blue:
-        return const ui.Color(0xFF42A5F5); // 蓝队：蓝色球
+        return 'blue_ball.png'; // 蓝队：蓝色球图片
     }
   }
 
@@ -116,7 +121,7 @@ class BallComponent extends CircleComponent
   bool _isValidPlayerCollision(PlayerComponent player) {
     // 检查距离
     final distance = position.distanceTo(player.position);
-    final collisionDistance = radius + player.radius * 1.0; // 使用1.0倍半径
+    final collisionDistance = ballRadius + player.radius * 1.0; // 使用1.0倍半径
 
     if (distance > collisionDistance) {
       return false; // 距离太远
