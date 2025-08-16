@@ -55,6 +55,15 @@ class PlayerComponent extends PositionComponent
 
   // 设置最大生命值（淘汰赛用）
   void setMaxHealth(int health) {
+    // 检查游戏模式
+    final game = findGame();
+    if (game != null && game is DodgeballGame) {
+      if (game.gameplayMode == GameplayMode.timeLimit) {
+        // 限时赛模式：不设置生命值
+        return;
+      }
+    }
+
     _maxHealth = health;
     _currentHealth = health;
     // 更新生命值显示
@@ -63,6 +72,16 @@ class PlayerComponent extends PositionComponent
 
   // 受到伤害
   void takeDamage() {
+    // 检查游戏模式
+    final game = findGame();
+    if (game != null && game is DodgeballGame) {
+      if (game.gameplayMode == GameplayMode.timeLimit) {
+        // 限时赛模式：不减少生命值，不淘汰玩家
+        return;
+      }
+    }
+
+    // 淘汰赛模式：正常处理伤害
     if (_currentHealth > 0 && !isEliminated) {
       _currentHealth--;
       // 更新生命值显示
@@ -266,20 +285,26 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupHealthDisplay() {
-    // 生命值显示在玩家上方
-    _healthText = TextComponent(
-      text: '$_currentHealth/$_maxHealth',
-      textRenderer: TextPaint(
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: ui.Color(0xFFFFFFFF),
-        ),
-      ),
-      anchor: Anchor.center,
-      position: Vector2(0, -radius - 15), // 在玩家上方显示
-    );
-    add(_healthText!);
+    // 检查游戏模式，只在淘汰赛模式下显示生命值
+    final game = findGame();
+    if (game != null && game is DodgeballGame) {
+      if (game.gameplayMode == GameplayMode.elimination) {
+        // 生命值显示在玩家上方
+        _healthText = TextComponent(
+          text: '$_currentHealth/$_maxHealth',
+          textRenderer: TextPaint(
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: ui.Color(0xFFFFFFFF),
+            ),
+          ),
+          anchor: Anchor.center,
+          position: Vector2(0, -radius - 15), // 在玩家上方显示
+        );
+        add(_healthText!);
+      }
+    }
   }
 
   ui.Color _getBrightTeamColor(Team team) {

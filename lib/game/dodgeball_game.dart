@@ -435,6 +435,11 @@ class DodgeballGame extends FlameGame
     // 更新统计显示
     _updateTeamCountDisplay();
 
+    // 限时赛模式下不检查淘汰胜利条件
+    if (gameplayMode == GameplayMode.timeLimit) {
+      return;
+    }
+
     // 检查红队是否全部被淘汰
     // 由于被淘汰的玩家已经从列表中移除，直接检查列表长度
     final redAlive = redPlayers.length;
@@ -580,16 +585,36 @@ class DodgeballGame extends FlameGame
 
   /// 更新队伍统计显示
   void _updateTeamCountDisplay() {
-    // 由于被淘汰的玩家已经从列表中移除，直接计算列表长度
-    final redAlive = redPlayers.length;
-    final blueAlive = bluePlayers.length;
+    if (gameplayMode == GameplayMode.timeLimit) {
+      // 限时赛模式：显示得分
+      final redScore = redPlayers.fold<int>(
+        0,
+        (sum, player) => sum + player.score,
+      );
+      final blueScore = bluePlayers.fold<int>(
+        0,
+        (sum, player) => sum + player.score,
+      );
 
-    redTeamCountText?.text = '红队: $redAlive';
-    blueTeamCountText?.text = '蓝队: $blueAlive';
+      redTeamCountText?.text = '红队: $redScore分';
+      blueTeamCountText?.text = '蓝队: $blueScore分';
+    } else {
+      // 淘汰赛模式：显示存活人数
+      final redAlive = redPlayers.length;
+      final blueAlive = bluePlayers.length;
+
+      redTeamCountText?.text = '红队: $redAlive';
+      blueTeamCountText?.text = '蓝队: $blueAlive';
+    }
   }
 
   /// 当玩家被淘汰时调用
   void onPlayerEliminated(PlayerComponent player) {
+    // 限时赛模式下不执行淘汰逻辑
+    if (gameplayMode == GameplayMode.timeLimit) {
+      return;
+    }
+
     // 从玩家列表中移除被淘汰的玩家
     if (player.team == Team.red) {
       redPlayers.remove(player);
@@ -687,8 +712,8 @@ class DodgeballGame extends FlameGame
             : PlayerControllerType.human,
       );
 
-      // 设置生命值
-      if (maxHealth != null) {
+      // 设置生命值（只在淘汰赛模式下）
+      if (maxHealth != null && gameplayMode == GameplayMode.elimination) {
         red.setMaxHealth(maxHealth!);
       }
 
@@ -704,8 +729,8 @@ class DodgeballGame extends FlameGame
             : PlayerControllerType.human,
       );
 
-      // 设置生命值
-      if (maxHealth != null) {
+      // 设置生命值（只在淘汰赛模式下）
+      if (maxHealth != null && gameplayMode == GameplayMode.elimination) {
         blue.setMaxHealth(maxHealth!);
       }
 
