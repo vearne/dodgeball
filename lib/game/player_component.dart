@@ -40,6 +40,49 @@ class PlayerComponent extends PositionComponent
   final ui.Color _color;
   bool isEliminated = false;
 
+  // 新增：生命值系统
+  int _maxHealth = 3; // 默认最大生命值
+  int _currentHealth = 3; // 当前生命值
+  int _score = 0; // 得分（限时赛用）
+
+  // 生命值访问器
+  int get maxHealth => _maxHealth;
+  int get currentHealth => _currentHealth;
+  int get score => _score;
+  bool get isAlive => _currentHealth > 0;
+
+  // 设置最大生命值（淘汰赛用）
+  void setMaxHealth(int health) {
+    _maxHealth = health;
+    _currentHealth = health;
+  }
+
+  // 受到伤害
+  void takeDamage() {
+    if (_currentHealth > 0) {
+      _currentHealth--;
+      // 更新生命值显示
+      _healthText?.text = '$_currentHealth/$_maxHealth';
+      if (_currentHealth <= 0) {
+        isEliminated = true;
+      }
+    }
+  }
+
+  // 增加得分（限时赛用）
+  void addScore(int points) {
+    _score += points;
+  }
+
+  // 重置生命值和得分
+  void reset() {
+    _currentHealth = _maxHealth;
+    _score = 0;
+    isEliminated = false;
+    // 更新生命值显示
+    _healthText?.text = '$_currentHealth/$_maxHealth';
+  }
+
   AIController? _aiController;
   InputController? _inputController;
 
@@ -50,6 +93,7 @@ class PlayerComponent extends PositionComponent
   double movementSpeed = 120.0;
   Vector2 _velocity = Vector2.zero();
   Vector2 _targetDirection = Vector2.zero();
+  Vector2 _currentDirection = Vector2(1, 0); // 当前朝向方向，默认为向右
 
   // 投球冷却
   double _lastThrowTime = 0.0;
@@ -65,11 +109,22 @@ class PlayerComponent extends PositionComponent
     _lastThrowTime = 0.0;
   }
 
+  // 设置朝向方向（供AI控制器使用）
+  void setDirection(Vector2 direction) {
+    if (direction.length > 0.1) {
+      _currentDirection = direction.normalized();
+    }
+  }
+
+  // 获取当前朝向方向
+  Vector2 get currentDirection => _currentDirection;
+
   // 视觉组件
   ArrowComponent? _arrowIcon;
   CrownComponent? _crownIcon;
   TextComponent? _playerLabel;
   TimerComponent? _breathingTimer;
+  TextComponent? _healthText; // 生命值显示
 
   static ui.Color _teamColor(Team team) {
     switch (team) {
@@ -84,6 +139,9 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 添加玩家碰撞体
+    add(CircleHitbox(radius: radius));
+
     // 设置玩家视觉效果
     _setupPlayerVisuals();
 
@@ -93,6 +151,9 @@ class PlayerComponent extends PositionComponent
     } else {
       _setupInputController();
     }
+
+    // 添加生命值显示
+    _setupHealthDisplay();
   }
 
   void _setupAIController() {
@@ -197,6 +258,23 @@ class PlayerComponent extends PositionComponent
     _arrowIcon?.add(_playerLabel!);
   }
 
+  void _setupHealthDisplay() {
+    // 生命值显示在玩家上方
+    _healthText = TextComponent(
+      text: '$_currentHealth/$_maxHealth',
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: ui.Color(0xFFFFFFFF),
+        ),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(0, -radius - 15), // 在玩家上方显示
+    );
+    add(_healthText!);
+  }
+
   ui.Color _getBrightTeamColor(Team team) {
     switch (team) {
       case Team.red:
@@ -220,9 +298,9 @@ class PlayerComponent extends PositionComponent
       _updateMovement(dt);
     }
 
-    // 更新箭头方向
-    if (_velocity.length > 1.0) {
-      _arrowIcon?.updateDirection(_velocity.normalized());
+    // 更新箭头方向 - 使用当前朝向方向
+    if (_currentDirection.length > 0.1) {
+      _arrowIcon?.updateDirection(_currentDirection);
     }
   }
 
@@ -231,6 +309,9 @@ class PlayerComponent extends PositionComponent
     _velocity = _velocity * 0.9 + _targetDirection * movementSpeed * 0.1;
 
     if (_velocity.length > 1.0) {
+      // 更新当前朝向方向为移动方向
+      _currentDirection = _velocity.normalized();
+
       final newPosition = position + _velocity * dt;
 
       // 边界检查和玩家重叠检查
@@ -277,6 +358,10 @@ class PlayerComponent extends PositionComponent
   void _handleMovementInput(Vector2 direction) {
     if (!isEliminated) {
       _targetDirection = direction;
+      // 如果有移动输入，立即更新朝向方向
+      if (direction.length > 0.1) {
+        _currentDirection = direction;
+      }
     }
   }
 
@@ -290,9 +375,10 @@ class PlayerComponent extends PositionComponent
 
     final game = findGame();
     if (game != null && game is HasPlayerThrowRequest) {
-      // 计算投掷目标位置
+      // 使用当前朝向方向作为投掷方向
+      final throwDirection = _currentDirection;
       final throwDistance = 200.0;
-      final targetPosition = absoluteCenter + direction * throwDistance;
+      final targetPosition = absoluteCenter + throwDirection * throwDistance;
 
       (game as HasPlayerThrowRequest).requestThrowFromPlayer(
         this,
@@ -315,6 +401,7 @@ class PlayerComponent extends PositionComponent
     _crownIcon?.removeFromParent();
     _playerLabel?.removeFromParent();
     _breathingTimer?.removeFromParent();
+    _healthText?.removeFromParent();
     removeFromParent();
   }
 

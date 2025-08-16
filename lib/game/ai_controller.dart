@@ -201,6 +201,9 @@ class AIController extends Component {
     if (_isValidPosition(newPosition) &&
         !_wouldOverlapWithOtherPlayers(newPosition)) {
       player.position = newPosition;
+
+      // 更新玩家的朝向方向为移动方向
+      player.setDirection(direction);
     } else {
       _isMoving = false;
     }
@@ -266,7 +269,21 @@ class AIController extends Component {
   void _requestThrow(Vector2 targetPosition) {
     final game = findGame();
     if (game != null && game is HasThrowRequest) {
-      (game as HasThrowRequest).requestThrowFromAI(player, targetPosition);
+      // 使用玩家的当前朝向方向作为投掷方向
+      Vector2 throwDirection = player.currentDirection;
+      if (throwDirection.length <= 0.1) {
+        // 如果没有朝向方向，计算到目标的方向
+        throwDirection = (targetPosition - player.position).normalized();
+      }
+
+      final throwDistance = 200.0;
+      final actualTargetPosition =
+          player.position + throwDirection * throwDistance;
+
+      (game as HasThrowRequest).requestThrowFromAI(
+        player,
+        actualTargetPosition,
+      );
     }
   }
 }

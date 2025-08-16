@@ -7,10 +7,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'ai_controller.dart';
+import 'audio_manager.dart';
 import 'ball_component.dart';
 import 'field_background.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
+import 'mobile_controller.dart';
 import 'player_component.dart';
 import 'team.dart';
 
@@ -22,7 +24,13 @@ class DodgeballGame extends FlameGame
         HasKeyboardHandlerComponents,
         HasThrowRequest,
         HasPlayerThrowRequest {
-  DodgeballGame({this.randomSeed, this.gameMode = GameMode.singlePlayer}) {
+  DodgeballGame({
+    this.randomSeed,
+    this.gameMode = GameMode.singlePlayer,
+    this.gameplayMode = GameplayMode.elimination,
+    this.maxHealth,
+    this.timeLimit,
+  }) {
     if (randomSeed != null) {
       _random = Random(randomSeed);
     }
@@ -30,6 +38,9 @@ class DodgeballGame extends FlameGame
 
   final int? randomSeed;
   final GameMode gameMode;
+  final GameplayMode gameplayMode;
+  final int? maxHealth;
+  final TimeLimitOption? timeLimit;
   late Random _random = Random();
 
   final List<PlayerComponent> redPlayers = [];
@@ -47,6 +58,11 @@ class DodgeballGame extends FlameGame
   // 人类玩家得分
   final ValueNotifier<int> humanScoreNotifier = ValueNotifier<int>(0);
 
+  // 限时赛相关
+  TimerComponent? _gameTimer;
+  final ValueNotifier<int> _remainingTimeNotifier = ValueNotifier<int>(0);
+  ValueNotifier<int> get remainingTimeNotifier => _remainingTimeNotifier;
+
   // 胜利显示组件
   TextComponent? victoryText;
 
@@ -54,9 +70,18 @@ class DodgeballGame extends FlameGame
   TextComponent? redTeamCountText;
   TextComponent? blueTeamCountText;
 
+  // 音频管理器
+  final AudioManager _audioManager = AudioManager.instance;
+
+  // 移动设备控制器
+  MobileController? _mobileController;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // 初始化音频管理器
+    await _audioManager.initialize();
 
     // 添加场地背景
     add(FieldBackground(gameSize: size));
@@ -69,67 +94,52 @@ class DodgeballGame extends FlameGame
 
     // 添加队伍统计显示
     _setupTeamCountDisplay();
-  }
 
-  Future<void> _spawnTeams() async {
-    // 两侧各 6 人
-    const int teamSize = 6;
+    // 播放背景音乐
+    await _audioManager.playBackgroundMusic();
 
-    final redArea = FieldConfig.getRedTeamArea(size);
-    final blueArea = FieldConfig.getBluTeamArea(size);
-
-    // 计算玩家在各自区域内的位置
-    final redPositions = _generatePlayerPositions(redArea, teamSize);
-    final bluePositions = _generatePlayerPositions(blueArea, teamSize);
-
-    for (int i = 0; i < teamSize; i++) {
-      final red = PlayerComponent(
-        team: Team.red,
-        playerId: i,
-        position: redPositions[i],
-        controllerType: (gameMode == GameMode.singlePlayer && i != 0)
-            ? PlayerControllerType.ai
-            : PlayerControllerType.human,
-      );
-      redPlayers.add(red);
-      add(red);
-
-      final blue = PlayerComponent(
-        team: Team.blue,
-        playerId: 100 + i,
-        position: bluePositions[i],
-        controllerType: gameMode == GameMode.singlePlayer
-            ? PlayerControllerType.ai
-            : PlayerControllerType.human,
-      );
-      bluePlayers.add(blue);
-      add(blue);
+    // 如果是移动设备，添加移动控制器
+    if (MobileController.isMobileDevice) {
+      _addMobileController();
     }
   }
 
-  /// 在指定区域内生成玩家位置
-  List<Vector2> _generatePlayerPositions(Rect area, int count) {
-    final positions = <Vector2>[];
-    final margin = 30.0; // 距离边界的边距
+  /// 添加移动设备控制器
+  void _addMobileController() {
+    _mobileController = MobileController(
+      gameSize: size,
+      onMove: _handleMobileMove,
+      onThrow: _handleMobileThrow,
+    );
+    add(_mobileController!);
+  }
 
-    // 简单的网格布局
-    final cols = (count <= 4) ? 2 : 3;
-    final rows = (count + cols - 1) ~/ cols;
-
-    final cellWidth = (area.width - margin * 2) / cols;
-    final cellHeight = (area.height - margin * 2) / rows;
-
-    int playerIndex = 0;
-    for (int row = 0; row < rows && playerIndex < count; row++) {
-      for (int col = 0; col < cols && playerIndex < count; col++) {
-        final x = area.left + margin + cellWidth * (col + 0.5);
-        final y = area.top + margin + cellHeight * (row + 0.5);
-        positions.add(Vector2(x, y));
-        playerIndex++;
+  /// 处理移动设备移动输入
+  void _handleMobileMove(Vector2 direction) {
+    // 找到人类玩家并发送移动指令
+    for (final player in redPlayers) {
+      if (player.controllerType == PlayerControllerType.human &&
+          !player.isEliminated) {
+        // 使用新的移动设备输入方法
+        player.inputController?.handleMobileInput(direction);
+        break;
       }
     }
+  }
 
-    return positions;
+  /// 处理移动设备投掷输入
+  void _handleMobileThrow() {
+    // 找到人类玩家并发送投掷指令
+    for (final player in redPlayers) {
+      if (player.controllerType == PlayerControllerType.human &&
+          !player.isEliminated) {
+        if (player.canThrow) {
+          // 使用新的移动设备投掷方法
+          player.inputController?.handleMobileThrow();
+        }
+        break;
+      }
+    }
   }
 
   @override
@@ -143,6 +153,25 @@ class DodgeballGame extends FlameGame
 
     // 更新人类玩家冷却时间通知
     _updateHumanCooldownNotifier();
+
+    // 更新移动设备控制器状态
+    _updateMobileController();
+  }
+
+  /// 更新移动设备控制器状态
+  void _updateMobileController() {
+    if (_mobileController != null) {
+      // 检查人类玩家是否可以投掷
+      bool canThrow = false;
+      for (final player in redPlayers) {
+        if (player.controllerType == PlayerControllerType.human &&
+            !player.isEliminated) {
+          canThrow = player.canThrow;
+          break;
+        }
+      }
+      _mobileController!.setThrowButtonEnabled(canThrow);
+    }
   }
 
   void _updateHumanCooldownNotifier() {
@@ -175,21 +204,26 @@ class DodgeballGame extends FlameGame
 
       // 顶部边界
       if (py - r <= wallThickness && ball.velocity.y < 0) {
+        // 修正球的位置，防止穿透
+        ball.position.y = wallThickness + r;
         ball.reflectOnHorizontalWall();
       }
 
       // 底部边界
       if (py + r >= size.y - wallThickness && ball.velocity.y > 0) {
+        ball.position.y = size.y - wallThickness - r;
         ball.reflectOnHorizontalWall();
       }
 
       // 左侧边界
       if (px - r <= wallThickness && ball.velocity.x < 0) {
+        ball.position.x = wallThickness + r;
         ball.reflectOnVerticalWall();
       }
 
       // 右侧边界
       if (px + r >= size.x - wallThickness && ball.velocity.x > 0) {
+        ball.position.x = size.x - wallThickness - r;
         ball.reflectOnVerticalWall();
       }
     }
@@ -197,23 +231,45 @@ class DodgeballGame extends FlameGame
 
   // 基于碰撞系统，不再手动检测球-玩家距离
 
-  void _awardScoreForHit(BallComponent ball) {
-    // 若发球者是人类玩家（默认红队第一个）则加分
-    if (redPlayers.isNotEmpty) {
-      final human = redPlayers.firstWhere(
-        (p) => p.controllerType == PlayerControllerType.human,
-        orElse: () => redPlayers.first,
-      );
-      if (human.playerId == ball.ownerPlayerId) {
+  void _awardScoreForHit(BallComponent ball, PlayerComponent hitPlayer) {
+    // 找到投掷球的玩家
+    final thrower = _findPlayerById(ball.ownerPlayerId);
+    if (thrower == null) return;
+
+    if (gameplayMode == GameplayMode.elimination) {
+      // 淘汰赛：被击中的玩家已经在球组件中处理了伤害
+      // 若发球者是人类玩家则加分（用于显示）
+      if (thrower.controllerType == PlayerControllerType.human) {
         humanScoreNotifier.value = humanScoreNotifier.value + 1;
       }
+    } else if (gameplayMode == GameplayMode.timeLimit) {
+      // 限时赛：投掷球的玩家得分
+      thrower.addScore(1);
+
+      // 若发球者是人类玩家则更新显示
+      if (thrower.controllerType == PlayerControllerType.human) {
+        humanScoreNotifier.value = thrower.score;
+      }
     }
+
+    // 播放击中音效
+    _audioManager.playHitSound();
+  }
+
+  /// 根据玩家ID找到玩家
+  PlayerComponent? _findPlayerById(int playerId) {
+    for (final player in [...redPlayers, ...bluePlayers]) {
+      if (player.playerId == playerId) {
+        return player;
+      }
+    }
+    return null;
   }
 
   // 简化：点击屏幕由红队随机一人向点击点扔球，双击由蓝队投掷
   @override
   void onTapDown(TapDownEvent event) {
-    if (gameState != GameState.playing) {
+    if (gameState != GameState.playing || gameState == GameState.timeUp) {
       // 游戏结束时，点击重新开始
       restartGame();
       return;
@@ -223,7 +279,7 @@ class DodgeballGame extends FlameGame
 
   @override
   void onDoubleTapDown(DoubleTapDownEvent event) {
-    if (gameState != GameState.playing) {
+    if (gameState != GameState.playing || gameState == GameState.timeUp) {
       // 游戏结束时，双击也重新开始
       restartGame();
       return;
@@ -252,10 +308,13 @@ class DodgeballGame extends FlameGame
       initialVelocity: velocity,
       bounceCount: randomBounces,
       onHitPlayer: (b, hitPlayer) {
-        _awardScoreForHit(b);
+        _awardScoreForHit(b, hitPlayer);
       },
     );
     add(ball);
+
+    // 播放投掷音效
+    _audioManager.playThrowSound();
 
     // 上锁：直到该球与墙或玩家发生一次有效碰撞才解锁
     playersLocked.add(thrower.playerId);
@@ -295,10 +354,13 @@ class DodgeballGame extends FlameGame
       initialVelocity: velocity,
       bounceCount: randomBounces,
       onHitPlayer: (b, hitPlayer) {
-        _awardScoreForHit(b);
+        _awardScoreForHit(b, hitPlayer);
       },
     );
     add(ball);
+
+    // 播放投掷音效
+    _audioManager.playThrowSound();
 
     // 重置投球冷却时间
     thrower.resetThrowCooldown();
@@ -341,10 +403,13 @@ class DodgeballGame extends FlameGame
       initialVelocity: velocity,
       bounceCount: randomBounces,
       onHitPlayer: (b, hitPlayer) {
-        _awardScoreForHit(b);
+        _awardScoreForHit(b, hitPlayer);
       },
     );
     add(ball);
+
+    // 播放投掷音效
+    _audioManager.playThrowSound();
 
     // 上锁：直到该球与墙或玩家发生一次有效碰撞才解锁
     playersLocked.add(thrower.playerId);
@@ -389,6 +454,9 @@ class DodgeballGame extends FlameGame
     for (final ball in children.whereType<BallComponent>()) {
       ball.removeFromParent();
     }
+
+    // 播放胜利音效
+    _audioManager.playVictorySound();
 
     // 显示胜利信息
     _showVictoryMessage(winner);
@@ -461,6 +529,11 @@ class DodgeballGame extends FlameGame
     redTeamCountText = null;
     blueTeamCountText = null;
     humanScoreNotifier.value = 0;
+
+    // 重置限时赛状态
+    _gameTimer?.removeFromParent();
+    _gameTimer = null;
+    _remainingTimeNotifier.value = 0;
 
     // 重新设置场地
     add(FieldBackground(gameSize: size));
@@ -566,5 +639,220 @@ class DodgeballGame extends FlameGame
       }
     }
     return KeyEventResult.handled;
+  }
+
+  @override
+  void onRemove() {
+    // 停止背景音乐
+    _audioManager.stopBackgroundMusic();
+    super.onRemove();
+  }
+
+  Future<void> _spawnTeams() async {
+    // 两侧各 6 人
+    const int teamSize = 6;
+
+    final redArea = FieldConfig.getRedTeamArea(size);
+    final blueArea = FieldConfig.getBluTeamArea(size);
+
+    // 计算玩家在各自区域内的位置
+    final redPositions = _generatePlayerPositions(redArea, teamSize);
+    final bluePositions = _generatePlayerPositions(blueArea, teamSize);
+
+    for (int i = 0; i < teamSize; i++) {
+      final red = PlayerComponent(
+        team: Team.red,
+        playerId: i,
+        position: redPositions[i],
+        controllerType: (gameMode == GameMode.singlePlayer && i != 0)
+            ? PlayerControllerType.ai
+            : PlayerControllerType.human,
+      );
+
+      // 设置生命值
+      if (maxHealth != null) {
+        red.setMaxHealth(maxHealth!);
+      }
+
+      redPlayers.add(red);
+      add(red);
+
+      final blue = PlayerComponent(
+        team: Team.blue,
+        playerId: 100 + i,
+        position: bluePositions[i],
+        controllerType: gameMode == GameMode.singlePlayer
+            ? PlayerControllerType.ai
+            : PlayerControllerType.human,
+      );
+
+      // 设置生命值
+      if (maxHealth != null) {
+        blue.setMaxHealth(maxHealth!);
+      }
+
+      bluePlayers.add(blue);
+      add(blue);
+    }
+
+    // 如果是限时赛，启动计时器
+    if (gameplayMode == GameplayMode.timeLimit && timeLimit != null) {
+      _startTimeLimitGame();
+    }
+  }
+
+  /// 启动限时赛
+  void _startTimeLimitGame() {
+    _remainingTimeNotifier.value = timeLimit!.seconds;
+
+    _gameTimer = TimerComponent(
+      period: 1.0,
+      repeat: true,
+      onTick: () {
+        _remainingTimeNotifier.value--;
+
+        if (_remainingTimeNotifier.value <= 0) {
+          _handleTimeUp();
+        }
+      },
+    );
+    add(_gameTimer!);
+  }
+
+  /// 处理限时赛时间到
+  void _handleTimeUp() {
+    gameState = GameState.timeUp;
+
+    // 停止计时器
+    _gameTimer?.removeFromParent();
+    _gameTimer = null;
+
+    // 停止所有球的移动
+    for (final ball in children.whereType<BallComponent>()) {
+      ball.removeFromParent();
+    }
+
+    // 播放结束音效
+    _audioManager.playVictorySound();
+
+    // 显示得分统计
+    _showScoreResults();
+  }
+
+  /// 显示得分统计
+  void _showScoreResults() {
+    // 计算各队得分
+    final redTeamScore = redPlayers.fold<int>(
+      0,
+      (sum, player) => sum + player.score,
+    );
+    final blueTeamScore = bluePlayers.fold<int>(
+      0,
+      (sum, player) => sum + player.score,
+    );
+
+    // 背景遮罩
+    final overlay = RectangleComponent(
+      size: size,
+      paint: Paint()..color = const Color(0x80000000), // 半透明黑色
+    );
+    add(overlay);
+
+    // 标题
+    final titleText = TextComponent(
+      text: '游戏结束！',
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2 - 80),
+    );
+    add(titleText);
+
+    // 得分统计
+    final scoreText = TextComponent(
+      text: '红队得分: $redTeamScore\n蓝队得分: $blueTeamScore',
+      textRenderer: TextPaint(
+        style: const TextStyle(fontSize: 24, color: Colors.white, height: 1.5),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2 - 20),
+    );
+    add(scoreText);
+
+    // 获胜队伍
+    final winnerText = TextComponent(
+      text: redTeamScore > blueTeamScore
+          ? '红队获胜！'
+          : blueTeamScore > redTeamScore
+          ? '蓝队获胜！'
+          : '平局！',
+      textRenderer: TextPaint(
+        style: TextStyle(
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          color: redTeamScore > blueTeamScore
+              ? const Color(0xFFE53935)
+              : blueTeamScore > redTeamScore
+              ? const Color(0xFF1E88E5)
+              : Colors.yellow,
+        ),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2 + 20),
+    );
+    add(winnerText);
+
+    // 重新开始提示
+    final restartText = TextComponent(
+      text: '点击屏幕重新开始',
+      textRenderer: TextPaint(
+        style: const TextStyle(fontSize: 20, color: Color(0xFFFFFFFF)),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(size.x / 2, size.y / 2 + 80),
+    );
+    add(restartText);
+
+    // 添加闪烁效果
+    final blinkTimer = TimerComponent(
+      period: 0.5,
+      repeat: true,
+      onTick: () {
+        restartText.scale = restartText.scale == Vector2.all(1.0)
+            ? Vector2.all(1.2)
+            : Vector2.all(1.0);
+      },
+    );
+    add(blinkTimer);
+  }
+
+  /// 在指定区域内生成玩家位置
+  List<Vector2> _generatePlayerPositions(Rect area, int count) {
+    final positions = <Vector2>[];
+    final margin = 30.0; // 距离边界的边距
+
+    // 简单的网格布局
+    final cols = (count <= 4) ? 2 : 3;
+    final rows = (count + cols - 1) ~/ cols;
+
+    final cellWidth = (area.width - margin * 2) / cols;
+    final cellHeight = (area.height - margin * 2) / rows;
+
+    int playerIndex = 0;
+    for (int row = 0; row < rows && playerIndex < count; row++) {
+      for (int col = 0; col < cols && playerIndex < count; col++) {
+        final x = area.left + margin + cellWidth * (col + 0.5);
+        final y = area.top + margin + cellHeight * (row + 0.5);
+        positions.add(Vector2(x, y));
+        playerIndex++;
+      }
+    }
+
+    return positions;
   }
 }
