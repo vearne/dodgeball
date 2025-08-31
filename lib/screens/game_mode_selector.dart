@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../game/game_mode.dart';
 import 'game_screen.dart';
 import 'audio_settings_screen.dart';
+import 'multiplayer_lobby_screen.dart';
 
 class GameModeSelectorScreen extends StatelessWidget {
   const GameModeSelectorScreen({super.key});
@@ -178,7 +179,7 @@ class _EliminationSettingsDialogState
               ),
               DropdownMenuItem(
                 value: GameMode.multiPlayer,
-                child: const Text('多人模式（手动控制）'),
+                child: const Text('多人联机模式'),
               ),
             ],
             onChanged: (value) {
@@ -197,15 +198,28 @@ class _EliminationSettingsDialogState
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => GameScreen(
-                  gameMode: _selectedGameMode,
-                  gameplayMode: GameplayMode.elimination,
-                  maxHealth: _selectedMaxHealth,
+            if (_selectedGameMode == GameMode.multiPlayer) {
+              // 多人模式：跳转到多人大厅
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => MultiplayerLobbyScreen(
+                    gameplayMode: GameplayMode.elimination,
+                    maxHealth: _selectedMaxHealth,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              // 单人模式：直接开始游戏
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => GameScreen(
+                    gameMode: _selectedGameMode,
+                    gameplayMode: GameplayMode.elimination,
+                    maxHealth: _selectedMaxHealth,
+                  ),
+                ),
+              );
+            }
           },
           child: const Text('开始游戏'),
         ),
@@ -273,7 +287,7 @@ class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
               ),
               DropdownMenuItem(
                 value: GameMode.multiPlayer,
-                child: const Text('多人模式（手动控制）'),
+                child: const Text('多人联机模式'),
               ),
             ],
             onChanged: (value) {
@@ -292,15 +306,28 @@ class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => GameScreen(
-                  gameMode: _selectedGameMode,
-                  gameplayMode: GameplayMode.timeLimit,
-                  timeLimit: _selectedTimeLimit,
+            if (_selectedGameMode == GameMode.multiPlayer) {
+              // 多人模式：跳转到多人大厅
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => MultiplayerLobbyScreen(
+                    gameplayMode: GameplayMode.timeLimit,
+                    timeLimit: _selectedTimeLimit,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              // 单人模式：直接开始游戏
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => GameScreen(
+                    gameMode: _selectedGameMode,
+                    gameplayMode: GameplayMode.timeLimit,
+                    timeLimit: _selectedTimeLimit,
+                  ),
+                ),
+              );
+            }
           },
           child: const Text('开始游戏'),
         ),

@@ -79,12 +79,8 @@ class BallComponent extends SpriteComponent
   ) {
     super.onCollisionStart(intersectionPoints, other);
 
-    // 与玩家组件直接碰撞
-    if (other is PlayerComponent) {
-      _handlePlayerCollision(other);
-    }
-    // 与玩家箭头发生碰撞（备用检测）
-    else if (other is ArrowComponent) {
+    // 只与箭头组件进行精确碰撞检测，与视觉完全一致
+    if (other is ArrowComponent) {
       final parentComponent = other.parent;
       if (parentComponent is PlayerComponent) {
         final player = parentComponent;
@@ -144,13 +140,13 @@ class BallComponent extends SpriteComponent
 
   void reflectOnHorizontalWall() {
     collidedOnce = true;
-    velocity.y = -velocity.y;
+    velocity.y = -velocity.y * 0.8; // 20%能量损失，与多人模式保持一致
     _decreaseAndCheck();
   }
 
   void reflectOnVerticalWall() {
     collidedOnce = true;
-    velocity.x = -velocity.x;
+    velocity.x = -velocity.x * 0.8; // 20%能量损失，与多人模式保持一致
     _decreaseAndCheck();
   }
 

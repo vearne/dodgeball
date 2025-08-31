@@ -14,22 +14,16 @@ class ArrowComponent extends PositionComponent with CollisionCallbacks {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-    // 使用两个凸多边形近似箭头：一个矩形（箭身）+ 一个三角形（箭头）
-    // 调整碰撞体大小，提高碰撞检测精度
+    // 使用与服务器端完全一致的箭头形状进行精确碰撞检测
     add(
       PolygonHitbox.relative([
-        Vector2(0.15, 0.30), // 稍微扩大碰撞区域
-        Vector2(0.65, 0.30),
-        Vector2(0.65, 0.70),
-        Vector2(0.15, 0.70),
-      ], parentSize: size),
-    );
-
-    add(
-      PolygonHitbox.relative([
-        Vector2(0.65, 0.15), // 扩大箭头部分碰撞区域
-        Vector2(0.95, 0.50),
-        Vector2(0.65, 0.85),
+        Vector2(0.9, 0.5),   // 箭头尖端
+        Vector2(0.6, 0.2),   // 箭头上角
+        Vector2(0.6, 0.35),  // 箭身上侧
+        Vector2(0.1, 0.35),  // 箭身左侧上
+        Vector2(0.1, 0.65),  // 箭身左侧下
+        Vector2(0.6, 0.65),  // 箭身下侧
+        Vector2(0.6, 0.8),   // 箭头下角
       ], parentSize: size),
     );
   }

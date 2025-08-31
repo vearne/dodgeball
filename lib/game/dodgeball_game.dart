@@ -46,8 +46,7 @@ class DodgeballGame extends FlameGame
   final List<PlayerComponent> redPlayers = [];
   final List<PlayerComponent> bluePlayers = [];
 
-  // 管控每个玩家是否可以再次投掷（必须等到上一次球命中墙或玩家后）
-  final Set<int> playersLocked = {};
+  // 投掷冷却改为使用PlayerComponent的10秒时间冷却机制，不再使用playersLocked
 
   // 游戏状态
   GameState gameState = GameState.playing;
@@ -291,13 +290,13 @@ class DodgeballGame extends FlameGame
 
   void _throwFromTeamTowards(Team team, Vector2 target) {
     final candidates = (team == Team.red ? redPlayers : bluePlayers)
-        .where((p) => !p.isEliminated && !playersLocked.contains(p.playerId))
+        .where((p) => !p.isEliminated && p.canThrow)
         .toList();
     if (candidates.isEmpty) return;
     final thrower = candidates[_random.nextInt(candidates.length)];
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 360.0; // 可调速度
+    final speed = 400.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 1 + _random.nextInt(5); // 1..5
@@ -316,21 +315,8 @@ class DodgeballGame extends FlameGame
     // 播放投掷音效
     _audioManager.playThrowSound();
 
-    // 上锁：直到该球与墙或玩家发生一次有效碰撞才解锁
-    playersLocked.add(thrower.playerId);
-    // 轮询：当球发生任意有效碰撞（ball.collidedOnce）时解锁
-    late final TimerComponent timer;
-    timer = TimerComponent(
-      period: 0.05,
-      repeat: true,
-      onTick: () {
-        if (!ball.isMounted || ball.collidedOnce) {
-          playersLocked.remove(thrower.playerId);
-          timer.removeFromParent();
-        }
-      },
-    );
-    add(timer);
+    // 重置玩家投掷冷却时间，开始10秒冷却
+    thrower.resetThrowCooldown();
   }
 
   @override
@@ -338,12 +324,12 @@ class DodgeballGame extends FlameGame
     // 检查游戏状态和AI玩家是否可以投球
     if (gameState != GameState.playing ||
         thrower.isEliminated ||
-        playersLocked.contains(thrower.playerId)) {
+        !thrower.canThrow) {
       return;
     }
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 300.0 + _random.nextDouble() * 120.0; // AI投球速度有随机性
+    final speed = 400.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 1 + _random.nextInt(4); // 1..4 (略少于玩家)
@@ -362,24 +348,8 @@ class DodgeballGame extends FlameGame
     // 播放投掷音效
     _audioManager.playThrowSound();
 
-    // 重置投球冷却时间
+    // 重置投球冷却时间，开始10秒冷却
     thrower.resetThrowCooldown();
-
-    // 上锁：直到该球与墙或玩家发生一次有效碰撞才解锁
-    playersLocked.add(thrower.playerId);
-
-    late final TimerComponent timer;
-    timer = TimerComponent(
-      period: 0.05,
-      repeat: true,
-      onTick: () {
-        if (!ball.isMounted || ball.collidedOnce) {
-          playersLocked.remove(thrower.playerId);
-          timer.removeFromParent();
-        }
-      },
-    );
-    add(timer);
   }
 
   @override
@@ -387,12 +357,12 @@ class DodgeballGame extends FlameGame
     // 检查游戏状态和玩家是否可以投球
     if (gameState != GameState.playing ||
         thrower.isEliminated ||
-        playersLocked.contains(thrower.playerId)) {
+        !thrower.canThrow) {
       return;
     }
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 400.0; // 玩家投球速度
+    final speed = 400.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 2 + _random.nextInt(4); // 2..5
@@ -411,21 +381,8 @@ class DodgeballGame extends FlameGame
     // 播放投掷音效
     _audioManager.playThrowSound();
 
-    // 上锁：直到该球与墙或玩家发生一次有效碰撞才解锁
-    playersLocked.add(thrower.playerId);
-
-    late final TimerComponent timer;
-    timer = TimerComponent(
-      period: 0.05,
-      repeat: true,
-      onTick: () {
-        if (!ball.isMounted || ball.collidedOnce) {
-          playersLocked.remove(thrower.playerId);
-          timer.removeFromParent();
-        }
-      },
-    );
-    add(timer);
+    // 重置玩家投掷冷却时间，开始10秒冷却
+    thrower.resetThrowCooldown();
   }
 
   /// 检查胜利条件
@@ -530,7 +487,7 @@ class DodgeballGame extends FlameGame
     gameState = GameState.playing;
     redPlayers.clear();
     bluePlayers.clear();
-    playersLocked.clear();
+    // playersLocked机制已移除，改用PlayerComponent的10秒时间冷却
     victoryText = null;
     redTeamCountText = null;
     blueTeamCountText = null;
@@ -622,8 +579,7 @@ class DodgeballGame extends FlameGame
       bluePlayers.remove(player);
     }
 
-    // 从锁定列表中移除
-    playersLocked.remove(player.playerId);
+    // playersLocked机制已移除，玩家移除时不需要额外清理
 
     // 更新统计显示
     _updateTeamCountDisplay();
