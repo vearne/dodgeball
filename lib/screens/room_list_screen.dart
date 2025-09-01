@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:developer' as developer;
 import 'package:dodgeball/game/game_mode.dart';
 import 'package:dodgeball/network/http_client.dart';
 import 'multiplayer_lobby_screen.dart';
@@ -64,6 +65,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
 
       final result = await _httpClient.createRoom(playerName);
 
+      developer.log('创建房间结果：房间ID=${result.roomId}, 房主ID=${result.playerId}');
+      developer.log('房间数据：${result.roomData}');
+
       // 创建房间后直接进入房间
       if (mounted) {
         Navigator.of(context).pushReplacement(
@@ -75,6 +79,8 @@ class _RoomListScreenState extends State<RoomListScreen> {
               serverUrl: widget.serverUrl,
               roomId: result.roomId,
               playerId: result.playerId, // 传递房主ID
+              playerName: playerName, // 传递玩家昵称
+              roomData: result.roomData, // 传递房间数据
             ),
           ),
         );

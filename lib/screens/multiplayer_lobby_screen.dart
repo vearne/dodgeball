@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:developer' as developer;
 
 import '../game/game_mode.dart';
 import '../game/team.dart';
@@ -14,6 +15,8 @@ class MultiplayerLobbyScreen extends StatefulWidget {
   final String? serverUrl;
   final String? roomId;
   final String? playerId; // 如果是房主，会有这个ID
+  final String? playerName; // 如果是房主，会有这个昵称
+  final Map<String, dynamic>? roomData; // 如果是房主，会有这个房间数据
 
   const MultiplayerLobbyScreen({
     super.key,
@@ -23,6 +26,8 @@ class MultiplayerLobbyScreen extends StatefulWidget {
     this.serverUrl,
     this.roomId,
     this.playerId,
+    this.playerName,
+    this.roomData,
   });
 
   @override
@@ -45,8 +50,14 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
     // 设置服务器地址
     _serverUrlController.text = widget.serverUrl ?? 'ws://localhost:8080/ws';
-    _playerNameController.text =
-        '玩家${DateTime.now().millisecondsSinceEpoch % 1000}';
+
+    // 如果有房主昵称，使用它，否则生成默认昵称
+    if (widget.playerName != null) {
+      _playerNameController.text = widget.playerName!;
+    } else {
+      _playerNameController.text =
+          '玩家${DateTime.now().millisecondsSinceEpoch % 1000}';
+    }
 
     // 监听网络状态变化
     _networkManager.gameStateNotifier.addListener(_onGameStateChanged);
@@ -54,6 +65,11 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     _networkManager.playersNotifier.addListener(_onPlayersChanged);
 
     _gameState = _networkManager.gameStateNotifier.value;
+
+    // 如果是房主（有playerId），自动连接并加入房间
+    if (widget.playerId != null && widget.roomId != null) {
+      _autoConnectAsCreator();
+    }
   }
 
   @override
@@ -69,7 +85,10 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   void _onGameStateChanged() {
     if (mounted) {
       setState(() {
+        final oldState = _gameState;
         _gameState = _networkManager.gameStateNotifier.value;
+
+        developer.log('🔄 游戏状态变化: $oldState → $_gameState');
 
         // 如果进入游戏状态，跳转到游戏界面
         if (_gameState == NetworkGameState.inGame) {
@@ -82,7 +101,14 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   void _onRoomInfoChanged() {
     if (mounted) {
       setState(() {
+        final oldRoomInfo = _roomInfo;
         _roomInfo = _networkManager.roomInfoNotifier.value;
+
+        if (oldRoomInfo == null && _roomInfo != null) {
+          developer.log('🏠 房间信息首次设置: ${_roomInfo!.id}');
+        } else if (_roomInfo != null) {
+          developer.log('🏠 房间信息更新: ${_roomInfo!.id}');
+        }
       });
     }
   }
@@ -114,6 +140,42 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     }
   }
 
+  /// 房主自动连接并加入房间
+  Future<void> _autoConnectAsCreator() async {
+    try {
+      // 设置房主ID到网络管理器
+      _networkManager.setCreatorId(widget.playerId!);
+
+      // 设置房间ID
+      _networkManager.setCurrentRoomId(widget.roomId!);
+
+      // 自动连接到服务器
+      final success = await _networkManager.connectToServer(
+        _serverUrlController.text.trim(),
+      );
+
+      if (success) {
+        // 房主创建房间后，通过WebSocket正式加入房间，但不显示加入中状态
+        final playerName = _playerNameController.text.trim();
+        developer.log('房主自动连接：房间ID=${widget.roomId}, 玩家名=${playerName}');
+        developer.log('房间数据: ${widget.roomData}');
+
+        _networkManager.joinRoomAsCreator(
+          widget.roomId!,
+          playerName,
+          initialRoomData: widget.roomData,
+        );
+
+        // 请求房间状态更新（确保与服务器同步）
+        _networkManager.requestRoomState();
+      } else {
+        _showError('连接服务器失败，请检查服务器地址和网络连接');
+      }
+    } catch (e) {
+      _showError('自动连接失败: $e');
+    }
+  }
+
   /// 加入房间
   void _joinRoom() {
     if (_playerNameController.text.isEmpty) {
@@ -127,7 +189,13 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   /// 选择队伍
   void _selectTeam(Team team) {
+    developer.log('🎯 UI: 选择队伍 ${team == Team.red ? "红队" : "蓝队"}');
     _networkManager.selectTeam(team);
+
+    // 触发UI刷新以显示队伍变化
+    setState(() {
+      // UI状态将通过 _networkManager.currentTeam 更新
+    });
   }
 
   /// 开始游戏
@@ -282,17 +350,26 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   /// 构建主要内容
   Widget _buildContent() {
+    developer.log('🎨 构建内容，当前状态: $_gameState');
+
     switch (_gameState) {
       case NetworkGameState.disconnected:
       case NetworkGameState.connecting:
+        developer.log('🎨 显示连接表单');
         return _buildConnectionForm();
       case NetworkGameState.connected:
+        developer.log('🎨 显示加入房间表单');
         return _buildJoinRoomForm();
       case NetworkGameState.joiningRoom:
+        developer.log('🎨 显示加入房间中...');
         return _buildLoadingWidget('加入房间中...');
       case NetworkGameState.inRoom:
+        developer.log(
+          '🎨 显示房间大厅，房间信息: ${_roomInfo != null ? _roomInfo!.id : "null"}',
+        );
         return _buildRoomLobby();
       case NetworkGameState.inGame:
+        developer.log('🎨 显示准备进入游戏...');
         return _buildLoadingWidget('准备进入游戏...');
     }
   }

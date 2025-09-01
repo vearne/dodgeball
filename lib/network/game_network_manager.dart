@@ -89,14 +89,21 @@ class GameNetworkManager {
     final success = await _client.reconnect();
     if (success) {
       // 重连成功后，如果之前在房间中，尝试重新加入
-      if (_currentRoomId != null) {
-        // 这里可以添加重新加入房间的逻辑
-        developer.log('重连成功，但需要重新加入房间');
-        _gameStateNotifier.value = NetworkGameState.connected;
+      if (_currentRoomId != null && _currentPlayerId != null) {
+        developer.log('重连成功，重新加入房间: $_currentRoomId');
+        // 重新发送加入房间消息
+        _client.sendMessage({
+          'type': MessageType.joinRoom,
+          'room_id': _currentRoomId,
+          'player_id': _currentPlayerId,
+        });
+        _gameStateNotifier.value = NetworkGameState.joiningRoom;
       } else {
+        developer.log('重连成功');
         _gameStateNotifier.value = NetworkGameState.connected;
       }
     } else {
+      developer.log('重连失败');
       _gameStateNotifier.value = NetworkGameState.disconnected;
     }
   }
@@ -119,21 +126,112 @@ class GameNetworkManager {
 
   /// 选择队伍
   void selectTeam(Team team) {
-    if (!_client.isConnected ||
-        _currentPlayerId == null ||
-        _currentRoomId == null) {
-      developer.log('未在房间中，无法选择队伍');
+    if (_currentPlayerId == null || _currentRoomId == null) {
+      developer.log('⚽ 玩家ID或房间ID为空，无法选择队伍');
+      developer.log('⚽ 玩家ID: $_currentPlayerId, 房间ID: $_currentRoomId');
       return;
     }
 
     final teamString = team == Team.red ? 'red' : 'blue';
-    _client.sendMessage({
-      'type': MessageType.selectTeam,
-      'room_id': _currentRoomId,
-      'player_id': _currentPlayerId,
-      'team': teamString,
-    });
+    developer.log('⚽ 选择队伍: $teamString');
+
+    // 先更新本地状态，即使WebSocket暂时断开
+    final oldTeam = _currentTeam;
     _currentTeam = team;
+    developer.log('⚽ 队伍已更新: $oldTeam → $_currentTeam');
+
+    // 如果WebSocket连接正常，发送消息给服务器
+    if (_client.isConnected) {
+      developer.log('⚽ WebSocket已连接，发送队伍选择消息');
+      _client.sendMessage({
+        'type': MessageType.selectTeam,
+        'room_id': _currentRoomId,
+        'player_id': _currentPlayerId,
+        'team': teamString,
+      });
+    } else {
+      developer.log('⚽ WebSocket暂时断开，队伍选择将在重连后同步');
+      // 可以在这里缓存消息，等重连后发送
+    }
+
+    // 触发UI更新 - 更新玩家列表以反映队伍变化
+    if (_roomInfoNotifier.value != null && _currentPlayerId != null) {
+      developer.log('⚽ 触发UI刷新以显示队伍变化');
+
+      // 更新当前玩家在玩家列表中的队伍信息
+      final currentPlayers = List<NetworkPlayer>.from(_playersNotifier.value);
+      final playerIndex = currentPlayers.indexWhere(
+        (p) => p.id == _currentPlayerId,
+      );
+
+      if (playerIndex >= 0) {
+        // 更新现有玩家的队伍
+        final oldPlayer = currentPlayers[playerIndex];
+        final updatedPlayer = NetworkPlayer(
+          id: oldPlayer.id,
+          name: oldPlayer.name,
+          team: teamString,
+          isAI: oldPlayer.isAI,
+          position: oldPlayer.position,
+          velocity: oldPlayer.velocity,
+          direction: oldPlayer.direction,
+          isAlive: oldPlayer.isAlive,
+          connected: oldPlayer.connected,
+          radius: oldPlayer.radius,
+        );
+        currentPlayers[playerIndex] = updatedPlayer;
+        developer.log('⚽ 更新现有玩家队伍: ${oldPlayer.team} → $teamString');
+      } else {
+        // 从当前玩家列表中获取玩家信息，如果没有则使用默认名字
+        String playerName = 'You';
+        final existingPlayer = currentPlayers.firstWhere(
+          (p) => p.id == _currentPlayerId,
+          orElse: () => NetworkPlayer(
+            id: '',
+            name: '',
+            team: '',
+            isAI: false,
+            position: Vector2.zero(),
+            velocity: Vector2.zero(),
+            direction: Vector2.zero(),
+            isAlive: true,
+            connected: true,
+            radius: 0,
+          ),
+        );
+        if (existingPlayer.id.isNotEmpty) {
+          playerName = existingPlayer.name;
+          developer.log('⚽ 从玩家列表获取玩家名字: $playerName');
+        }
+
+        // 创建新的玩家条目（如果还不存在）
+        final newPlayer = NetworkPlayer(
+          id: _currentPlayerId!,
+          name: playerName,
+          team: teamString,
+          isAI: false,
+          position: Vector2.zero(),
+          velocity: Vector2.zero(),
+          direction: Vector2(1, 0),
+          isAlive: true,
+          connected: true,
+          radius: 15.0,
+        );
+        currentPlayers.add(newPlayer);
+        developer.log('⚽ 添加新玩家到列表: $teamString, 名字: $playerName');
+      }
+
+      _playersNotifier.value = currentPlayers;
+      developer.log('⚽ 玩家列表已更新，总数: ${currentPlayers.length}');
+
+      // 统计队伍人数
+      final redCount = currentPlayers.where((p) => p.team == 'red').length;
+      final blueCount = currentPlayers.where((p) => p.team == 'blue').length;
+      developer.log('⚽ 队伍统计: 红队$redCount人，蓝队$blueCount人');
+
+      // 同时触发房间信息通知
+      _roomInfoNotifier.value = _roomInfoNotifier.value;
+    }
   }
 
   /// 开始游戏
@@ -188,7 +286,17 @@ class GameNetworkManager {
   /// 处理连接成功消息
   void _handleConnected(Map<String, dynamic> message) {
     developer.log('WebSocket连接成功');
-    _gameStateNotifier.value = NetworkGameState.connected;
+
+    // 只有在断开连接或连接中状态时才设置为已连接
+    // 不要覆盖更高级的状态（如 inRoom, inGame）
+    final currentState = _gameStateNotifier.value;
+    if (currentState == NetworkGameState.disconnected ||
+        currentState == NetworkGameState.connecting) {
+      developer.log('🔄 WebSocket连接成功，更新状态为 connected');
+      _gameStateNotifier.value = NetworkGameState.connected;
+    } else {
+      developer.log('🔄 WebSocket连接成功，保持当前状态: $currentState');
+    }
   }
 
   /// 处理房间状态更新
@@ -231,6 +339,11 @@ class GameNetworkManager {
           _currentPlayerId = connectedPlayers.first.id;
           _gameStateNotifier.value = NetworkGameState.inRoom;
         }
+      } else {
+        // 如果已有玩家ID，确保状态正确
+        if (!_isInGame) {
+          _gameStateNotifier.value = NetworkGameState.inRoom;
+        }
       }
 
       // 通知游戏有新的房间状态数据
@@ -255,16 +368,29 @@ class GameNetworkManager {
 
   /// 处理玩家加入
   void _handlePlayerJoined(Map<String, dynamic> message) {
-    developer.log('玩家加入: $message');
+    developer.log('🎭 玩家加入: $message');
 
     // 如果这是当前玩家加入的消息，保存玩家ID
     final playerId = message['player_id'] as String?;
     final roomId = message['room_id'] as String?;
 
-    if (playerId != null && _currentPlayerId == null) {
-      _currentPlayerId = playerId;
-      _gameStateNotifier.value = NetworkGameState.inRoom;
-      developer.log('当前玩家ID设置为: $_currentPlayerId');
+    developer.log('🎭 当前玩家ID: $_currentPlayerId, 消息中玩家ID: $playerId');
+
+    // 如果还没有玩家ID，或者这是当前玩家的加入消息，设置状态
+    if (playerId != null) {
+      if (_currentPlayerId == null) {
+        developer.log('🎭 设置玩家ID: $playerId');
+        _currentPlayerId = playerId;
+      }
+
+      // 如果这是当前玩家的加入消息，更新状态为在房间中
+      if (_currentPlayerId == playerId) {
+        developer.log('🎯 确认当前玩家加入，更新状态为 inRoom');
+        _gameStateNotifier.value = NetworkGameState.inRoom;
+        developer.log('🔔 触发游戏状态通知: inRoom');
+      } else {
+        developer.log('🎭 这不是当前玩家的加入消息');
+      }
     }
 
     if (roomId != null && _currentRoomId == null) {
@@ -319,6 +445,114 @@ class GameNetworkManager {
   void setCreatorId(String creatorId) {
     _creatorId = creatorId;
     _currentPlayerId = creatorId;
+  }
+
+  /// 设置当前房间ID
+  void setCurrentRoomId(String roomId) {
+    _currentRoomId = roomId;
+  }
+
+  /// 房主加入已创建的房间（不显示加入中状态）
+  void joinRoomAsCreator(
+    String roomId,
+    String playerName, {
+    Map<String, dynamic>? initialRoomData,
+  }) {
+    if (!_client.isConnected) {
+      developer.log('未连接到服务器，无法加入房间');
+      return;
+    }
+
+    _pendingRoomId = roomId;
+    _client.sendMessage({
+      'type': MessageType.joinRoom,
+      'room_id': roomId,
+      'name': playerName,
+      'is_creator': true, // 标记这是房主
+    });
+
+    // 如果有初始房间数据，立即设置房间信息
+    if (initialRoomData != null) {
+      try {
+        developer.log('=== 开始设置房主房间信息 ===');
+        developer.log('房间数据类型: ${initialRoomData.runtimeType}');
+        developer.log('房间数据内容: $initialRoomData');
+
+        // 检查必要字段
+        final requiredFields = [
+          'id',
+          'red_count',
+          'blue_count',
+          'is_started',
+          'tick',
+        ];
+        for (final field in requiredFields) {
+          if (!initialRoomData.containsKey(field)) {
+            developer.log('警告: 缺少必要字段 $field');
+          } else {
+            developer.log('字段 $field: ${initialRoomData[field]}');
+          }
+        }
+
+        final roomInfo = RoomInfo.fromJson(initialRoomData);
+        _roomInfoNotifier.value = roomInfo;
+
+        // 从房间数据中解析玩家列表
+        final players = <NetworkPlayer>[];
+        if (initialRoomData.containsKey('players') &&
+            initialRoomData['players'] is Map) {
+          final playersMap = initialRoomData['players'] as Map<String, dynamic>;
+          for (final entry in playersMap.entries) {
+            try {
+              final playerData = entry.value as Map<String, dynamic>;
+              final player = NetworkPlayer.fromJson(playerData);
+              players.add(player);
+              developer.log(
+                '✅ 解析玩家: ${player.name} (${player.id}), 队伍: ${player.team}',
+              );
+            } catch (e) {
+              developer.log('❌ 解析玩家失败: $e, 数据: ${entry.value}');
+            }
+          }
+        }
+        _playersNotifier.value = players;
+        developer.log('👥 初始化玩家列表，共 ${players.length} 人');
+
+        developer.log('✅ 房主房间信息设置成功: ${roomInfo.id}');
+        developer.log(
+          '房间状态: 红队${roomInfo.redCount}, 蓝队${roomInfo.blueCount}, 游戏${roomInfo.isStarted ? "已开始" : "未开始"}',
+        );
+
+        // 确保UI能接收到状态变化通知
+        developer.log('🔔 触发房间信息通知');
+      } catch (e, stackTrace) {
+        developer.log('❌ 设置房主房间信息失败: $e');
+        developer.log('堆栈跟踪: $stackTrace');
+        developer.log('初始房间数据: $initialRoomData');
+      }
+    } else {
+      developer.log('⚠️ 没有初始房间数据，等待服务器响应');
+    }
+
+    // 房主直接设置为在房间中，不显示加入中状态
+    developer.log('🎯 设置房主游戏状态为 inRoom');
+    _gameStateNotifier.value = NetworkGameState.inRoom;
+    developer.log('🔔 触发游戏状态通知');
+  }
+
+  /// 设置游戏状态
+  void setGameState(NetworkGameState state) {
+    _gameStateNotifier.value = state;
+  }
+
+  /// 请求房间状态更新
+  void requestRoomState() {
+    if (!_client.isConnected || _currentRoomId == null) {
+      developer.log('无法请求房间状态：未连接或房间ID为空');
+      return;
+    }
+
+    _client.sendMessage({'type': 'get_room_state', 'room_id': _currentRoomId});
   }
 
   /// 重置状态

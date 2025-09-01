@@ -138,13 +138,20 @@ class WebSocketClient {
     });
   }
 
+  /// 禁用自动重连（用于调试）
+  void disableAutoReconnect() {
+    // 可以添加一个标志来禁用自动重连
+  }
+
   /// 尝试重连
   Future<bool> reconnect() async {
     if (_currentUrl == null) return false;
 
+    // 保存URL，因为disconnect会将其设置为null
+    final urlToReconnect = _currentUrl!;
     await disconnect();
     await Future.delayed(const Duration(seconds: 1));
-    return await connect(_currentUrl!);
+    return await connect(urlToReconnect);
   }
 
   /// 清理资源
