@@ -11,12 +11,18 @@ class MultiplayerLobbyScreen extends StatefulWidget {
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
+  final String? serverUrl;
+  final String? roomId;
+  final String? playerId; // 如果是房主，会有这个ID
 
   const MultiplayerLobbyScreen({
     super.key,
     required this.gameplayMode,
     this.maxHealth,
     this.timeLimit,
+    this.serverUrl,
+    this.roomId,
+    this.playerId,
   });
 
   @override
@@ -37,8 +43,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   void initState() {
     super.initState();
 
-    // 设置默认服务器地址
-    _serverUrlController.text = 'ws://localhost:8080/ws';
+    // 设置服务器地址
+    _serverUrlController.text = widget.serverUrl ?? 'ws://localhost:8080/ws';
     _playerNameController.text =
         '玩家${DateTime.now().millisecondsSinceEpoch % 1000}';
 
@@ -115,7 +121,8 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
       return;
     }
 
-    _networkManager.joinRoom(_playerNameController.text.trim());
+    final roomId = widget.roomId ?? 'default_room';
+    _networkManager.joinRoom(roomId, _playerNameController.text.trim());
   }
 
   /// 选择队伍

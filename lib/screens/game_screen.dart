@@ -12,7 +12,7 @@ class GameScreen extends StatefulWidget {
     this.timeLimit,
   });
 
-  final GameMode gameMode;
+  final GameModeType gameMode;
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
@@ -239,7 +239,7 @@ class _GameScreenState extends State<GameScreen> {
                     style: const TextStyle(color: Colors.white, fontSize: 12),
                     textAlign: TextAlign.center,
                   ),
-                  if (widget.gameMode == GameMode.singlePlayer) ...[
+                  if (widget.gameMode == GameModeType.singlePlayer) ...[
                     const SizedBox(height: 4),
                     const Text(
                       '提示：红队第一个玩家是您，其他玩家由AI控制',
@@ -262,8 +262,8 @@ class _GameScreenState extends State<GameScreen> {
 
   String _getGameModeTitle() {
     final modeName = switch (widget.gameMode) {
-      GameMode.singlePlayer => '单人模式',
-      GameMode.multiPlayer => '多人模式',
+      GameModeType.singlePlayer => '单人模式',
+      GameModeType.multiPlayer => '多人模式',
     };
 
     final gameplayName = switch (widget.gameplayMode) {
@@ -285,8 +285,8 @@ class _GameScreenState extends State<GameScreen> {
 
   String _getControlInstructions() {
     final controlText = switch (widget.gameMode) {
-      GameMode.singlePlayer => 'WASD移动 • 方向键瞄准 • 空格投球\n点击屏幕也可投球 • AI玩家自动行动',
-      GameMode.multiPlayer =>
+      GameModeType.singlePlayer => 'WASD移动 • 方向键瞄准 • 空格投球\n点击屏幕也可投球 • AI玩家自动行动',
+      GameModeType.multiPlayer =>
         '玩家1：WASD移动 • 方向键瞄准 • 空格投球\n玩家2：IJKL移动 • 数字键瞄准 • 0键投球\n也可点击屏幕投球',
     };
 
@@ -320,7 +320,7 @@ class _GameScreenState extends State<GameScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.gameMode == GameMode.singlePlayer) ...[
+                if (widget.gameMode == GameModeType.singlePlayer) ...[
                   Text(
                     '单人模式 - ${widget.gameplayMode == GameplayMode.elimination ? "淘汰赛" : "限时赛"}',
                     style: const TextStyle(

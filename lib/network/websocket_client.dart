@@ -162,6 +162,7 @@ class MessageType {
   static const String startGame = 'start_game';
   static const String input = 'input';
   static const String roomState = 'room_state';
+  static const String connected = 'connected'; // 连接成功消息
   static const String playerJoined = 'player_joined';
   static const String playerLeft = 'player_left';
   static const String gameStarted = 'game_started';

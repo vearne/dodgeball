@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 
 import '../game/game_mode.dart';
-import '../game/dodgeball_game.dart';
 import '../game/multiplayer_dodgeball_game.dart';
 import '../network/game_network_manager.dart';
 import 'multiplayer_lobby_screen.dart';
@@ -32,9 +31,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     _initializeGame();
-    
+
     // 监听网络状态
     _networkManager.gameStateNotifier.addListener(_onGameStateChanged);
   }
@@ -47,13 +46,13 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
   void _initializeGame() {
     _game = MultiplayerDodgeballGame(
-      gameMode: GameMode.multiPlayer,
+      gameMode: GameModeType.multiPlayer,
       gameplayMode: widget.gameplayMode,
       maxHealth: widget.maxHealth,
       timeLimit: widget.timeLimit,
       networkManager: _networkManager,
     );
-    
+
     setState(() {
       _gameInitialized = true;
     });
@@ -61,9 +60,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
 
   void _onGameStateChanged() {
     final state = _networkManager.gameStateNotifier.value;
-    
+
     // 如果网络连接断开或离开游戏，返回大厅
-    if (state == NetworkGameState.disconnected || 
+    if (state == NetworkGameState.disconnected ||
         state == NetworkGameState.inRoom) {
       _returnToLobby();
     }
@@ -110,11 +109,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   @override
   Widget build(BuildContext context) {
     if (!_gameInitialized) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return PopScope(
@@ -129,24 +124,20 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
           children: [
             // 游戏主体
             GameWidget.controlled(gameFactory: () => _game),
-            
+
             // 顶部状态栏
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: SafeArea(
-                child: _buildTopStatusBar(),
-              ),
+              child: SafeArea(child: _buildTopStatusBar()),
             ),
-            
+
             // 网络状态指示器
             Positioned(
               top: 60,
               right: 16,
-              child: SafeArea(
-                child: _buildNetworkStatus(),
-              ),
+              child: SafeArea(child: _buildNetworkStatus()),
             ),
           ],
         ),
@@ -172,14 +163,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
             onPressed: _showPauseMenu,
             tooltip: '暂停游戏',
           ),
-          
+
           // 游戏信息
           Expanded(
             child: ValueListenableBuilder<RoomInfo?>(
               valueListenable: _networkManager.roomInfoNotifier,
               builder: (context, roomInfo, child) {
                 if (roomInfo == null) return const SizedBox.shrink();
-                
+
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -211,7 +202,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
               },
             ),
           ),
-          
+
           // 设置按钮
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
@@ -263,11 +254,7 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
           ),
           child: Tooltip(
             message: tooltip,
-            child: Icon(
-              statusIcon,
-              color: statusColor,
-              size: 20,
-            ),
+            child: Icon(statusIcon, color: statusColor, size: 20),
           ),
         );
       },

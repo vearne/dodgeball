@@ -134,7 +134,7 @@ class _EliminationSettingsDialog extends StatefulWidget {
 class _EliminationSettingsDialogState
     extends State<_EliminationSettingsDialog> {
   int _selectedMaxHealth = 3;
-  GameMode _selectedGameMode = GameMode.singlePlayer;
+  GameModeType _selectedGameMode = GameModeType.singlePlayer;
 
   @override
   Widget build(BuildContext context) {
@@ -174,11 +174,11 @@ class _EliminationSettingsDialogState
             ),
             items: [
               DropdownMenuItem(
-                value: GameMode.singlePlayer,
+                value: GameModeType.singlePlayer,
                 child: const Text('单人模式（与AI对战）'),
               ),
               DropdownMenuItem(
-                value: GameMode.multiPlayer,
+                value: GameModeType.multiPlayer,
                 child: const Text('多人联机模式'),
               ),
             ],
@@ -198,7 +198,7 @@ class _EliminationSettingsDialogState
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
-            if (_selectedGameMode == GameMode.multiPlayer) {
+            if (_selectedGameMode == GameModeType.multiPlayer) {
               // 多人模式：跳转到多人大厅
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -239,7 +239,7 @@ class _TimeLimitSettingsDialog extends StatefulWidget {
 
 class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
   TimeLimitOption _selectedTimeLimit = TimeLimitOption.oneMinute;
-  GameMode _selectedGameMode = GameMode.singlePlayer;
+  GameModeType _selectedGameMode = GameModeType.singlePlayer;
 
   @override
   Widget build(BuildContext context) {
@@ -282,11 +282,11 @@ class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
             ),
             items: [
               DropdownMenuItem(
-                value: GameMode.singlePlayer,
+                value: GameModeType.singlePlayer,
                 child: const Text('单人模式（与AI对战）'),
               ),
               DropdownMenuItem(
-                value: GameMode.multiPlayer,
+                value: GameModeType.multiPlayer,
                 child: const Text('多人联机模式'),
               ),
             ],
@@ -306,7 +306,7 @@ class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).pop();
-            if (_selectedGameMode == GameMode.multiPlayer) {
+            if (_selectedGameMode == GameModeType.multiPlayer) {
               // 多人模式：跳转到多人大厅
               Navigator.of(context).push(
                 MaterialPageRoute(

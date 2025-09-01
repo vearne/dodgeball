@@ -26,7 +26,7 @@ class DodgeballGame extends FlameGame
         HasPlayerThrowRequest {
   DodgeballGame({
     this.randomSeed,
-    this.gameMode = GameMode.singlePlayer,
+    this.gameMode = GameModeType.singlePlayer,
     this.gameplayMode = GameplayMode.elimination,
     this.maxHealth,
     this.timeLimit,
@@ -37,7 +37,7 @@ class DodgeballGame extends FlameGame
   }
 
   final int? randomSeed;
-  final GameMode gameMode;
+  final GameModeType gameMode;
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
@@ -663,7 +663,7 @@ class DodgeballGame extends FlameGame
         team: Team.red,
         playerId: i,
         position: redPositions[i],
-        controllerType: (gameMode == GameMode.singlePlayer && i != 0)
+        controllerType: (gameMode == GameModeType.singlePlayer && i != 0)
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
       );
@@ -680,7 +680,7 @@ class DodgeballGame extends FlameGame
         team: Team.blue,
         playerId: 100 + i,
         position: bluePositions[i],
-        controllerType: gameMode == GameMode.singlePlayer
+        controllerType: gameMode == GameModeType.singlePlayer
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
       );

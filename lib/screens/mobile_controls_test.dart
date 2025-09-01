@@ -16,7 +16,7 @@ class MobileControlsTestScreen extends StatelessWidget {
         foregroundColor: Colors.white,
       ),
       body: GameWidget<DodgeballGame>(
-        game: DodgeballGame(gameMode: GameMode.singlePlayer),
+        game: DodgeballGame(gameMode: GameModeType.singlePlayer),
         overlayBuilderMap: {
           'mobile_controls': (context, game) =>
               _buildControlsOverlay(context, game),

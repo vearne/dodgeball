@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game/audio_manager.dart';
-import 'screens/game_mode_selector.dart';
+import 'screens/game_mode_selection_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +23,7 @@ class Dodgeball extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const GameModeSelectorScreen(),
+      home: const GameModeSelectionScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

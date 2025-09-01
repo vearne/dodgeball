@@ -23,7 +23,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   MultiplayerDodgeballGame({
     required this.networkManager,
     super.randomSeed,
-    super.gameMode = GameMode.multiPlayer,
+    super.gameMode = GameModeType.multiPlayer,
     super.gameplayMode,
     super.maxHealth,
     super.timeLimit,
@@ -490,6 +490,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   }
 
   /// 禁用本地的重新开始游戏
+  @override
   void restartGame() {
     // 多人模式下重新开始由服务器控制
     developer.log('多人模式下无法本地重新开始游戏');
