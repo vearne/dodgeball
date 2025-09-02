@@ -168,6 +168,14 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
         // 请求房间状态更新（确保与服务器同步）
         _networkManager.requestRoomState();
+
+        // 房主创建房间后自动加入红队
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            developer.log('🔴 房主自动加入红队');
+            _selectTeam(Team.red);
+          }
+        });
       } else {
         _showError('连接服务器失败，请检查服务器地址和网络连接');
       }

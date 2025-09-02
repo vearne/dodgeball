@@ -246,6 +246,7 @@ class GameNetworkManager {
     _client.sendMessage({
       'type': MessageType.startGame,
       'room_id': _currentRoomId,
+      'player_id': _currentPlayerId,
     });
   }
 
