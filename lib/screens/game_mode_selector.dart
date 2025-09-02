@@ -166,7 +166,7 @@ class _EliminationSettingsDialogState
           // 游戏模式选择
           const Text('选择游戏模式：'),
           const SizedBox(height: 10),
-          DropdownButtonFormField<GameMode>(
+          DropdownButtonFormField<GameModeType>(
             value: _selectedGameMode,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
@@ -274,7 +274,7 @@ class _TimeLimitSettingsDialogState extends State<_TimeLimitSettingsDialog> {
           // 游戏模式选择
           const Text('选择游戏模式：'),
           const SizedBox(height: 10),
-          DropdownButtonFormField<GameMode>(
+          DropdownButtonFormField<GameModeType>(
             value: _selectedGameMode,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
