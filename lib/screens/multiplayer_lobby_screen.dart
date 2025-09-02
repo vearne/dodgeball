@@ -599,7 +599,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
           const SizedBox(height: 20),
 
           // 开始游戏按钮
-          if (!_roomInfo!.isStarted)
+          if (!_roomInfo!.isStarted) ...[
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -615,6 +615,24 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            // 临时的直接进入游戏按钮（调试用）
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  developer.log('🚨 使用临时按钮直接进入游戏界面');
+                  _navigateToGame();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text('直接进入游戏（临时）', style: TextStyle(fontSize: 14)),
+              ),
+            ),
+          ],
         ],
       ),
     );

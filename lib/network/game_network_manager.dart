@@ -243,11 +243,15 @@ class GameNetworkManager {
       return;
     }
 
+    developer.log(
+      '🎮 发送开始游戏消息: room_id=$_currentRoomId, player_id=$_currentPlayerId',
+    );
     _client.sendMessage({
       'type': MessageType.startGame,
       'room_id': _currentRoomId,
       'player_id': _currentPlayerId,
     });
+    developer.log('🎮 开始游戏消息已发送');
   }
 
   /// 发送游戏输入
@@ -275,6 +279,7 @@ class GameNetworkManager {
 
   /// 注册消息处理器
   void _registerMessageHandlers() {
+    developer.log('🔧 开始注册消息处理器');
     _client.registerHandler(MessageType.connected, _handleConnected); // 处理连接成功
     _client.registerHandler(MessageType.roomState, _handleRoomState);
     _client.registerHandler(MessageType.playerJoined, _handlePlayerJoined);
@@ -282,6 +287,9 @@ class GameNetworkManager {
     _client.registerHandler(MessageType.gameStarted, _handleGameStarted);
     _client.registerHandler(MessageType.gameEnded, _handleGameEnded);
     _client.registerHandler(MessageType.error, _handleError);
+    developer.log(
+      '🔧 消息处理器注册完成: ${[MessageType.connected, MessageType.roomState, MessageType.playerJoined, MessageType.playerLeft, MessageType.gameStarted, MessageType.gameEnded, MessageType.error]}',
+    );
   }
 
   /// 处理连接成功消息
@@ -321,11 +329,13 @@ class GameNetworkManager {
       // 更新游戏状态
       if (roomData['is_started'] == true) {
         if (!_isInGame) {
+          developer.log('🎮 检测到房间已开始游戏，更新状态为 inGame');
           _isInGame = true;
           _gameStateNotifier.value = NetworkGameState.inGame;
         }
       } else {
         if (_isInGame) {
+          developer.log('🎮 检测到房间游戏结束，更新状态为 inRoom');
           _isInGame = false;
           _gameStateNotifier.value = NetworkGameState.inRoom;
         }
@@ -423,9 +433,10 @@ class GameNetworkManager {
 
   /// 处理游戏开始
   void _handleGameStarted(Map<String, dynamic> message) {
-    developer.log('游戏开始: $message');
+    developer.log('🎮 收到游戏开始消息: $message');
     _isInGame = true;
     _gameStateNotifier.value = NetworkGameState.inGame;
+    developer.log('🎮 游戏状态已更新为 inGame');
   }
 
   /// 处理游戏结束

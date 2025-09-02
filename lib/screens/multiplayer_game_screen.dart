@@ -122,8 +122,18 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // 游戏主体
-            GameWidget.controlled(gameFactory: () => _game),
+            // 游戏主体 - 使用FittedBox确保1280x720分辨率正确缩放
+            Center(
+              child: AspectRatio(
+                aspectRatio: 1280 / 720, // 保持16:9的宽高比
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.black, width: 2),
+                  ),
+                  child: GameWidget.controlled(gameFactory: () => _game),
+                ),
+              ),
+            ),
 
             // 顶部状态栏
             Positioned(

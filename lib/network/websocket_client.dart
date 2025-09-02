@@ -96,15 +96,37 @@ class WebSocketClient {
       final Map<String, dynamic> message = jsonDecode(data);
       final String? type = message['type'];
 
-      developer.log('收到消息: $data');
+      developer.log('📥 收到完整消息: $data');
+      developer.log('📥 消息类型: $type');
+      developer.log('📥 消息内容: ${jsonEncode(message)}');
 
+      // 特别记录游戏开始相关的消息
+      if (type == MessageType.gameStarted) {
+        developer.log('🎮 ✅ 收到游戏开始消息: $data');
+      } else if (type == MessageType.roomState) {
+        final roomData = message['room'] as Map<String, dynamic>?;
+        if (roomData != null && roomData['is_started'] == true) {
+          developer.log('🎮 ✅ 房间状态消息显示游戏已开始: $data');
+        } else {
+          developer.log('🎮 ❌ 房间状态消息显示游戏未开始: $data');
+        }
+      } else if (type == MessageType.error || type == 'error') {
+        developer.log('❌ 服务器错误消息: $data');
+      }
+
+      // 检查是否有处理器
       if (type != null && _messageHandlers.containsKey(type)) {
+        developer.log('🔍 找到处理器，开始处理消息类型: $type');
         _messageHandlers[type]!(message);
+        developer.log('🔍 消息类型 $type 处理完成');
       } else {
-        developer.log('未处理的消息类型: $type');
+        developer.log('❌ 未找到处理器！消息类型: $type');
+        developer.log('❌ 可用的处理器: ${_messageHandlers.keys.toList()}');
       }
     } catch (e) {
-      developer.log('消息解析失败: $e');
+      developer.log('❌ 消息解析失败: $e');
+      developer.log('❌ 原始数据: $data');
+      developer.log('❌ 数据类型: ${data.runtimeType}');
     }
   }
 

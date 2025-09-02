@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:developer' as developer;
 
 import 'package:flame/components.dart';
@@ -7,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../network/game_network_manager.dart';
+import 'audio_manager.dart';
 import 'ball_component.dart';
 import 'dodgeball_game.dart';
 import 'field_background.dart';
@@ -32,7 +32,6 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   final GameNetworkManager networkManager;
 
   // 网络同步相关
-  bool _isNetworkSynced = false;
   final Map<String, PlayerComponent> _networkPlayers = {};
   final Map<String, BallComponent> _networkBalls = {};
 
@@ -48,33 +47,64 @@ class MultiplayerDodgeballGame extends DodgeballGame {
 
   @override
   Future<void> onLoad() async {
-    // 不调用父类的onLoad，我们要完全自定义加载过程
-    await super.onLoad();
+    developer.log('🎮 开始多人游戏初始化 - 固定分辨率1280x720');
+    developer.log('📐 当前游戏分辨率: ${size.x}x${size.y}');
 
-    // 不直接调用父类onLoad，手动初始化必要组件
-    // 初始化音频管理器在父类中处理
+    // 手动初始化基础组件（避免调用父类的_spawnTeams）
+    // 初始化音频管理器
+    final audioManager = AudioManager.instance;
+    await audioManager.initialize();
+    developer.log('🎵 音频管理器初始化完成');
 
     // 添加场地背景
     add(FieldBackground(gameSize: size));
+    developer.log('🏟️ 场地背景添加完成');
 
     // 添加外围边界墙壁（显示用，物理由服务器处理）
     addBoundaryWalls();
+    developer.log('🧱 边界墙壁添加完成');
+
+    // 设置队伍统计显示（不创建玩家）
+    setupTeamCountDisplay();
+    developer.log('📊 队伍统计显示设置完成');
+
+    // 播放背景音乐
+    await audioManager.playBackgroundMusic();
+    developer.log('🎵 背景音乐开始播放');
 
     // 监听网络状态更新
     networkManager.roomInfoNotifier.addListener(_onRoomStateUpdate);
     networkManager.playersNotifier.addListener(_onPlayersUpdate);
+    developer.log('👂 网络状态监听器设置完成');
 
     // 设置游戏状态更新回调
     networkManager.setGameStateUpdateCallback(_handleRoomStateMessage);
-
-    // 播放背景音乐在父类中处理
+    developer.log('📞 游戏状态更新回调设置完成');
 
     // 如果是移动设备，添加移动控制器
     if (MobileController.isMobileDevice) {
       addMobileController();
+      developer.log('📱 移动控制器添加完成');
     }
 
-    developer.log('多人游戏初始化完成');
+    // 立即检查当前玩家数据
+    final currentPlayers = networkManager.playersNotifier.value;
+    developer.log('🧑‍🤝‍🧑 当前玩家数量: ${currentPlayers.length}');
+    for (final player in currentPlayers) {
+      developer.log(
+        '👤 玩家: ${player.name} (${player.id}), 队伍: ${player.team}, 位置: ${player.position}',
+      );
+    }
+
+    // 如果有玩家数据，立即同步
+    if (currentPlayers.isNotEmpty) {
+      developer.log('🔄 立即同步现有玩家数据');
+      _synchronizePlayers(currentPlayers);
+    } else {
+      developer.log('⏳ 等待网络玩家数据...');
+    }
+
+    developer.log('✅ 多人游戏初始化完成');
   }
 
   @override
@@ -215,7 +245,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
       return;
     }
 
-    // 发送移动和投掷输入
+    // 直接发送移动和投掷输入（客户端和服务器使用相同坐标系）
     networkManager.sendInput(
       move: _currentMoveInput,
       throwBall: _throwRequested,
@@ -238,17 +268,31 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   /// 处理玩家列表更新
   void _onPlayersUpdate() {
     final players = networkManager.playersNotifier.value;
+    developer.log('🔄 收到玩家列表更新通知，玩家数量: ${players.length}');
+    for (final player in players) {
+      developer.log(
+        '  👤 ${player.name} (${player.id}), 队伍: ${player.team}, 位置: ${player.position}',
+      );
+    }
     _synchronizePlayers(players);
   }
 
   /// 同步玩家状态
   void _synchronizePlayers(List<NetworkPlayer> networkPlayers) {
+    developer.log('🔄 开始同步玩家状态');
+    developer.log('📊 当前游戏中玩家数量: ${_networkPlayers.length}');
+    developer.log('📊 网络玩家数量: ${networkPlayers.length}');
+
     final currentPlayerIds = _networkPlayers.keys.toSet();
     final newPlayerIds = networkPlayers.map((p) => p.id).toSet();
+
+    developer.log('🔍 当前玩家ID: $currentPlayerIds');
+    developer.log('🔍 新玩家ID: $newPlayerIds');
 
     // 移除不存在的玩家
     for (final playerId in currentPlayerIds) {
       if (!newPlayerIds.contains(playerId)) {
+        developer.log('❌ 移除玩家: $playerId');
         final player = _networkPlayers[playerId];
         if (player != null) {
           player.removeFromParent();
@@ -265,24 +309,41 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     for (final networkPlayer in networkPlayers) {
       if (!_networkPlayers.containsKey(networkPlayer.id)) {
         // 创建新玩家
+        developer.log('➕ 创建新玩家: ${networkPlayer.name} (${networkPlayer.id})');
         _createNetworkPlayer(networkPlayer);
       } else {
         // 更新现有玩家
+        developer.log('🔄 更新现有玩家: ${networkPlayer.name} (${networkPlayer.id})');
         _updateNetworkPlayer(networkPlayer);
       }
     }
 
-    _isNetworkSynced = true;
+    developer.log('✅ 玩家同步完成，当前游戏中玩家数量: ${_networkPlayers.length}');
+    developer.log('📊 红队玩家数量: ${redPlayers.length}');
+    developer.log('📊 蓝队玩家数量: ${bluePlayers.length}');
   }
 
   /// 创建网络玩家
   void _createNetworkPlayer(NetworkPlayer networkPlayer) {
+    developer.log('🏗️ 开始创建网络玩家: ${networkPlayer.name}');
+    developer.log('  ID: ${networkPlayer.id}');
+    developer.log('  队伍: ${networkPlayer.team} (${networkPlayer.teamEnum})');
+    developer.log('  位置: ${networkPlayer.position}');
+    developer.log('  半径: ${networkPlayer.radius}');
+    developer.log('  存活: ${networkPlayer.isAlive}');
+    developer.log('  连接: ${networkPlayer.connected}');
+
     final isLocalPlayer = networkPlayer.id == _localPlayerId;
+    developer.log('  是否本地玩家: $isLocalPlayer (本地玩家ID: $_localPlayerId)');
+
+    // 直接使用服务器坐标（客户端和服务器使用相同的1280x720分辨率）
+    final position = Vector2(networkPlayer.position.x, networkPlayer.position.y);
+    developer.log('  位置: $position，半径: ${networkPlayer.radius}');
 
     final player = PlayerComponent(
       team: networkPlayer.teamEnum,
       playerId: int.tryParse(networkPlayer.id) ?? 0,
-      position: Vector2(networkPlayer.position.x, networkPlayer.position.y),
+      position: position,
       controllerType: isLocalPlayer
           ? PlayerControllerType.human
           : PlayerControllerType.ai,
@@ -292,25 +353,30 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     // 设置生命值（如果是淘汰赛模式）
     if (maxHealth != null && gameplayMode == GameplayMode.elimination) {
       player.setMaxHealth(maxHealth!);
+      developer.log('  设置最大生命值: $maxHealth');
     }
 
     // 添加到游戏
     add(player);
     _networkPlayers[networkPlayer.id] = player;
+    developer.log('  ✅ 玩家组件已添加到游戏场景');
 
     // 添加到队伍列表
     if (networkPlayer.teamEnum == Team.red) {
       redPlayers.add(player);
+      developer.log('  ✅ 已添加到红队，红队人数: ${redPlayers.length}');
     } else {
       bluePlayers.add(player);
+      developer.log('  ✅ 已添加到蓝队，蓝队人数: ${bluePlayers.length}');
     }
 
     // 如果是本地玩家，保存引用
     if (isLocalPlayer) {
       _localPlayer = player;
+      developer.log('  ✅ 已设置为本地玩家');
     }
 
-    developer.log('创建玩家: ${networkPlayer.name} (${networkPlayer.team})');
+    developer.log('✅ 网络玩家创建完成: ${networkPlayer.name} (${networkPlayer.team})');
   }
 
   /// 更新网络玩家状态
@@ -318,11 +384,12 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     final player = _networkPlayers[networkPlayer.id];
     if (player == null) return;
 
-    // 更新位置（使用插值平滑移动）
+    // 直接使用服务器坐标更新位置
     final targetPosition = Vector2(
       networkPlayer.position.x,
       networkPlayer.position.y,
     );
+    
     if (!player.position.distanceTo(targetPosition).isInfinite) {
       // 简单的线性插值，可以改进为更复杂的预测算法
       final distance = player.position.distanceTo(targetPosition);
@@ -404,6 +471,8 @@ class MultiplayerDodgeballGame extends DodgeballGame {
 
     _currentMoveInput = moveDirection.normalized();
 
+    // 调用父类方法
+    super.onKeyEvent(event, keysPressed);
     return KeyEventResult.handled;
   }
 
@@ -436,7 +505,6 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   // 投掷请求已经通过网络发送
 
   /// 更新队伍统计显示
-  @override
   void _updateTeamCountDisplay() {
     final roomInfo = networkManager.roomInfoNotifier.value;
     if (roomInfo == null) return;
@@ -494,5 +562,42 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   void restartGame() {
     // 多人模式下重新开始由服务器控制
     developer.log('多人模式下无法本地重新开始游戏');
+  }
+
+  /// 添加边界墙壁
+  void addBoundaryWalls() {
+    final wallThickness = FieldConfig.wallThickness;
+
+    // 顶部墙壁
+    final topWall = RectangleComponent(
+      position: Vector2(0, 0),
+      size: Vector2(size.x, wallThickness),
+      paint: Paint()..color = FieldConfig.wallColor,
+    );
+    add(topWall);
+
+    // 底部墙壁
+    final bottomWall = RectangleComponent(
+      position: Vector2(0, size.y - wallThickness),
+      size: Vector2(size.x, wallThickness),
+      paint: Paint()..color = FieldConfig.wallColor,
+    );
+    add(bottomWall);
+
+    // 左侧墙壁
+    final leftWall = RectangleComponent(
+      position: Vector2(0, 0),
+      size: Vector2(wallThickness, size.y),
+      paint: Paint()..color = FieldConfig.wallColor,
+    );
+    add(leftWall);
+
+    // 右侧墙壁
+    final rightWall = RectangleComponent(
+      position: Vector2(size.x - wallThickness, 0),
+      size: Vector2(wallThickness, size.y),
+      paint: Paint()..color = FieldConfig.wallColor,
+    );
+    add(rightWall);
   }
 }
