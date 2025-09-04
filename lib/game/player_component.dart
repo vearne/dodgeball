@@ -223,21 +223,7 @@ class PlayerComponent extends PositionComponent
 
   void _setupHumanPlayerVisuals() {
     // 为人类玩家添加特殊的视觉效果
-
-    // 1. 添加王冠图标（挂载到箭头内部）
-    _crownIcon = CrownComponent(
-      size: radius * 0.6,
-      color: const ui.Color(0xFFFFD700),
-    );
-    // 将王冠放在箭头主体靠左上侧
-    final crownHolder = PositionComponent(
-      anchor: Anchor.center,
-      position: Vector2(radius * 0.6, radius * 0.6),
-      children: [_crownIcon!],
-    );
-    _arrowIcon?.add(crownHolder);
-
-    // 2. 添加"HUMAN"标识
+    // 1. 添加"HUMAN"标识
     _playerLabel = TextComponent(
       text: 'YOU',
       textRenderer: TextPaint(
@@ -253,11 +239,11 @@ class PlayerComponent extends PositionComponent
     );
     _arrowIcon?.add(_playerLabel!);
 
-    // 3. 更新箭头颜色，让人类玩家更亮
+    // 2. 更新箭头颜色，让人类玩家更亮
     final brightColor = _getBrightTeamColor(team);
     _arrowIcon?.color = brightColor;
 
-    // 4. 添加呼吸动画效果
+    // 3. 添加呼吸动画效果
     _breathingTimer = TimerComponent(
       period: 1.0,
       repeat: true,
