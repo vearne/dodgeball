@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../game/team.dart';
 import 'websocket_client.dart';
 import 'http_client.dart';
+import 'player_identity.dart';
 
 /// 游戏网络管理器，负责处理多人游戏的网络通信
 class GameNetworkManager {
@@ -90,13 +91,13 @@ class GameNetworkManager {
     final success = await _client.reconnect();
     if (success) {
       // 重连成功后，如果之前在房间中，尝试重新加入
-      if (_currentRoomId != null && _currentPlayerId != null) {
+      if (_currentRoomId != null) {
         developer.log('重连成功，重新加入房间: $_currentRoomId');
         // 重新发送加入房间消息
         _client.sendMessage({
           'type': MessageType.joinRoom,
           'room_id': _currentRoomId,
-          'player_id': _currentPlayerId,
+          'player_id': PlayerIdentity.instance.id,
         });
         _gameStateNotifier.value = NetworkGameState.joiningRoom;
       } else {
@@ -121,6 +122,7 @@ class GameNetworkManager {
       'type': MessageType.joinRoom,
       'room_id': roomId,
       'name': playerName,
+      'player_id': PlayerIdentity.instance.id,
     });
     _gameStateNotifier.value = NetworkGameState.joiningRoom;
   }
@@ -500,6 +502,7 @@ class GameNetworkManager {
       'type': MessageType.joinRoom,
       'room_id': roomId,
       'name': playerName,
+      'player_id': PlayerIdentity.instance.id,
       'is_creator': true, // 标记这是房主
     });
 

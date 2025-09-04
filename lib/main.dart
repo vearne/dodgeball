@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'game/audio_manager.dart';
 import 'screens/game_mode_selection_screen.dart';
+import 'network/player_identity.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 初始化音频管理器
   await AudioManager.instance.initialize();
+
+  // 生成并加载唯一的 player_id
+  await PlayerIdentity.instance.ensureInitialized();
 
   runApp(const Dodgeball());
 }

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 
 import '../game/game_mode.dart';
+import 'player_identity.dart';
 
 /// HTTP客户端，用于与游戏服务器的REST API通信
 class GameHttpClient {
@@ -72,7 +73,10 @@ class GameHttpClient {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/rooms'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': creatorName}),
+        body: jsonEncode({
+          'name': creatorName,
+          'player_id': PlayerIdentity.instance.id,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -115,6 +119,7 @@ class GameHttpClient {
         'max_health': gameMode.maxHealth ?? 3,
         'time_limit': gameMode.timeLimit?.seconds.toDouble() ?? 180.0,
         'ai_intelligence_level': aiIntelligenceLevel,
+        'player_id': PlayerIdentity.instance.id,
       };
 
       final response = await http.post(
@@ -157,7 +162,10 @@ class GameHttpClient {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/rooms/$roomId/join'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'name': playerName}),
+        body: jsonEncode({
+          'name': playerName,
+          'player_id': PlayerIdentity.instance.id,
+        }),
       );
 
       if (response.statusCode == 200) {
