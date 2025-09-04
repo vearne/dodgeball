@@ -22,6 +22,7 @@ class PlayerComponent extends PositionComponent
     required Vector2 position,
     this.controllerType = PlayerControllerType.human,
     this.radius = 16,
+    this.aiIntelligenceLevel = 1.0,
     ui.Color? color,
   }) : _color = color ?? _teamColor(team),
        super(
@@ -38,6 +39,7 @@ class PlayerComponent extends PositionComponent
   final int playerId;
   final PlayerControllerType controllerType;
   final double radius;
+  final double aiIntelligenceLevel;
   final ui.Color _color;
   bool isEliminated = false;
   bool _pendingRemoval = false; // 新增：标记是否待移除
@@ -169,7 +171,7 @@ class PlayerComponent extends PositionComponent
 
     // 添加圆形碰撞体作为主要碰撞检测
     add(CircleHitbox(radius: radius));
-    
+
     // 设置玩家视觉效果
     _setupPlayerVisuals();
 
@@ -190,7 +192,7 @@ class PlayerComponent extends PositionComponent
       _aiController = AIController(
         player: this,
         gameSize: game.size,
-        difficultyLevel: 1.0, // 可以根据需要调整难度
+        difficultyLevel: aiIntelligenceLevel, // 使用传入的AI智能水平
       );
       add(_aiController!);
     }

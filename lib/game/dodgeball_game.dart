@@ -30,6 +30,7 @@ class DodgeballGame extends FlameGame
     this.gameplayMode = GameplayMode.elimination,
     this.maxHealth,
     this.timeLimit,
+    this.aiIntelligenceLevel = 1.0,
   }) {
     if (randomSeed != null) {
       _random = Random(randomSeed);
@@ -41,6 +42,7 @@ class DodgeballGame extends FlameGame
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
+  final double aiIntelligenceLevel;
   late Random _random = Random();
 
   final List<PlayerComponent> redPlayers = [];
@@ -672,6 +674,7 @@ class DodgeballGame extends FlameGame
         controllerType: (gameMode == GameModeType.singlePlayer && i != 0)
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
+        aiIntelligenceLevel: aiIntelligenceLevel,
       );
 
       // 设置生命值（只在淘汰赛模式下）
@@ -689,6 +692,7 @@ class DodgeballGame extends FlameGame
         controllerType: gameMode == GameModeType.singlePlayer
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
+        aiIntelligenceLevel: aiIntelligenceLevel,
       );
 
       // 设置生命值（只在淘汰赛模式下）

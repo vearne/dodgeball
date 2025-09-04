@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 
+import '../game/game_mode.dart';
+
 /// HTTP客户端，用于与游戏服务器的REST API通信
 class GameHttpClient {
   static GameHttpClient? _instance;
@@ -94,6 +96,57 @@ class GameHttpClient {
     }
   }
 
+  /// 创建新房间并设置游戏参数
+  Future<CreateRoomResult> createRoomWithGameSettings(
+    String creatorName,
+    GameMode gameMode,
+    double aiIntelligenceLevel,
+  ) async {
+    if (_baseUrl == null) {
+      throw Exception('服务器URL未设置');
+    }
+
+    try {
+      final requestBody = {
+        'name': creatorName,
+        'game_mode': gameMode.gameplayMode == GameplayMode.elimination
+            ? 'elimination'
+            : 'time_limit',
+        'max_health': gameMode.maxHealth ?? 3,
+        'time_limit': gameMode.timeLimit?.seconds.toDouble() ?? 180.0,
+        'ai_intelligence_level': aiIntelligenceLevel,
+      };
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/rooms/with-settings'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final roomData = data['room'] as Map<String, dynamic>;
+        final roomId = roomData['id'] as String;
+        final playerId = data['player_id'] as String;
+
+        developer.log('房间创建成功，ID: $roomId, 房主ID: $playerId');
+        developer.log(
+          '游戏设置: ${gameMode.gameplayMode}, AI智能水平: $aiIntelligenceLevel',
+        );
+        return CreateRoomResult(
+          roomId: roomId,
+          playerId: playerId,
+          roomData: roomData,
+        );
+      } else {
+        throw Exception('创建房间失败: ${response.statusCode}');
+      }
+    } catch (e) {
+      developer.log('创建房间失败: $e');
+      rethrow;
+    }
+  }
+
   /// 通过HTTP加入房间（用于获取玩家ID，实际游戏通过WebSocket）
   Future<JoinRoomResult> joinRoomHttp(String roomId, String playerName) async {
     if (_baseUrl == null) {
@@ -125,6 +178,35 @@ class GameHttpClient {
       }
     } catch (e) {
       developer.log('HTTP加入房间失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 设置AI智能水平
+  Future<void> setAIIntelligenceLevel(
+    String roomId,
+    double aiIntelligenceLevel,
+  ) async {
+    if (_baseUrl == null) {
+      throw Exception('服务器URL未设置');
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/rooms/$roomId/ai-intelligence'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'ai_intelligence_level': aiIntelligenceLevel}),
+      );
+
+      if (response.statusCode != 200) {
+        final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+        final errorMsg = errorData['error'] as String? ?? '未知错误';
+        throw Exception('设置AI智能水平失败: $errorMsg');
+      }
+
+      developer.log('AI智能水平设置成功: $aiIntelligenceLevel');
+    } catch (e) {
+      developer.log('设置AI智能水平失败: $e');
       rethrow;
     }
   }

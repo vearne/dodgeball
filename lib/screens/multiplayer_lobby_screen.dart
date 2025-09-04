@@ -43,6 +43,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   RoomInfo? _roomInfo;
   List<NetworkPlayer> _players = [];
   String? _connectionError;
+  double _aiIntelligenceLevel = 1.0; // AI智能水平
 
   @override
   void initState() {
@@ -238,6 +239,35 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
         ),
       ),
     );
+  }
+
+  /// 设置AI智能水平
+  void _setAIIntelligenceLevel(double level) async {
+    try {
+      await _networkManager.setAIIntelligenceLevel(level);
+      developer.log('🤖 AI智能水平设置成功: $level');
+    } catch (e) {
+      developer.log('🤖 设置AI智能水平失败: $e');
+      _showError('设置AI智能水平失败: $e');
+    }
+  }
+
+  /// 获取AI智能水平标签
+  String _getAIIntelligenceLabel(double level) {
+    if (level <= 0.7) return '简单';
+    if (level <= 1.0) return '普通';
+    if (level <= 1.3) return '困难';
+    if (level <= 1.7) return '专家';
+    return '大师';
+  }
+
+  /// 获取AI智能水平描述
+  String _getAIIntelligenceDescription(double level) {
+    if (level <= 0.7) return 'AI反应较慢，躲避间隔较长';
+    if (level <= 1.0) return 'AI反应适中，平衡的游戏体验';
+    if (level <= 1.3) return 'AI反应较快，躲避间隔较短';
+    if (level <= 1.7) return 'AI反应很快，具有挑战性';
+    return 'AI反应极快，最高难度挑战';
   }
 
   @override
@@ -580,6 +610,87 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
                   if (widget.gameplayMode == GameplayMode.timeLimit &&
                       widget.timeLimit != null)
                     Text('游戏时间: ${widget.timeLimit!.displayName}'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // 房间设置显示（所有玩家可见，但房主可以调整）
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        '房间设置',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (_networkManager.isRoomCreator)
+                        const Text(
+                          '(房主)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // AI智能水平显示
+                  Row(
+                    children: [
+                      const Icon(Icons.smart_toy, size: 16, color: Colors.blue),
+                      const SizedBox(width: 8),
+                      const Text('AI智能水平: '),
+                      Text(
+                        _getAIIntelligenceLabel(_aiIntelligenceLevel),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _getAIIntelligenceDescription(_aiIntelligenceLevel),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  ),
+
+                  // 如果是房主，显示调整滑块
+                  if (_networkManager.isRoomCreator) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text('简单', style: TextStyle(fontSize: 12)),
+                        Expanded(
+                          child: Slider(
+                            value: _aiIntelligenceLevel,
+                            min: 0.5,
+                            max: 2.0,
+                            divisions: 6,
+                            label: _getAIIntelligenceLabel(
+                              _aiIntelligenceLevel,
+                            ),
+                            onChanged: (value) {
+                              setState(() {
+                                _aiIntelligenceLevel = value;
+                              });
+                              _setAIIntelligenceLevel(value);
+                            },
+                          ),
+                        ),
+                        const Text('困难', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

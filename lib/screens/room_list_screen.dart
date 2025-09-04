@@ -8,11 +8,13 @@ import 'multiplayer_lobby_screen.dart';
 class RoomListScreen extends StatefulWidget {
   final GameMode gameMode;
   final String serverUrl;
+  final double aiIntelligenceLevel;
 
   const RoomListScreen({
     super.key,
     required this.gameMode,
     required this.serverUrl,
+    this.aiIntelligenceLevel = 1.0,
   });
 
   @override
@@ -63,7 +65,11 @@ class _RoomListScreenState extends State<RoomListScreen> {
     try {
       setState(() => _isLoading = true);
 
-      final result = await _httpClient.createRoom(playerName);
+      final result = await _httpClient.createRoomWithGameSettings(
+        playerName,
+        widget.gameMode,
+        widget.aiIntelligenceLevel,
+      );
 
       developer.log('创建房间结果：房间ID=${result.roomId}, 房主ID=${result.playerId}');
       developer.log('房间数据：${result.roomData}');

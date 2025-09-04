@@ -10,12 +10,14 @@ class GameScreen extends StatefulWidget {
     this.gameplayMode = GameplayMode.elimination,
     this.maxHealth,
     this.timeLimit,
+    this.aiIntelligenceLevel = 1.0,
   });
 
   final GameModeType gameMode;
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
+  final double aiIntelligenceLevel;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -32,6 +34,7 @@ class _GameScreenState extends State<GameScreen> {
       gameplayMode: widget.gameplayMode,
       maxHealth: widget.maxHealth,
       timeLimit: widget.timeLimit,
+      aiIntelligenceLevel: widget.aiIntelligenceLevel,
     );
   }
 
@@ -305,6 +308,7 @@ class _GameScreenState extends State<GameScreen> {
         gameplayMode: widget.gameplayMode,
         maxHealth: widget.maxHealth,
         timeLimit: widget.timeLimit,
+        aiIntelligenceLevel: widget.aiIntelligenceLevel,
       );
     });
   }

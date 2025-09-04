@@ -27,6 +27,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     super.gameplayMode,
     super.maxHealth,
     super.timeLimit,
+    super.aiIntelligenceLevel,
   });
 
   final GameNetworkManager networkManager;

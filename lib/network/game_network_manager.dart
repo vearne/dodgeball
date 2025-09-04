@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../game/team.dart';
 import 'websocket_client.dart';
+import 'http_client.dart';
 
 /// 游戏网络管理器，负责处理多人游戏的网络通信
 class GameNetworkManager {
@@ -252,6 +253,25 @@ class GameNetworkManager {
       'player_id': _currentPlayerId,
     });
     developer.log('🎮 开始游戏消息已发送');
+  }
+
+  /// 设置AI智能水平
+  Future<void> setAIIntelligenceLevel(double aiIntelligenceLevel) async {
+    if (_currentRoomId == null) {
+      throw Exception('未在房间中');
+    }
+
+    try {
+      final httpClient = GameHttpClient.instance;
+      await httpClient.setAIIntelligenceLevel(
+        _currentRoomId!,
+        aiIntelligenceLevel,
+      );
+      developer.log('🤖 AI智能水平设置成功: $aiIntelligenceLevel');
+    } catch (e) {
+      developer.log('🤖 设置AI智能水平失败: $e');
+      rethrow;
+    }
   }
 
   /// 发送游戏输入

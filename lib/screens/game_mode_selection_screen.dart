@@ -17,6 +17,7 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
   int _maxHealth = 3;
   TimeLimitOption _timeLimit = TimeLimitOption.threeMinutes;
   PlayMode _selectedPlayMode = PlayMode.single;
+  double _aiIntelligenceLevel = 1.0; // AI智能水平 0.5-2.0
 
   final TextEditingController _serverUrlController = TextEditingController(
     text: 'ws://localhost:8080/ws',
@@ -143,6 +144,57 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
                 ),
               ),
             ],
+
+            // AI智能水平设置
+            const SizedBox(height: 16),
+            const Text(
+              'AI智能水平',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Text('简单', style: TextStyle(fontSize: 12)),
+                Expanded(
+                  child: Slider(
+                    value: _aiIntelligenceLevel,
+                    min: 0.5,
+                    max: 2.0,
+                    divisions: 6,
+                    label: _getAIIntelligenceLabel(_aiIntelligenceLevel),
+                    onChanged: (value) {
+                      setState(() {
+                        _aiIntelligenceLevel = value;
+                      });
+                    },
+                  ),
+                ),
+                const Text('困难', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+            Center(
+              child: Text(
+                _getAIIntelligenceDescription(_aiIntelligenceLevel),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+
+            // 说明文字
+            if (_selectedPlayMode == PlayMode.single) ...[
+              const SizedBox(height: 8),
+              const Text(
+                '注意：此设置影响单人模式中的AI玩家行为',
+                style: TextStyle(fontSize: 11, color: Colors.orange),
+                textAlign: TextAlign.center,
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              const Text(
+                '注意：此设置将在创建房间时应用于多人游戏',
+                style: TextStyle(fontSize: 11, color: Colors.blue),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
@@ -249,6 +301,7 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
             gameplayMode: gameMode.gameplayMode,
             maxHealth: gameMode.maxHealth,
             timeLimit: gameMode.timeLimit,
+            aiIntelligenceLevel: _aiIntelligenceLevel,
           ),
         ),
       );
@@ -259,10 +312,29 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
           builder: (context) => RoomListScreen(
             gameMode: gameMode,
             serverUrl: _serverUrlController.text.trim(),
+            aiIntelligenceLevel: _aiIntelligenceLevel,
           ),
         ),
       );
     }
+  }
+
+  /// 获取AI智能水平标签
+  String _getAIIntelligenceLabel(double level) {
+    if (level <= 0.7) return '简单';
+    if (level <= 1.0) return '普通';
+    if (level <= 1.3) return '困难';
+    if (level <= 1.7) return '专家';
+    return '大师';
+  }
+
+  /// 获取AI智能水平描述
+  String _getAIIntelligenceDescription(double level) {
+    if (level <= 0.7) return 'AI反应较慢，躲避间隔较长';
+    if (level <= 1.0) return 'AI反应适中，平衡的游戏体验';
+    if (level <= 1.3) return 'AI反应较快，躲避间隔较短';
+    if (level <= 1.7) return 'AI反应很快，具有挑战性';
+    return 'AI反应极快，最高难度挑战';
   }
 
   @override
