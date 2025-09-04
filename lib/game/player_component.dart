@@ -167,8 +167,9 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 移除圆形碰撞体，统一使用ArrowComponent的箭头形状精确碰撞体
-
+    // 添加圆形碰撞体作为主要碰撞检测
+    add(CircleHitbox(radius: radius));
+    
     // 设置玩家视觉效果
     _setupPlayerVisuals();
 

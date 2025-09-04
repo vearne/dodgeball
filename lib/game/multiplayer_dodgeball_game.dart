@@ -87,6 +87,10 @@ class MultiplayerDodgeballGame extends DodgeballGame {
       developer.log('📱 移动控制器添加完成');
     }
 
+    // 设置调试模式（与单人模式保持一致）
+    BallComponent.showDebugCollision = DodgeballGame.showDebugInfo;
+    developer.log('🔍 碰撞检测调试模式: ${BallComponent.showDebugCollision}');
+
     // 立即检查当前玩家数据
     final currentPlayers = networkManager.playersNotifier.value;
     developer.log('🧑‍🤝‍🧑 当前玩家数量: ${currentPlayers.length}');
@@ -235,8 +239,33 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     // 发送本地玩家输入到服务器
     _sendPlayerInput();
 
+    // 更新人类玩家冷却时间通知（用于UI显示）
+    _updateHumanCooldownNotifier();
+
     // 如果是多人模式，禁用本地的物理模拟和胜利检测
     // 这些都由服务器处理
+  }
+
+  /// 更新人类玩家冷却时间通知
+  void _updateHumanCooldownNotifier() {
+    // 找到本地玩家
+    if (_localPlayer == null || _localPlayer!.isEliminated) {
+      if (humanCooldownRemainingNotifier.value != 0) {
+        humanCooldownRemainingNotifier.value = 0;
+      }
+      return;
+    }
+    
+    final remaining = _localPlayer!.throwCooldownRemaining;
+    if (humanCooldownRemainingNotifier.value != remaining) {
+      humanCooldownRemainingNotifier.value = remaining;
+    }
+
+    // 同时更新本地玩家得分显示
+    final currentScore = _localPlayer!.score;
+    if (humanScoreNotifier.value != currentScore) {
+      humanScoreNotifier.value = currentScore;
+    }
   }
 
   /// 发送玩家输入到服务器
@@ -511,12 +540,12 @@ class MultiplayerDodgeballGame extends DodgeballGame {
 
     if (gameplayMode == GameplayMode.timeLimit) {
       // 限时赛模式：显示得分
-      redTeamCountText?.text = '红队: ${roomInfo.redCount}分';
-      blueTeamCountText?.text = '蓝队: ${roomInfo.blueCount}分';
+      redTeamCountText?.text = '红队: ${roomInfo.redScore ?? 0}分';
+      blueTeamCountText?.text = '蓝队: ${roomInfo.blueScore ?? 0}分';
     } else {
       // 淘汰赛模式：显示存活人数
-      redTeamCountText?.text = '红队: ${roomInfo.redCount}';
-      blueTeamCountText?.text = '蓝队: ${roomInfo.blueCount}';
+      redTeamCountText?.text = '红队: ${roomInfo.redCount ?? 0}人';
+      blueTeamCountText?.text = '蓝队: ${roomInfo.blueCount ?? 0}人';
     }
   }
 
@@ -530,7 +559,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
   void setupTeamCountDisplay() {
     // 红队统计
     redTeamCountText = TextComponent(
-      text: '红队: 0',
+      text: gameplayMode == GameplayMode.timeLimit ? '红队: 0分' : '红队: 0人',
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 20,
@@ -544,7 +573,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
 
     // 蓝队统计
     blueTeamCountText = TextComponent(
-      text: '蓝队: 0',
+      text: gameplayMode == GameplayMode.timeLimit ? '蓝队: 0分' : '蓝队: 0人',
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 20,

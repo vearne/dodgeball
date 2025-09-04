@@ -72,6 +72,9 @@ class DodgeballGame extends FlameGame
   // 音频管理器
   final AudioManager _audioManager = AudioManager.instance;
 
+  // 调试模式开关
+  static bool showDebugInfo = false;
+
   // 移动设备控制器
   MobileController? _mobileController;
 
@@ -98,6 +101,9 @@ class DodgeballGame extends FlameGame
     await _audioManager.playBackgroundMusic();
 
     // 如果是移动设备，添加移动控制器
+
+    // 设置调试模式
+    BallComponent.showDebugCollision = showDebugInfo;
     if (MobileController.isMobileDevice) {
       _addMobileController();
     }
@@ -296,7 +302,7 @@ class DodgeballGame extends FlameGame
     final thrower = candidates[_random.nextInt(candidates.length)];
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 400.0; // 统一球速度
+    final speed = 350.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 1 + _random.nextInt(5); // 1..5
@@ -329,7 +335,7 @@ class DodgeballGame extends FlameGame
     }
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 400.0; // 统一球速度
+    final speed = 350.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 1 + _random.nextInt(4); // 1..4 (略少于玩家)
@@ -362,7 +368,7 @@ class DodgeballGame extends FlameGame
     }
 
     final dir = (target - thrower.absoluteCenter).normalized();
-    final speed = 400.0; // 统一球速度
+    final speed = 350.0; // 统一球速度
     final velocity = dir * speed;
 
     final randomBounces = 2 + _random.nextInt(4); // 2..5

@@ -151,13 +151,17 @@ class HttpRoomInfo {
   });
 
   factory HttpRoomInfo.fromJson(Map<String, dynamic> json) {
+    final int red = json['red_count'] ?? 0;
+    final int blue = json['blue_count'] ?? 0;
+    final int maxPlayers = json['max_players'] ?? 12;
+
     return HttpRoomInfo(
       id: json['id'] ?? '',
-      redCount: json['red_count'] ?? 0,
-      blueCount: json['blue_count'] ?? 0,
+      redCount: red,
+      blueCount: blue,
       isStarted: json['is_started'] ?? false,
-      playerCount: json['player_count'] ?? 0,
-      maxPlayers: json['max_players'] ?? 12,
+      playerCount: red + blue,
+      maxPlayers: maxPlayers,
       creatorId: json['creator_id'] ?? '',
     );
   }

@@ -604,6 +604,8 @@ class RoomInfo {
   final String id;
   final int redCount;
   final int blueCount;
+  final int redScore; // 新增：红队得分
+  final int blueScore; // 新增：蓝队得分
   final bool isStarted;
   final int tick;
 
@@ -611,6 +613,8 @@ class RoomInfo {
     required this.id,
     required this.redCount,
     required this.blueCount,
+    required this.redScore,
+    required this.blueScore,
     required this.isStarted,
     required this.tick,
   });
@@ -620,6 +624,8 @@ class RoomInfo {
       id: json['id'] ?? '',
       redCount: json['red_count'] ?? 0,
       blueCount: json['blue_count'] ?? 0,
+      redScore: json['red_score'] ?? 0,
+      blueScore: json['blue_score'] ?? 0,
       isStarted: json['is_started'] ?? false,
       tick: json['tick'] ?? 0,
     );

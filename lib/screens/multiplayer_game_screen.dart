@@ -143,6 +143,14 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
               child: SafeArea(child: _buildTopStatusBar()),
             ),
 
+            // 冷却时间进度条和得分显示
+            Positioned(
+              top: 70,
+              left: 100,
+              right: 100,
+              child: SafeArea(child: _buildCooldownAndScoreBar()),
+            ),
+
             // 网络状态指示器
             Positioned(
               top: 60,
@@ -221,6 +229,91 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// 构建冷却时间进度条和得分显示
+  Widget _buildCooldownAndScoreBar() {
+    return ValueListenableBuilder<double>(
+      valueListenable: _game.humanCooldownRemainingNotifier,
+      builder: (context, remaining, _) {
+        final total = 10.0; // 与 PlayerComponent.throwCooldown 保持一致
+        final progress = (total - remaining) / total;
+        final clamped = progress.clamp(0.0, 1.0);
+        final isReady = remaining <= 0.001;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // 冷却图标和文本
+            Icon(
+              isReady ? Icons.bolt : Icons.hourglass_empty,
+              color: isReady ? Colors.greenAccent : Colors.amber,
+              size: 16,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isReady ? '可投掷' : '冷却：${remaining.toStringAsFixed(1)}s',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                shadows: [Shadow(color: Colors.black, blurRadius: 2)],
+              ),
+            ),
+            const SizedBox(width: 10),
+            // 进度条（缩短长度）
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: clamped,
+                  minHeight: 8,
+                  backgroundColor: Colors.black26,
+                  valueColor: AlwaysStoppedAnimation(
+                    isReady ? Colors.greenAccent : Colors.amber,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            // 分数显示
+            ValueListenableBuilder<int>(
+              valueListenable: _game.humanScoreNotifier,
+              builder: (context, score, __) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.emoji_events,
+                        size: 16,
+                        color: Colors.yellow,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '分数: $score',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 

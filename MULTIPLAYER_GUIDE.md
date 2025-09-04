@@ -160,7 +160,7 @@ export HTTP_ADDR=:8080
 服务器端的游戏参数在 `internal/room/loop.go` 中定义：
 
 - `tickRateHz = 60`: 游戏循环帧率
-- `playerSpeed = 200.0`: 玩家移动速度
+- `playerSpeed = 120.0`: 玩家移动速度
 - `ballSpeed = 400.0`: 球的速度
 - `playerRadius = 15.0`: 玩家半径
 - `ballRadius = 8.0`: 球半径

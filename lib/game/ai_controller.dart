@@ -22,7 +22,7 @@ class AIController extends Component {
 
   late Random _random;
   Vector2 _targetPosition = Vector2.zero();
-  double _movementSpeed = 80.0;
+  double _movementSpeed = 60.0;
   double _lastThinkTime = 0.0;
   double _thinkInterval = 2.0; // AI思考间隔
 
@@ -43,7 +43,7 @@ class AIController extends Component {
 
   void _setupBehaviorTimers() {
     // 根据难度调整AI行为参数
-    _movementSpeed = 60.0 + (difficultyLevel * 40.0);
+    _movementSpeed = 40.0 + (difficultyLevel * 20.0);
     _thinkInterval = 1.5 - (difficultyLevel * 0.5); // AI思考间隔更短，反应更快
     _aggressiveness = 0.5 + (difficultyLevel * 0.3);
   }
