@@ -1,10 +1,5 @@
 {
   "serverUrl": "ws://localhost:8080/ws",
-  "gameServer": {
-    "host": "localhost",
-    "port": 8080,
-    "path": "/ws"
-  },
   "fallbackServers": [
     "ws://localhost:8080/ws",
     "ws://192.168.1.100:8080/ws"

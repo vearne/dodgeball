@@ -1,10 +1,11 @@
+import 'dart:async';
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:developer' as developer;
-
 import '../game/game_mode.dart';
 import '../game/team.dart';
 import '../network/game_network_manager.dart';
+import '../network/server_config_manager.dart';
 import 'multiplayer_game_screen.dart';
 
 /// 多人游戏大厅界面
@@ -12,7 +13,6 @@ class MultiplayerLobbyScreen extends StatefulWidget {
   final GameplayMode gameplayMode;
   final int? maxHealth;
   final TimeLimitOption? timeLimit;
-  final String? serverUrl;
   final String? roomId;
   final String? playerId; // 如果是房主，会有这个ID
   final String? playerName; // 如果是房主，会有这个昵称
@@ -23,7 +23,6 @@ class MultiplayerLobbyScreen extends StatefulWidget {
     required this.gameplayMode,
     this.maxHealth,
     this.timeLimit,
-    this.serverUrl,
     this.roomId,
     this.playerId,
     this.playerName,
@@ -36,7 +35,6 @@ class MultiplayerLobbyScreen extends StatefulWidget {
 
 class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   final GameNetworkManager _networkManager = GameNetworkManager.instance;
-  final TextEditingController _serverUrlController = TextEditingController();
   final TextEditingController _playerNameController = TextEditingController();
 
   NetworkGameState _gameState = NetworkGameState.disconnected;
@@ -48,9 +46,6 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
   @override
   void initState() {
     super.initState();
-
-    // 设置服务器地址
-    _serverUrlController.text = widget.serverUrl ?? 'ws://localhost:8080/ws';
 
     // 如果有房主昵称，使用它，否则生成默认昵称
     if (widget.playerName != null) {
@@ -78,7 +73,6 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
     _networkManager.gameStateNotifier.removeListener(_onGameStateChanged);
     _networkManager.roomInfoNotifier.removeListener(_onRoomInfoChanged);
     _networkManager.playersNotifier.removeListener(_onPlayersChanged);
-    _serverUrlController.dispose();
     _playerNameController.dispose();
     super.dispose();
   }
@@ -124,20 +118,21 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
   /// 连接到服务器
   Future<void> _connectToServer() async {
-    if (_serverUrlController.text.isEmpty) {
-      _showError('请输入服务器地址');
-      return;
-    }
-
-    setState(() {
-      _connectionError = null;
-    });
-
-    final success = await _networkManager.connectToServer(
-      _serverUrlController.text.trim(),
-    );
-    if (!success) {
-      _showError('连接服务器失败，请检查服务器地址和网络连接');
+    try {
+      // 使用配置管理器获取服务器URL
+      final serverUrl = ServerConfigManager.instance.serverUrl;
+      
+      final success = await _networkManager.connectToServer(serverUrl);
+      if (success) {
+        _connectionError = null;
+        developer.log('成功连接到服务器: $serverUrl');
+      } else {
+        _connectionError = '连接服务器失败';
+        developer.log('连接服务器失败: $serverUrl');
+      }
+    } catch (e) {
+      _connectionError = '连接异常: $e';
+      developer.log('连接服务器异常: $e');
     }
   }
 
@@ -152,7 +147,7 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
       // 自动连接到服务器
       final success = await _networkManager.connectToServer(
-        _serverUrlController.text.trim(),
+        ServerConfigManager.instance.serverUrl,
       );
 
       if (success) {
@@ -433,14 +428,17 @@ class _MultiplayerLobbyScreenState extends State<MultiplayerLobbyScreen> {
 
                 // 服务器地址输入
                 TextField(
-                  controller: _serverUrlController,
+                  controller: _playerNameController,
                   decoration: const InputDecoration(
-                    labelText: '服务器地址',
-                    hintText: 'ws://localhost:8080/ws',
+                    labelText: '玩家昵称',
+                    hintText: '请输入您的昵称',
                     border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.dns),
+                    prefixIcon: Icon(Icons.person),
                   ),
-                  enabled: _gameState != NetworkGameState.connecting,
+                  maxLength: 20,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.deny(RegExp(r'[<>"/\\]')),
+                  ],
                 ),
                 const SizedBox(height: 20),
 

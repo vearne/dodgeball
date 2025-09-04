@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'dart:developer' as developer;
 import 'package:dodgeball/game/game_mode.dart';
 import 'package:dodgeball/network/http_client.dart';
+import 'package:dodgeball/network/server_config_manager.dart';
 import 'multiplayer_lobby_screen.dart';
 
 /// 房间列表界面
 class RoomListScreen extends StatefulWidget {
   final GameMode gameMode;
-  final String serverUrl;
   final double aiIntelligenceLevel;
 
   const RoomListScreen({
     super.key,
     required this.gameMode,
-    required this.serverUrl,
     this.aiIntelligenceLevel = 1.0,
   });
 
@@ -31,7 +30,9 @@ class _RoomListScreenState extends State<RoomListScreen> {
   @override
   void initState() {
     super.initState();
-    _httpClient.setBaseUrl(widget.serverUrl);
+    // 使用配置管理器获取服务器URL
+    final serverUrl = ServerConfigManager.instance.serverUrl;
+    _httpClient.setBaseUrl(serverUrl);
     _loadRoomList();
   }
 
@@ -82,7 +83,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
               gameplayMode: widget.gameMode.gameplayMode,
               maxHealth: widget.gameMode.maxHealth,
               timeLimit: widget.gameMode.timeLimit,
-              serverUrl: widget.serverUrl,
               roomId: result.roomId,
               playerId: result.playerId, // 传递房主ID
               playerName: playerName, // 传递玩家昵称
@@ -158,7 +158,6 @@ class _RoomListScreenState extends State<RoomListScreen> {
           gameplayMode: widget.gameMode.gameplayMode,
           maxHealth: widget.gameMode.maxHealth,
           timeLimit: widget.gameMode.timeLimit,
-          serverUrl: widget.serverUrl,
           roomId: room.id,
         ),
       ),
@@ -397,5 +396,14 @@ class _RoomListScreenState extends State<RoomListScreen> {
     if (room.isStarted) return Colors.orange;
     if (room.isFull) return Colors.red;
     return Colors.green;
+  }
+
+  /// 显示错误信息
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
   }
 }

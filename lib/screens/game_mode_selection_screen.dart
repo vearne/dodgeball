@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../game/game_mode.dart';
 import 'room_list_screen.dart';
 import 'game_screen.dart';
+import 'server_info_screen.dart';
 
 /// 游戏模式选择界面
 class GameModeSelectionScreen extends StatefulWidget {
@@ -18,10 +19,6 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
   TimeLimitOption _timeLimit = TimeLimitOption.threeMinutes;
   PlayMode _selectedPlayMode = PlayMode.single;
   double _aiIntelligenceLevel = 1.0; // AI智能水平 0.5-2.0
-
-  final TextEditingController _serverUrlController = TextEditingController(
-    text: 'ws://localhost:8080/ws',
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +45,9 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
             _buildPlayModeSelection(),
             const SizedBox(height: 24),
 
-            // 多人游戏服务器设置
+            // 服务器配置信息按钮（仅在多人模式时显示）
             if (_selectedPlayMode == PlayMode.multiplayer) ...[
-              _buildServerSettings(),
+              _buildServerInfoButton(),
               const SizedBox(height: 24),
             ],
 
@@ -241,7 +238,7 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
     );
   }
 
-  Widget _buildServerSettings() {
+  Widget _buildServerInfoButton() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -249,17 +246,28 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '服务器设置',
+              '服务器配置',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _serverUrlController,
-              decoration: const InputDecoration(
-                labelText: '服务器地址',
-                hintText: 'ws://localhost:8080/ws',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.cloud),
+            const Text(
+              '服务器配置已从配置文件自动读取，无需手动设置',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ServerInfoScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.info_outline),
+              label: const Text('查看服务器配置信息'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.blue,
+                side: const BorderSide(color: Colors.blue),
               ),
             ),
           ],
@@ -311,7 +319,6 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
         MaterialPageRoute(
           builder: (context) => RoomListScreen(
             gameMode: gameMode,
-            serverUrl: _serverUrlController.text.trim(),
             aiIntelligenceLevel: _aiIntelligenceLevel,
           ),
         ),
@@ -339,7 +346,6 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
 
   @override
   void dispose() {
-    _serverUrlController.dispose();
     super.dispose();
   }
 }
