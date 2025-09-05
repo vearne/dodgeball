@@ -675,6 +675,7 @@ class DodgeballGame extends FlameGame
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
         aiIntelligenceLevel: aiIntelligenceLevel,
+        name: null, // 单人模式下不显示名称
       );
 
       // 设置生命值（只在淘汰赛模式下）
@@ -693,6 +694,7 @@ class DodgeballGame extends FlameGame
             ? PlayerControllerType.ai
             : PlayerControllerType.human,
         aiIntelligenceLevel: aiIntelligenceLevel,
+        name: null, // 单人模式下不显示名称
       );
 
       // 设置生命值（只在淘汰赛模式下）

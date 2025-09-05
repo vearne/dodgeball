@@ -256,7 +256,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
       }
       return;
     }
-    
+
     final remaining = _localPlayer!.throwCooldownRemaining;
     if (humanCooldownRemainingNotifier.value != remaining) {
       humanCooldownRemainingNotifier.value = remaining;
@@ -367,7 +367,10 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     developer.log('  是否本地玩家: $isLocalPlayer (本地玩家ID: $_localPlayerId)');
 
     // 直接使用服务器坐标（客户端和服务器使用相同的1280x720分辨率）
-    final position = Vector2(networkPlayer.position.x, networkPlayer.position.y);
+    final position = Vector2(
+      networkPlayer.position.x,
+      networkPlayer.position.y,
+    );
     developer.log('  位置: $position，半径: ${networkPlayer.radius}');
 
     final player = PlayerComponent(
@@ -378,6 +381,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
           ? PlayerControllerType.human
           : PlayerControllerType.ai,
       radius: networkPlayer.radius,
+      name: networkPlayer.name, // 传递玩家名称
     );
 
     // 设置生命值（如果是淘汰赛模式）
@@ -419,7 +423,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
       networkPlayer.position.x,
       networkPlayer.position.y,
     );
-    
+
     if (!player.position.distanceTo(targetPosition).isInfinite) {
       // 简单的线性插值，可以改进为更复杂的预测算法
       final distance = player.position.distanceTo(targetPosition);

@@ -23,6 +23,7 @@ class PlayerComponent extends PositionComponent
     this.controllerType = PlayerControllerType.human,
     this.radius = 16,
     this.aiIntelligenceLevel = 1.0,
+    this.name, // 新增：玩家名称
     ui.Color? color,
   }) : _color = color ?? _teamColor(team),
        super(
@@ -40,6 +41,7 @@ class PlayerComponent extends PositionComponent
   final PlayerControllerType controllerType;
   final double radius;
   final double aiIntelligenceLevel;
+  final String? name; // 新增：玩家名称
   final ui.Color _color;
   bool isEliminated = false;
   bool _pendingRemoval = false; // 新增：标记是否待移除
@@ -223,9 +225,22 @@ class PlayerComponent extends PositionComponent
 
   void _setupHumanPlayerVisuals() {
     // 为人类玩家添加特殊的视觉效果
-    // 1. 添加"HUMAN"标识
+    // 1. 添加玩家标识（多人模式显示名称，单人模式显示"YOU"）
+    final game = findGame();
+    final isMultiplayer =
+        game != null &&
+        game is DodgeballGame &&
+        game.gameMode == GameModeType.multiPlayer;
+
+    String displayText;
+    if (isMultiplayer && name != null && name!.isNotEmpty) {
+      displayText = name!;
+    } else {
+      displayText = 'YOU';
+    }
+
     _playerLabel = TextComponent(
-      text: 'YOU',
+      text: displayText,
       textRenderer: TextPaint(
         style: const TextStyle(
           fontSize: 6,
@@ -258,7 +273,13 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupAIPlayerVisuals() {
-    // AI玩家：在箭头内部添加"AI"标识
+    // AI玩家：在箭头内部添加标识（多人模式显示名称，单人模式显示"AI"）
+    final game = findGame();
+    final isMultiplayer =
+        game != null &&
+        game is DodgeballGame &&
+        game.gameMode == GameModeType.multiPlayer;
+
     _playerLabel = TextComponent(
       text: 'AI',
       textRenderer: TextPaint(
