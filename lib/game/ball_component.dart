@@ -72,11 +72,31 @@ class BallComponent extends SpriteComponent
   void update(double dt) {
     super.update(dt);
 
-    // 简化移动逻辑
-    position += velocity * dt;
+    // 使用多步物理更新提高精度
+    _updatePhysicsWithSubsteps(dt);
+  }
 
-    // 添加连续碰撞检测，防止高速球穿透
-    _checkContinuousCollisions(dt);
+  /// 使用子步长进行物理更新，提高精度
+  void _updatePhysicsWithSubsteps(double dt) {
+    // 根据球的速度动态调整子步数
+    final speed = velocity.length;
+    int substeps = 1;
+
+    if (speed > 200) {
+      substeps = 3; // 高速球使用3个子步
+    } else if (speed > 100) {
+      substeps = 2; // 中速球使用2个子步
+    }
+
+    final subDt = dt / substeps;
+
+    for (int i = 0; i < substeps; i++) {
+      // 更新位置
+      position += velocity * subDt;
+
+      // 检查连续碰撞
+      _checkContinuousCollisions(subDt);
+    }
   }
 
   @override

@@ -362,12 +362,34 @@ class PlayerComponent extends PositionComponent
       // 更新当前朝向方向为移动方向
       _currentDirection = _velocity.normalized();
 
-      final newPosition = position + _velocity * dt;
+      // 使用多步物理更新提高精度
+      _updatePositionWithSubsteps(dt);
+    }
+  }
+
+  /// 使用子步长进行位置更新，提高精度
+  void _updatePositionWithSubsteps(double dt) {
+    // 根据移动速度动态调整子步数
+    final speed = _velocity.length;
+    int substeps = 1;
+
+    if (speed > 80) {
+      substeps = 2; // 快速移动使用2个子步
+    }
+
+    final subDt = dt / substeps;
+    final subVelocity = _velocity * subDt;
+
+    for (int i = 0; i < substeps; i++) {
+      final newPosition = position + subVelocity;
 
       // 边界检查和玩家重叠检查
       if (_isValidPlayerPosition(newPosition) &&
           !_wouldOverlapWithOtherPlayers(newPosition)) {
         position = newPosition;
+      } else {
+        // 如果碰撞，停止移动
+        break;
       }
     }
   }
