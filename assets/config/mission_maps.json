@@ -1,0 +1,90 @@
+[
+  {
+    "id": "1",
+    "name": "关卡 1：新手训练",
+    "description": "击败3个敌人，熟悉游戏玩法",
+    "enemyCount": 3,
+    "obstacles": [
+      {
+        "type": "woodWall",
+        "x": 400,
+        "y": 300,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "rock",
+        "x": 600,
+        "y": 400,
+        "width": 40,
+        "height": 40
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "name": "关卡 2：小试牛刀",
+    "description": "击败5个敌人，注意躲避敌人的攻击",
+    "enemyCount": 5,
+    "obstacles": [
+      {
+        "type": "woodWall",
+        "x": 300,
+        "y": 200,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "woodWall",
+        "x": 500,
+        "y": 400,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "rock",
+        "x": 700,
+        "y": 300,
+        "width": 40,
+        "height": 40
+      }
+    ]
+  },
+  {
+    "id": "3",
+    "name": "关卡 3：终极挑战",
+    "description": "击败8个敌人，这将是一场艰难的战斗",
+    "enemyCount": 8,
+    "obstacles": [
+      {
+        "type": "woodWall",
+        "x": 350,
+        "y": 250,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "woodWall",
+        "x": 450,
+        "y": 350,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "rock",
+        "x": 550,
+        "y": 450,
+        "width": 40,
+        "height": 40
+      },
+      {
+        "type": "rock",
+        "x": 750,
+        "y": 250,
+        "width": 40,
+        "height": 40
+      }
+    ]
+  }
+]
+

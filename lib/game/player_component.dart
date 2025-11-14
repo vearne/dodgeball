@@ -128,15 +128,27 @@ class PlayerComponent extends PositionComponent
   // 投球冷却
   double _lastThrowTime = 0.0;
   static const double throwCooldown = 10.0; // 10秒冷却时间
+  bool _attackSpeedBoost = false; // 攻速提升标记
 
   // 冷却时间访问器
-  bool get canThrow => _lastThrowTime >= throwCooldown;
+  double get effectiveThrowCooldown => _attackSpeedBoost ? throwCooldown * 0.5 : throwCooldown; // 攻速提升时冷却时间减半
+  bool get canThrow => _lastThrowTime >= effectiveThrowCooldown;
   double get throwCooldownRemaining =>
-      (throwCooldown - _lastThrowTime).clamp(0.0, throwCooldown);
+      (effectiveThrowCooldown - _lastThrowTime).clamp(0.0, effectiveThrowCooldown);
 
   // 重置投球冷却
   void resetThrowCooldown() {
     _lastThrowTime = 0.0;
+  }
+
+  // 设置攻速提升
+  void setAttackSpeedBoost(bool boost) {
+    _attackSpeedBoost = boost;
+  }
+
+  // 投掷后调用（用于更新冷却时间）
+  void onThrow() {
+    resetThrowCooldown();
   }
 
   // 设置朝向方向（供AI控制器使用）

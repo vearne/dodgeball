@@ -3,6 +3,7 @@ import '../game/game_mode.dart';
 import 'room_list_screen.dart';
 import 'game_screen.dart';
 import 'server_info_screen.dart';
+import 'mission_selection_screen.dart';
 
 /// 游戏模式选择界面
 class GameModeSelectionScreen extends StatefulWidget {
@@ -232,6 +233,17 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
                 });
               },
             ),
+            RadioListTile<PlayMode>(
+              title: const Text('Mission模式（关卡挑战）'),
+              subtitle: const Text('消灭敌人，完成关卡挑战'),
+              value: PlayMode.mission,
+              groupValue: _selectedPlayMode,
+              onChanged: (value) {
+                setState(() {
+                  _selectedPlayMode = value!;
+                });
+              },
+            ),
           ],
         ),
       ),
@@ -277,6 +289,19 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
   }
 
   Widget _buildStartGameButton() {
+    String buttonText;
+    switch (_selectedPlayMode) {
+      case PlayMode.single:
+        buttonText = '开始单人游戏';
+        break;
+      case PlayMode.multiplayer:
+        buttonText = '进入多人大厅';
+        break;
+      case PlayMode.mission:
+        buttonText = '选择关卡';
+        break;
+    }
+
     return ElevatedButton(
       onPressed: _startGame,
       style: ElevatedButton.styleFrom(
@@ -285,11 +310,23 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16),
         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
-      child: Text(_selectedPlayMode == PlayMode.single ? '开始单人游戏' : '进入多人大厅'),
+      child: Text(buttonText),
     );
   }
 
   void _startGame() {
+    if (_selectedPlayMode == PlayMode.mission) {
+      // Mission模式 - 进入关卡选择
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => MissionSelectionScreen(
+            aiIntelligenceLevel: _aiIntelligenceLevel,
+          ),
+        ),
+      );
+      return;
+    }
+
     final gameMode = GameMode(
       gameplayMode: _selectedGameplayMode,
       maxHealth: _selectedGameplayMode == GameplayMode.elimination
@@ -353,7 +390,8 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
 /// 游戏类型
 enum PlayMode {
   single('单人模式'),
-  multiplayer('多人模式');
+  multiplayer('多人模式'),
+  mission('Mission模式');
 
   const PlayMode(this.displayName);
   final String displayName;
