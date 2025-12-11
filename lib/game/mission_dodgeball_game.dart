@@ -3,6 +3,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'ai_controller.dart';
 import 'audio_manager.dart';
 import 'ball_component.dart';
@@ -56,6 +57,9 @@ class MissionDodgeballGame extends FlameGame
   // 道具掉落定时器
   TimerComponent? _powerUpDropTimer;
 
+  // 键盘输入状态
+  Vector2 _keyboardMoveInput = Vector2.zero();
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -107,9 +111,12 @@ class MissionDodgeballGame extends FlameGame
   Future<void> _spawnPlayerAndEnemies() async {
     // 玩家在左侧（红队区域）生成
     final playerArea = FieldConfig.getRedTeamArea(size);
-    final playerPosition = Vector2(
-      playerArea.left + playerArea.width / 2,
-      playerArea.top + playerArea.height / 2,
+    final playerPosition = _findValidSpawnPosition(
+      playerArea,
+      Vector2(
+        playerArea.left + playerArea.width / 2,
+        playerArea.top + playerArea.height / 2,
+      ),
     );
 
     final player = PlayerComponent(
@@ -141,6 +148,51 @@ class MissionDodgeballGame extends FlameGame
       enemyTeam.add(enemy);
       add(enemy);
     }
+  }
+
+  /// 查找有效的生成位置（不与障碍物重叠）
+  Vector2 _findValidSpawnPosition(Rect area, Vector2 preferredPosition) {
+    const playerRadius = 16.0;
+    const maxAttempts = 50;
+
+    // 首先尝试首选位置
+    if (!_isPositionOnObstacle(preferredPosition, playerRadius)) {
+      return preferredPosition;
+    }
+
+    // 如果首选位置被占用，随机尝试其他位置
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      final randomX = area.left + _random.nextDouble() * area.width;
+      final randomY = area.top + _random.nextDouble() * area.height;
+      final testPosition = Vector2(randomX, randomY);
+
+      if (!_isPositionOnObstacle(testPosition, playerRadius)) {
+        return testPosition;
+      }
+    }
+
+    // 如果实在找不到，返回首选位置（容错）
+    return preferredPosition;
+  }
+
+  /// 检查位置是否在障碍物上
+  bool _isPositionOnObstacle(Vector2 position, double radius) {
+    for (final obstacle in children.whereType<ObstacleComponent>()) {
+      final obstacleRect = Rect.fromLTWH(
+        obstacle.position.x,
+        obstacle.position.y,
+        obstacle.size.x,
+        obstacle.size.y,
+      );
+
+      // 扩展障碍物矩形以包含玩家半径
+      final expandedRect = obstacleRect.inflate(radius);
+
+      if (expandedRect.contains(Offset(position.x, position.y))) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /// 在指定区域内生成敌人位置
@@ -224,6 +276,9 @@ class MissionDodgeballGame extends FlameGame
 
     if (gameState != GameState.playing) return;
 
+    // 应用键盘输入移动玩家
+    _applyKeyboardMovement(dt);
+
     // 更新人类玩家冷却时间显示
     _updateHumanCooldownNotifier();
 
@@ -232,6 +287,30 @@ class MissionDodgeballGame extends FlameGame
 
     // 检查游戏结束条件
     _checkGameOver();
+  }
+
+  /// 应用键盘输入移动玩家
+  void _applyKeyboardMovement(double dt) {
+    if (playerTeam.isEmpty) return;
+    final player = playerTeam.first;
+    if (player.isEliminated) return;
+    
+    // 如果有键盘输入
+    if (_keyboardMoveInput.length > 0.01) {
+      final speed = player.movementSpeed;
+      final moveVector = _keyboardMoveInput.normalized() * speed * dt;
+      final newPosition = player.position + moveVector;
+
+      // 限制在可玩区域内
+      final clampedPosition = FieldConfig.clampToPlayableArea(newPosition, size);
+      
+      // 检查是否与障碍物碰撞
+      if (!_isPositionOnObstacle(clampedPosition, player.radius)) {
+        player.position = clampedPosition;
+        // 更新玩家朝向
+        player.setDirection(_keyboardMoveInput.normalized());
+      }
+    }
   }
 
   void _updateHumanCooldownNotifier() {
@@ -328,6 +407,56 @@ class MissionDodgeballGame extends FlameGame
   }
 
   @override
+  KeyEventResult onKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) {
+    // 调用父类方法
+    super.onKeyEvent(event, keysPressed);
+    
+    if (gameState != GameState.playing) {
+      return KeyEventResult.handled;
+    }
+
+    if (playerTeam.isEmpty) return KeyEventResult.handled;
+    final player = playerTeam.first;
+    if (player.isEliminated) return KeyEventResult.handled;
+
+    // 计算移动方向
+    _keyboardMoveInput = Vector2.zero();
+
+    // WASD 或箭头键移动
+    if (keysPressed.contains(LogicalKeyboardKey.keyW) ||
+        keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
+      _keyboardMoveInput.y -= 1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyS) ||
+        keysPressed.contains(LogicalKeyboardKey.arrowDown)) {
+      _keyboardMoveInput.y += 1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyA) ||
+        keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
+      _keyboardMoveInput.x -= 1;
+    }
+    if (keysPressed.contains(LogicalKeyboardKey.keyD) ||
+        keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
+      _keyboardMoveInput.x += 1;
+    }
+
+    // 空格键投掷（沿箭头方向）
+    if (event is KeyDownEvent && 
+        event.logicalKey == LogicalKeyboardKey.space) {
+      // 直接沿着箭头方向投掷
+      if (player.currentDirection.length > 0.1) {
+        final throwTarget = player.position + player.currentDirection * 100;
+        _throwFromPlayer(player, throwTarget);
+      }
+    }
+
+    return KeyEventResult.handled;
+  }
+
+  @override
   void onTapDown(TapDownEvent event) {
     if (gameState != GameState.playing) {
       return;
@@ -344,7 +473,11 @@ class MissionDodgeballGame extends FlameGame
     if (player.isEliminated) return;
     if (!player.canThrow) return;
 
-    final direction = (target - player.position).normalized();
+    // 使用玩家当前箭头方向作为投掷方向
+    final direction = player.currentDirection.length > 0.1
+        ? player.currentDirection.normalized()
+        : (target - player.position).normalized(); // 回退：如果没有方向，使用目标方向
+    
     final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
 

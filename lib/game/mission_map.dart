@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// 地图障碍物类型
 enum ObstacleType {
-  woodWall, // 木墙：被球击中后消失，球也消失
+  brickWall, // 砖墙：被球击中后逐渐损坏，最终消失（耐久度3）
   rock, // 岩石：被球击中后反弹，不消失
+  // 保留旧的类型以兼容旧地图
+  @Deprecated('使用 brickWall 代替')
+  woodWall, // 木墙（已废弃）
 }
 
 /// 障碍物数据
@@ -99,27 +104,133 @@ class MissionMap {
 
 /// 地图管理器：负责加载和保存地图
 class MissionMapManager {
-  static const String _mapsPath = 'assets/config/mission_maps.json';
+  static const String _assetMapsPath = 'assets/config/mission_maps.json';
+  static const String _customMapsFileName = 'custom_mission_maps.json';
 
-  /// 加载所有地图
+  /// 获取自定义地图文件路径
+  static Future<String> _getCustomMapsFilePath() async {
+    final directory = await getApplicationDocumentsDirectory();
+    return '${directory.path}/$_customMapsFileName';
+  }
+
+  /// 加载所有地图（包括内置地图和自定义地图）
   static Future<List<MissionMap>> loadMaps() async {
+    final List<MissionMap> allMaps = [];
+
+    // 1. 加载内置地图（从assets）
     try {
-      final String jsonString = await rootBundle.loadString(_mapsPath);
+      final String jsonString = await rootBundle.loadString(_assetMapsPath);
       final List<dynamic> jsonList = json.decode(jsonString);
-      return jsonList
+      final builtInMaps = jsonList
           .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
           .toList();
+      allMaps.addAll(builtInMaps);
     } catch (e) {
-      // 如果文件不存在，返回空列表
-      return [];
+      // 如果内置地图不存在，继续
+      print('加载内置地图失败: $e');
+    }
+
+    // 2. 加载自定义地图（从文档目录）
+    try {
+      final customMapsPath = await _getCustomMapsFilePath();
+      final file = File(customMapsPath);
+      if (await file.exists()) {
+        final String jsonString = await file.readAsString();
+        final List<dynamic> jsonList = json.decode(jsonString);
+        final customMaps = jsonList
+            .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
+            .toList();
+        allMaps.addAll(customMaps);
+      }
+    } catch (e) {
+      // 如果自定义地图不存在或读取失败，继续
+      print('加载自定义地图失败: $e');
+    }
+
+    return allMaps;
+  }
+
+  /// 加载自定义地图列表
+  static Future<List<MissionMap>> loadCustomMaps() async {
+    try {
+      final customMapsPath = await _getCustomMapsFilePath();
+      final file = File(customMapsPath);
+      if (await file.exists()) {
+        final String jsonString = await file.readAsString();
+        final List<dynamic> jsonList = json.decode(jsonString);
+        return jsonList
+            .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      print('加载自定义地图失败: $e');
+    }
+    return [];
+  }
+
+  /// 保存自定义地图列表到文档目录
+  static Future<void> saveCustomMaps(List<MissionMap> maps) async {
+    try {
+      final customMapsPath = await _getCustomMapsFilePath();
+      final file = File(customMapsPath);
+      final jsonList = maps.map((map) => map.toJson()).toList();
+      final jsonString = json.encode(jsonList);
+      await file.writeAsString(jsonString);
+      print('成功保存 ${maps.length} 个自定义地图到: $customMapsPath');
+    } catch (e) {
+      print('保存自定义地图失败: $e');
+      rethrow;
     }
   }
 
-  /// 保存地图列表（需要实现文件写入功能）
-  static Future<void> saveMaps(List<MissionMap> maps) async {
-    // 注意：在Flutter中，assets目录是只读的
-    // 实际应用中应该保存到应用数据目录
-    // 这里先返回，后续可以改为保存到应用文档目录
-    throw UnimplementedError('保存地图功能需要实现文件写入，建议保存到应用文档目录');
+  /// 保存单个地图（添加或更新）
+  static Future<void> saveMap(MissionMap map) async {
+    final customMaps = await loadCustomMaps();
+
+    // 查找是否已存在相同ID的地图
+    final existingIndex = customMaps.indexWhere((m) => m.id == map.id);
+
+    if (existingIndex >= 0) {
+      // 更新现有地图
+      customMaps[existingIndex] = map;
+    } else {
+      // 添加新地图
+      customMaps.add(map);
+    }
+
+    await saveCustomMaps(customMaps);
+  }
+
+  /// 删除地图
+  static Future<void> deleteMap(String mapId) async {
+    final customMaps = await loadCustomMaps();
+    customMaps.removeWhere((m) => m.id == mapId);
+    await saveCustomMaps(customMaps);
+  }
+
+  /// 导出地图到指定文件
+  static Future<void> exportMap(MissionMap map, String filePath) async {
+    try {
+      final file = File(filePath);
+      final jsonString = json.encode(map.toJson());
+      await file.writeAsString(jsonString);
+      print('成功导出地图到: $filePath');
+    } catch (e) {
+      print('导出地图失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 从文件导入地图
+  static Future<MissionMap> importMap(String filePath) async {
+    try {
+      final file = File(filePath);
+      final jsonString = await file.readAsString();
+      final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
+      return MissionMap.fromJson(jsonMap);
+    } catch (e) {
+      print('导入地图失败: $e');
+      rethrow;
+    }
   }
 }

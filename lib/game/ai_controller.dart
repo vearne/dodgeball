@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 import 'ball_component.dart';
 import 'field_config.dart';
+import 'obstacle_component.dart';
 import 'player_component.dart';
 import 'team.dart';
 
@@ -220,19 +222,22 @@ class AIController extends Component {
 
     final newPosition = player.position + movement;
 
-    // 确保不会移动出边界且不与其他玩家重叠
+    // 确保不会移动出边界、不与其他玩家重叠、不与障碍物碰撞
     if (_isValidPosition(newPosition) &&
-        !_wouldOverlapWithOtherPlayers(newPosition)) {
+        !_wouldOverlapWithOtherPlayers(newPosition) &&
+        !_isPositionOnObstacle(newPosition, player.radius)) {
       player.position = newPosition;
 
       // 更新玩家的朝向方向为移动方向
       player.setDirection(direction);
     } else {
+      // 如果遇到障碍物，重新规划路径
       _isMoving = false;
+      _planPositionalMovement(); // 寻找新的目标位置
     }
   }
 
-  /// 生成团队区域内的随机位置
+  /// 生成团队区域内的随机位置（避开障碍物）
   Vector2 _generateRandomPositionInTeamZone() {
     final isRedTeam = player.team == Team.red;
     final area = isRedTeam
@@ -240,12 +245,27 @@ class AIController extends Component {
         : FieldConfig.getBluTeamArea(gameSize);
 
     final margin = 20.0; // 距离边界的边距
-    final x =
-        area.left + margin + _random.nextDouble() * (area.width - margin * 2);
-    final y =
-        area.top + margin + _random.nextDouble() * (area.height - margin * 2);
+    const maxAttempts = 30; // 最多尝试30次
 
-    return Vector2(x, y);
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      final x =
+          area.left + margin + _random.nextDouble() * (area.width - margin * 2);
+      final y =
+          area.top + margin + _random.nextDouble() * (area.height - margin * 2);
+      
+      final position = Vector2(x, y);
+      
+      // 检查这个位置是否在障碍物上
+      if (!_isPositionOnObstacle(position, player.radius)) {
+        return position;
+      }
+    }
+
+    // 如果尝试30次都没找到，返回中心位置（容错）
+    return Vector2(
+      area.left + area.width / 2,
+      area.top + area.height / 2,
+    );
   }
 
   /// 检查位置是否有效
@@ -286,6 +306,29 @@ class AIController extends Component {
     }
 
     return false; // 不会重叠
+  }
+
+  /// 检查位置是否在障碍物上
+  bool _isPositionOnObstacle(Vector2 position, double radius) {
+    final game = findGame();
+    if (game == null) return false;
+
+    for (final obstacle in game.children.whereType<ObstacleComponent>()) {
+      final obstacleRect = Rect.fromLTWH(
+        obstacle.position.x,
+        obstacle.position.y,
+        obstacle.size.x,
+        obstacle.size.y,
+      );
+
+      // 扩展障碍物矩形以包含玩家半径
+      final expandedRect = obstacleRect.inflate(radius);
+
+      if (expandedRect.contains(Offset(position.x, position.y))) {
+        return true; // 在障碍物上
+      }
+    }
+    return false; // 不在障碍物上
   }
 
   /// 请求投球

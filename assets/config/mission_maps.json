@@ -2,49 +2,42 @@
   {
     "id": "1",
     "name": "关卡 1：新手训练",
-    "description": "击败3个敌人，熟悉游戏玩法",
+    "description": "击败3个敌人，熟悉游戏操作",
     "enemyCount": 3,
     "obstacles": [
       {
-        "type": "woodWall",
+        "type": "brickWall",
         "x": 400,
-        "y": 300,
-        "width": 40,
-        "height": 40
-      },
-      {
-        "type": "rock",
-        "x": 600,
-        "y": 400,
-        "width": 40,
-        "height": 40
+        "y": 280,
+        "width": 50,
+        "height": 50
       }
     ]
   },
   {
     "id": "2",
-    "name": "关卡 2：小试牛刀",
-    "description": "击败5个敌人，注意躲避敌人的攻击",
+    "name": "关卡 2：障碍挑战",
+    "description": "击败5个敌人，学会利用障碍物",
     "enemyCount": 5,
     "obstacles": [
       {
-        "type": "woodWall",
-        "x": 300,
+        "type": "brickWall",
+        "x": 350,
         "y": 200,
         "width": 40,
         "height": 40
       },
       {
-        "type": "woodWall",
-        "x": 500,
-        "y": 400,
-        "width": 40,
-        "height": 40
+        "type": "rock",
+        "x": 550,
+        "y": 350,
+        "width": 50,
+        "height": 50
       },
       {
-        "type": "rock",
-        "x": 700,
-        "y": 300,
+        "type": "brickWall",
+        "x": 450,
+        "y": 450,
         "width": 40,
         "height": 40
       }
@@ -52,39 +45,38 @@
   },
   {
     "id": "3",
-    "name": "关卡 3：终极挑战",
-    "description": "击败8个敌人，这将是一场艰难的战斗",
+    "name": "关卡 3：终极考验",
+    "description": "击败8个敌人，证明你的实力",
     "enemyCount": 8,
     "obstacles": [
       {
-        "type": "woodWall",
-        "x": 350,
+        "type": "rock",
+        "x": 380,
         "y": 250,
-        "width": 40,
-        "height": 40
+        "width": 60,
+        "height": 60
       },
       {
-        "type": "woodWall",
+        "type": "brickWall",
         "x": 450,
-        "y": 350,
-        "width": 40,
-        "height": 40
+        "y": 180,
+        "width": 45,
+        "height": 45
       },
       {
         "type": "rock",
-        "x": 550,
+        "x": 520,
+        "y": 380,
+        "width": 55,
+        "height": 55
+      },
+      {
+        "type": "brickWall",
+        "x": 420,
         "y": 450,
-        "width": 40,
-        "height": 40
-      },
-      {
-        "type": "rock",
-        "x": 750,
-        "y": 250,
         "width": 40,
         "height": 40
       }
     ]
   }
 ]
-

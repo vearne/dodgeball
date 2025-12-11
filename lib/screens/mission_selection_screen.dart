@@ -55,7 +55,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         enemyCount: 3,
         obstacles: [
           Obstacle(
-            type: ObstacleType.woodWall,
+            type: ObstacleType.brickWall,
             x: 400,
             y: 300,
             width: 40,
@@ -77,14 +77,14 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         enemyCount: 5,
         obstacles: [
           Obstacle(
-            type: ObstacleType.woodWall,
+            type: ObstacleType.brickWall,
             x: 300,
             y: 200,
             width: 40,
             height: 40,
           ),
           Obstacle(
-            type: ObstacleType.woodWall,
+            type: ObstacleType.brickWall,
             x: 500,
             y: 400,
             width: 40,
@@ -106,14 +106,14 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         enemyCount: 8,
         obstacles: [
           Obstacle(
-            type: ObstacleType.woodWall,
+            type: ObstacleType.brickWall,
             x: 350,
             y: 250,
             width: 40,
             height: 40,
           ),
           Obstacle(
-            type: ObstacleType.woodWall,
+            type: ObstacleType.brickWall,
             x: 450,
             y: 350,
             width: 40,
@@ -220,11 +220,21 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 编辑按钮
-                IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _editMap(map),
-                ),
+                // 编辑按钮（仅自定义地图可编辑）
+                if (map.id.startsWith('custom_'))
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _editMap(map),
+                    tooltip: '编辑地图',
+                  ),
+                // 删除按钮（仅自定义地图可删除）
+                if (map.id.startsWith('custom_'))
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _deleteMap(map),
+                    tooltip: '删除地图',
+                  ),
+                const SizedBox(width: 8),
                 // 开始按钮
                 ElevatedButton(
                   onPressed: () => _startMission(map),
@@ -243,44 +253,74 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   }
 
   void _openMapEditor() async {
-    final result = await Navigator.of(context).push<MissionMap>(
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => const MapEditorScreen(),
       ),
     );
 
-    if (result != null && mounted) {
-      setState(() {
-        _maps.add(result);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('地图已保存')),
-        );
-      }
+    // 如果保存成功，重新加载地图列表
+    if (result == true && mounted) {
+      _loadMaps();
     }
   }
 
   void _editMap(MissionMap map) async {
-    final result = await Navigator.of(context).push<MissionMap>(
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (context) => MapEditorScreen(initialMap: map),
+        builder: (context) => MapEditorScreen(existingMap: map),
       ),
     );
 
-    if (result != null && mounted) {
-      setState(() {
-        final index = _maps.indexWhere((m) => m.id == map.id);
-        if (index >= 0) {
-          _maps[index] = result;
-        }
-      });
+    // 如果保存成功，重新加载地图列表
+    if (result == true && mounted) {
+      _loadMaps();
+    }
+  }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('地图已更新')),
-        );
+  void _deleteMap(MissionMap map) async {
+    // 只能删除自定义地图（ID以custom_开头）
+    if (!map.id.startsWith('custom_')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('内置地图不能删除')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除地图 "${map.name}" 吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await MissionMapManager.deleteMap(map.id);
+        _loadMaps();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('地图已删除')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('删除失败: $e')),
+          );
+        }
       }
     }
   }
