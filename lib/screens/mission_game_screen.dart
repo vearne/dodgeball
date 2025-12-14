@@ -2,16 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import '../game/mission_dodgeball_game.dart';
 import '../game/mission_map.dart';
+import '../game/player_state.dart';
 
 /// Mission模式游戏界面
 class MissionGameScreen extends StatefulWidget {
   final MissionMap missionMap;
   final double aiIntelligenceLevel;
+  final int maxHealth;
+  final List<MissionMap> allMaps;
+  final int currentMapIndex;
+  final PlayerState? playerState; // 玩家状态（用于关卡间传递）
 
   const MissionGameScreen({
     super.key,
     required this.missionMap,
     this.aiIntelligenceLevel = 1.0,
+    this.maxHealth = 3,
+    this.allMaps = const [],
+    this.currentMapIndex = 0,
+    this.playerState,
   });
 
   @override
@@ -27,6 +36,130 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     game = MissionDodgeballGame(
       missionMap: widget.missionMap,
       aiIntelligenceLevel: widget.aiIntelligenceLevel,
+      maxHealth: widget.maxHealth,
+      playerState: widget.playerState,
+      onMissionComplete: _onMissionComplete,
+    );
+  }
+
+  /// 关卡完成回调
+  void _onMissionComplete() {
+    // 获取当前玩家状态
+    final currentPlayerState = game.getCurrentPlayerState();
+
+    // 检查是否还有下一关
+    final nextIndex = widget.currentMapIndex + 1;
+    if (nextIndex < widget.allMaps.length) {
+      // 有下一关，自动进入
+      _showNextLevelDialog(nextIndex, currentPlayerState);
+    } else {
+      // 没有下一关，显示全部通关
+      _showAllLevelsCompleteDialog();
+    }
+  }
+
+  /// 显示进入下一关对话框（带自动跳转）
+  void _showNextLevelDialog(int nextIndex, PlayerState? playerState) {
+    final nextMap = widget.allMaps[nextIndex];
+
+    // 构建玩家状态信息
+    String playerStatusInfo = '';
+    if (playerState != null) {
+      playerStatusInfo =
+          '\n\n当前状态：\n'
+          '💚 生命值：${playerState.currentHealth}\n';
+
+      if (playerState.hasSpeedBoost) {
+        playerStatusInfo +=
+            '⚡ 速度提升：${playerState.speedBoostRemainingTime.toStringAsFixed(1)}秒\n';
+      }
+      if (playerState.hasAttackSpeedBoost) {
+        playerStatusInfo +=
+            '🎯 攻速提升：${playerState.attackSpeedBoostRemainingTime.toStringAsFixed(1)}秒\n';
+      }
+    }
+
+    // 显示对话框
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _NextLevelDialog(
+        currentMapName: widget.missionMap.name,
+        nextMap: nextMap,
+        playerStatusInfo: playerStatusInfo,
+        onContinue: () {
+          Navigator.of(context).pop(); // 关闭对话框
+          _enterNextLevel(nextIndex, playerState, nextMap);
+        },
+        onBackToSelection: () {
+          Navigator.of(context).pop(); // 关闭对话框
+          Navigator.of(context).pop(); // 返回关卡选择
+        },
+      ),
+    );
+
+    // 3秒后自动进入下一关
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // 关闭对话框
+        _enterNextLevel(nextIndex, playerState, nextMap);
+      }
+    });
+  }
+
+  /// 进入下一关
+  void _enterNextLevel(
+    int nextIndex,
+    PlayerState? playerState,
+    MissionMap nextMap,
+  ) {
+    if (!mounted) return;
+
+    // 替换当前页面为下一关，传递玩家状态
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => MissionGameScreen(
+          missionMap: nextMap,
+          aiIntelligenceLevel: widget.aiIntelligenceLevel,
+          maxHealth: widget.maxHealth,
+          allMaps: widget.allMaps,
+          currentMapIndex: nextIndex,
+          playerState: playerState, // 传递玩家状态
+        ),
+      ),
+    );
+    // 注意：背景音乐会在新关卡的onLoad中自动重新播放
+  }
+
+  /// 显示全部关卡完成对话框
+  void _showAllLevelsCompleteDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('🏆 全部通关！'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('恭喜你完成了所有关卡！'),
+            const SizedBox(height: 16),
+            Text('最后关卡：${widget.missionMap.name}'),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // 关闭对话框
+              Navigator.of(context).pop(); // 返回关卡选择
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('返回'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -93,18 +226,58 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
             ),
           ),
 
-          // 击杀数
-          ValueListenableBuilder<int>(
-            valueListenable: game.killCountNotifier,
-            builder: (context, killCount, child) {
-              return Text(
-                '击杀: $killCount / ${widget.missionMap.enemyCount}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                ),
-              );
-            },
+          // 中间信息：生命值和击杀数
+          Row(
+            children: [
+              // 生命值显示
+              ValueListenableBuilder<int>(
+                valueListenable: game.playerHealthNotifier,
+                builder: (context, health, child) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getHealthColor(health),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$health',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(width: 16),
+
+              // 击杀数
+              ValueListenableBuilder<int>(
+                valueListenable: game.killCountNotifier,
+                builder: (context, killCount, child) {
+                  return Text(
+                    '击杀: $killCount / ${widget.missionMap.enemyCount}',
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  );
+                },
+              ),
+            ],
           ),
 
           // 暂停按钮
@@ -115,6 +288,17 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         ],
       ),
     );
+  }
+
+  /// 根据生命值返回颜色
+  Color _getHealthColor(int health) {
+    if (health >= 4) {
+      return Colors.green; // 高生命值 - 绿色
+    } else if (health >= 2) {
+      return Colors.orange; // 中等生命值 - 橙色
+    } else {
+      return Colors.red; // 低生命值 - 红色
+    }
   }
 
   Widget _buildCooldownBar() {
@@ -187,8 +371,122 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
 
   @override
   void dispose() {
+    // 只清理游戏资源，不停止背景音乐
+    // 这样在关卡切换时音乐可以连续播放
     game.onRemove();
     super.dispose();
   }
 }
 
+/// 下一关对话框（带倒计时）
+class _NextLevelDialog extends StatefulWidget {
+  final String currentMapName;
+  final MissionMap nextMap;
+  final String playerStatusInfo;
+  final VoidCallback onContinue;
+  final VoidCallback onBackToSelection;
+
+  const _NextLevelDialog({
+    required this.currentMapName,
+    required this.nextMap,
+    required this.playerStatusInfo,
+    required this.onContinue,
+    required this.onBackToSelection,
+  });
+
+  @override
+  State<_NextLevelDialog> createState() => _NextLevelDialogState();
+}
+
+class _NextLevelDialogState extends State<_NextLevelDialog> {
+  int _countdown = 3;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  void _startCountdown() {
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return false;
+
+      setState(() {
+        _countdown--;
+      });
+
+      return _countdown > 0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('🎉 关卡完成！'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('恭喜完成 ${widget.currentMapName}！'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text('准备进入 ${widget.nextMap.name}'),
+              const SizedBox(width: 8),
+              if (_countdown > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '$_countdown',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (widget.playerStatusInfo.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              widget.playerStatusInfo,
+              style: const TextStyle(fontSize: 14, color: Colors.green),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '💡 你的生命值和道具效果将保留到下一关！',
+              style: TextStyle(
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+                color: Colors.blue,
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: widget.onBackToSelection,
+          child: const Text('返回选关'),
+        ),
+        ElevatedButton(
+          onPressed: widget.onContinue,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('立即继续'),
+        ),
+      ],
+    );
+  }
+}

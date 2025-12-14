@@ -62,10 +62,12 @@ class AudioManager {
     if (!_isMusicEnabled) return;
 
     try {
-      await FlameAudio.bgm.play(
-        _backgroundMusicPath,
-        volume: _musicVolume,
-      );
+      // 如果音乐已经在播放，先停止再重新播放
+      if (FlameAudio.bgm.isPlaying) {
+        await FlameAudio.bgm.stop();
+      }
+
+      await FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
     } catch (e) {
       print('播放背景音乐失败: $e');
     }
@@ -85,10 +87,7 @@ class AudioManager {
     if (!_isSoundEnabled) return;
 
     try {
-      await FlameAudio.play(
-        _hitSoundPath,
-        volume: _soundVolume,
-      );
+      await FlameAudio.play(_hitSoundPath, volume: _soundVolume);
     } catch (e) {
       print('播放击中音效失败: $e');
     }
@@ -99,10 +98,7 @@ class AudioManager {
     if (!_isSoundEnabled) return;
 
     try {
-      await FlameAudio.play(
-        _throwSoundPath,
-        volume: _soundVolume,
-      );
+      await FlameAudio.play(_throwSoundPath, volume: _soundVolume);
     } catch (e) {
       print('播放投掷音效失败: $e');
     }
@@ -113,10 +109,7 @@ class AudioManager {
     if (!_isSoundEnabled) return;
 
     try {
-      await FlameAudio.play(
-        _victorySoundPath,
-        volume: _soundVolume,
-      );
+      await FlameAudio.play(_victorySoundPath, volume: _soundVolume);
     } catch (e) {
       print('播放胜利音效失败: $e');
     }
@@ -126,7 +119,7 @@ class AudioManager {
   Future<void> setMusicEnabled(bool enabled) async {
     _isMusicEnabled = enabled;
     await _saveSettings();
-    
+
     if (enabled) {
       await playBackgroundMusic();
     } else {

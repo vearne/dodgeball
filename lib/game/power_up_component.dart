@@ -13,14 +13,8 @@ enum PowerUpType {
 /// 道具组件
 class PowerUpComponent extends PositionComponent
     with CollisionCallbacks, HasGameReference {
-  PowerUpComponent({
-    required this.type,
-    required Vector2 position,
-  }) : super(
-          position: position,
-          size: Vector2.all(32),
-          anchor: Anchor.center,
-        );
+  PowerUpComponent({required this.type, required Vector2 position})
+    : super(position: position, size: Vector2.all(32), anchor: Anchor.center);
 
   final PowerUpType type;
   bool _collected = false;
@@ -56,7 +50,8 @@ class PowerUpComponent extends PositionComponent
   void _drawSpeedBoost(ui.Canvas canvas) {
     // 绘制精灵鞋：黄色星星形状
     final paint = ui.Paint()
-      ..color = const ui.Color(0xFFFFD700) // 金色
+      ..color =
+          const ui.Color(0xFFFFD700) // 金色
       ..style = ui.PaintingStyle.fill;
 
     // 绘制星星
@@ -84,7 +79,8 @@ class PowerUpComponent extends PositionComponent
 
     // 绘制边框
     final borderPaint = ui.Paint()
-      ..color = const ui.Color(0xFFFFA500) // 橙色边框
+      ..color =
+          const ui.Color(0xFFFFA500) // 橙色边框
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -94,7 +90,8 @@ class PowerUpComponent extends PositionComponent
   void _drawAttackSpeed(ui.Canvas canvas) {
     // 绘制攻速球：红色球形状
     final paint = ui.Paint()
-      ..color = const ui.Color(0xFFFF0000) // 红色
+      ..color =
+          const ui.Color(0xFFFF0000) // 红色
       ..style = ui.PaintingStyle.fill;
 
     final center = ui.Offset(size.x / 2, size.y / 2);
@@ -102,7 +99,8 @@ class PowerUpComponent extends PositionComponent
 
     // 绘制边框
     final borderPaint = ui.Paint()
-      ..color = const ui.Color(0xFFCC0000) // 深红色边框
+      ..color =
+          const ui.Color(0xFFCC0000) // 深红色边框
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
@@ -110,7 +108,8 @@ class PowerUpComponent extends PositionComponent
 
     // 绘制闪电符号
     final lightningPaint = ui.Paint()
-      ..color = const ui.Color(0xFFFFFFFF) // 白色
+      ..color =
+          const ui.Color(0xFFFFFFFF) // 白色
       ..style = ui.PaintingStyle.fill;
 
     final lightningPath = ui.Path();
@@ -152,43 +151,68 @@ class PowerUpComponent extends PositionComponent
 
   /// 应用精灵鞋效果：移动速度加速
   void _applySpeedBoost(PlayerComponent player) {
-    // 增加移动速度（持续30秒）
-    final originalSpeed = player.movementSpeed;
-    player.movementSpeed = originalSpeed * 1.5; // 1.5倍速度
-
-    // 30秒后恢复
     final game = findGame();
     if (game != null) {
-      game.add(
-        TimerComponent(
-          period: 30.0,
-          onTick: () {
-            player.movementSpeed = originalSpeed;
-          },
-        ),
-      );
+      // 检查是否是MissionDodgeballGame
+      if (game.runtimeType.toString().contains('MissionDodgeballGame')) {
+        // 使用反射或动态调用（Dart不直接支持反射，所以使用duck typing）
+        try {
+          (game as dynamic).applySpeedBoost(player);
+        } catch (e) {
+          // 降级方案：直接创建定时器
+          _applySpeedBoostFallback(player, game);
+        }
+      } else {
+        // 其他游戏模式使用降级方案
+        _applySpeedBoostFallback(player, game);
+      }
     }
+  }
+
+  void _applySpeedBoostFallback(PlayerComponent player, dynamic game) {
+    const originalSpeed = 120.0;
+    player.movementSpeed = originalSpeed * 1.5;
+
+    game.add(
+      TimerComponent(
+        period: 30.0,
+        onTick: () {
+          player.movementSpeed = originalSpeed;
+        },
+      ),
+    );
   }
 
   /// 应用攻速球效果：投掷冷却时间缩短
   void _applyAttackSpeed(PlayerComponent player) {
-    // 减少投掷冷却时间（持续30秒）
-    // 注意：这需要修改PlayerComponent的冷却机制
-    // 这里我们通过设置一个标记来实现
-    player.setAttackSpeedBoost(true);
-
-    // 30秒后恢复
     final game = findGame();
     if (game != null) {
-      game.add(
-        TimerComponent(
-          period: 30.0,
-          onTick: () {
-            player.setAttackSpeedBoost(false);
-          },
-        ),
-      );
+      // 检查是否是MissionDodgeballGame
+      if (game.runtimeType.toString().contains('MissionDodgeballGame')) {
+        try {
+          (game as dynamic).applyAttackSpeedBoost(player);
+        } catch (e) {
+          // 降级方案：直接创建定时器
+          _applyAttackSpeedFallback(player, game);
+        }
+      } else {
+        // 其他游戏模式使用降级方案
+        _applyAttackSpeedFallback(player, game);
+      }
     }
+  }
+
+  void _applyAttackSpeedFallback(PlayerComponent player, dynamic game) {
+    player.setAttackSpeedBoost(true);
+
+    game.add(
+      TimerComponent(
+        period: 30.0,
+        onTick: () {
+          player.setAttackSpeedBoost(false);
+        },
+      ),
+    );
   }
 }
 
@@ -210,4 +234,3 @@ class RotatingComponent extends Component {
     // 旋转效果由父组件处理
   }
 }
-

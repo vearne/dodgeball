@@ -14,6 +14,7 @@ import 'mobile_controller.dart';
 import 'mission_map.dart';
 import 'obstacle_component.dart';
 import 'player_component.dart';
+import 'player_state.dart';
 import 'team.dart';
 import 'power_up_component.dart';
 
@@ -29,11 +30,58 @@ class MissionDodgeballGame extends FlameGame
   MissionDodgeballGame({
     required this.missionMap,
     this.aiIntelligenceLevel = 1.0,
+    this.maxHealth = 3,
+    this.playerState, // 玩家状态（用于关卡间传递）
+    this.onMissionComplete,
   });
 
   final MissionMap missionMap;
   final double aiIntelligenceLevel;
+  final int maxHealth;
+  final PlayerState? playerState; // 可选的初始玩家状态
+  final VoidCallback? onMissionComplete;
   final Random _random = Random();
+
+  // 道具效果计时器
+  TimerComponent? _speedBoostTimer;
+  TimerComponent? _attackSpeedBoostTimer;
+
+  /// 应用速度提升道具（由PowerUpComponent调用）
+  void applySpeedBoost(PlayerComponent player, {double duration = 30.0}) {
+    const originalSpeed = 120.0; // 默认速度
+    player.movementSpeed = originalSpeed * 1.5;
+
+    // 取消之前的定时器
+    _speedBoostTimer?.removeFromParent();
+
+    // 创建新的定时器
+    _speedBoostTimer = TimerComponent(
+      period: duration,
+      onTick: () {
+        player.movementSpeed = originalSpeed;
+        _speedBoostTimer = null;
+      },
+    );
+    add(_speedBoostTimer!);
+  }
+
+  /// 应用攻速提升道具（由PowerUpComponent调用）
+  void applyAttackSpeedBoost(PlayerComponent player, {double duration = 30.0}) {
+    player.setAttackSpeedBoost(true);
+
+    // 取消之前的定时器
+    _attackSpeedBoostTimer?.removeFromParent();
+
+    // 创建新的定时器
+    _attackSpeedBoostTimer = TimerComponent(
+      period: duration,
+      onTick: () {
+        player.setAttackSpeedBoost(false);
+        _attackSpeedBoostTimer = null;
+      },
+    );
+    add(_attackSpeedBoostTimer!);
+  }
 
   // 玩家和敌人列表
   final List<PlayerComponent> playerTeam = []; // 玩家队伍（红队）
@@ -47,6 +95,8 @@ class MissionDodgeballGame extends FlameGame
       ValueNotifier<double>(0);
   // 击杀数
   final ValueNotifier<int> killCountNotifier = ValueNotifier<int>(0);
+  // 玩家当前生命值
+  final ValueNotifier<int> playerHealthNotifier = ValueNotifier<int>(0);
 
   // 音频管理器
   final AudioManager _audioManager = AudioManager.instance;
@@ -79,8 +129,10 @@ class MissionDodgeballGame extends FlameGame
     // 生成玩家和敌人
     await _spawnPlayerAndEnemies();
 
-    // 播放背景音乐
-    await _audioManager.playBackgroundMusic();
+    // 延迟一小段时间后播放背景音乐，确保关卡完全加载
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _audioManager.playBackgroundMusic();
+    });
 
     // 设置调试模式
     BallComponent.showDebugCollision = false;
@@ -126,14 +178,23 @@ class MissionDodgeballGame extends FlameGame
       controllerType: PlayerControllerType.human,
       aiIntelligenceLevel: aiIntelligenceLevel,
       name: '玩家',
+      maxHealth: maxHealth, // 使用从首页传递的生命值
     );
 
     playerTeam.add(player);
     add(player);
 
+    // 如果有保存的玩家状态，应用它
+    if (playerState != null) {
+      _applyPlayerState(player, playerState!);
+    }
+
     // 敌人在右侧（蓝队区域）随机生成
     final enemyArea = FieldConfig.getBluTeamArea(size);
-    final enemyPositions = _generateEnemyPositions(enemyArea, missionMap.enemyCount);
+    final enemyPositions = _generateEnemyPositions(
+      enemyArea,
+      missionMap.enemyCount,
+    );
 
     for (int i = 0; i < missionMap.enemyCount; i++) {
       final enemy = PlayerComponent(
@@ -143,6 +204,7 @@ class MissionDodgeballGame extends FlameGame
         controllerType: PlayerControllerType.ai,
         aiIntelligenceLevel: aiIntelligenceLevel,
         name: '敌人 ${i + 1}',
+        maxHealth: 1, // AI敌人固定为1条命
       );
 
       enemyTeam.add(enemy);
@@ -177,6 +239,7 @@ class MissionDodgeballGame extends FlameGame
 
   /// 检查位置是否在障碍物上
   bool _isPositionOnObstacle(Vector2 position, double radius) {
+    // 检查所有障碍物组件（包括原子砖块和岩石）
     for (final obstacle in children.whereType<ObstacleComponent>()) {
       final obstacleRect = Rect.fromLTWH(
         obstacle.position.x,
@@ -282,6 +345,9 @@ class MissionDodgeballGame extends FlameGame
     // 更新人类玩家冷却时间显示
     _updateHumanCooldownNotifier();
 
+    // 更新玩家生命值显示
+    _updatePlayerHealthNotifier();
+
     // 处理边界反弹
     _handleWallBounces();
 
@@ -294,7 +360,7 @@ class MissionDodgeballGame extends FlameGame
     if (playerTeam.isEmpty) return;
     final player = playerTeam.first;
     if (player.isEliminated) return;
-    
+
     // 如果有键盘输入
     if (_keyboardMoveInput.length > 0.01) {
       final speed = player.movementSpeed;
@@ -302,8 +368,11 @@ class MissionDodgeballGame extends FlameGame
       final newPosition = player.position + moveVector;
 
       // 限制在可玩区域内
-      final clampedPosition = FieldConfig.clampToPlayableArea(newPosition, size);
-      
+      final clampedPosition = FieldConfig.clampToPlayableArea(
+        newPosition,
+        size,
+      );
+
       // 检查是否与障碍物碰撞
       if (!_isPositionOnObstacle(clampedPosition, player.radius)) {
         player.position = clampedPosition;
@@ -332,6 +401,21 @@ class MissionDodgeballGame extends FlameGame
     final remaining = player.throwCooldownRemaining;
     if (humanCooldownRemainingNotifier.value != remaining) {
       humanCooldownRemainingNotifier.value = remaining;
+    }
+  }
+
+  void _updatePlayerHealthNotifier() {
+    if (playerTeam.isEmpty) {
+      if (playerHealthNotifier.value != 0) {
+        playerHealthNotifier.value = 0;
+      }
+      return;
+    }
+
+    final player = playerTeam.first;
+    final currentHealth = player.currentHealth;
+    if (playerHealthNotifier.value != currentHealth) {
+      playerHealthNotifier.value = currentHealth;
     }
   }
 
@@ -404,6 +488,18 @@ class MissionDodgeballGame extends FlameGame
     );
 
     add(victoryText);
+
+    // 如果玩家胜利，调用关卡完成回调
+    if (playerWins && onMissionComplete != null) {
+      // 停止背景音乐并播放胜利音效
+      _audioManager.stopBackgroundMusic();
+      _audioManager.playVictorySound();
+
+      // 延迟2.5秒后调用，让玩家看到胜利文字和听到胜利音效
+      Future.delayed(const Duration(milliseconds: 2500), () {
+        onMissionComplete!();
+      });
+    }
   }
 
   @override
@@ -413,7 +509,7 @@ class MissionDodgeballGame extends FlameGame
   ) {
     // 调用父类方法
     super.onKeyEvent(event, keysPressed);
-    
+
     if (gameState != GameState.playing) {
       return KeyEventResult.handled;
     }
@@ -444,8 +540,7 @@ class MissionDodgeballGame extends FlameGame
     }
 
     // 空格键投掷（沿箭头方向）
-    if (event is KeyDownEvent && 
-        event.logicalKey == LogicalKeyboardKey.space) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
       // 直接沿着箭头方向投掷
       if (player.currentDirection.length > 0.1) {
         final throwTarget = player.position + player.currentDirection * 100;
@@ -477,7 +572,7 @@ class MissionDodgeballGame extends FlameGame
     final direction = player.currentDirection.length > 0.1
         ? player.currentDirection.normalized()
         : (target - player.position).normalized(); // 回退：如果没有方向，使用目标方向
-    
+
     final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
 
@@ -523,10 +618,7 @@ class MissionDodgeballGame extends FlameGame
         ? PowerUpType.speedBoost
         : PowerUpType.attackSpeed;
 
-    final powerUp = PowerUpComponent(
-      type: powerUpType,
-      position: position,
-    );
+    final powerUp = PowerUpComponent(type: powerUpType, position: position);
 
     add(powerUp);
   }
@@ -541,12 +633,12 @@ class MissionDodgeballGame extends FlameGame
       repeat: true,
       onTick: () {
         // 在地图随机位置掉落道具
-        final randomX = FieldConfig.wallThickness +
-            _random.nextDouble() *
-                (size.x - FieldConfig.wallThickness * 2);
-        final randomY = FieldConfig.wallThickness +
-            _random.nextDouble() *
-                (size.y - FieldConfig.wallThickness * 2);
+        final randomX =
+            FieldConfig.wallThickness +
+            _random.nextDouble() * (size.x - FieldConfig.wallThickness * 2);
+        final randomY =
+            FieldConfig.wallThickness +
+            _random.nextDouble() * (size.y - FieldConfig.wallThickness * 2);
 
         _dropPowerUp(Vector2(randomX, randomY));
       },
@@ -579,10 +671,57 @@ class MissionDodgeballGame extends FlameGame
     _throwFromPlayer(thrower, target);
   }
 
+  /// 应用玩家状态（用于关卡间传递）
+  void _applyPlayerState(PlayerComponent player, PlayerState state) {
+    // 设置生命值（不能超过最大生命值）
+    final healthToSet = state.currentHealth.clamp(1, player.maxHealth);
+    player.setCurrentHealth(healthToSet);
+
+    // 应用速度提升效果（使用剩余时间）
+    if (state.hasSpeedBoost && state.speedBoostRemainingTime > 0) {
+      applySpeedBoost(player, duration: state.speedBoostRemainingTime);
+    }
+
+    // 应用攻速提升效果（使用剩余时间）
+    if (state.hasAttackSpeedBoost && state.attackSpeedBoostRemainingTime > 0) {
+      applyAttackSpeedBoost(
+        player,
+        duration: state.attackSpeedBoostRemainingTime,
+      );
+    }
+  }
+
+  /// 获取当前玩家状态（用于关卡间传递）
+  PlayerState? getCurrentPlayerState() {
+    if (playerTeam.isEmpty) return null;
+
+    final player = playerTeam.first;
+
+    // 计算道具剩余时间
+    final speedBoostRemaining =
+        _speedBoostTimer != null && _speedBoostTimer!.isMounted
+        ? _speedBoostTimer!.timer.limit - _speedBoostTimer!.timer.current
+        : 0.0;
+
+    final attackSpeedBoostRemaining =
+        _attackSpeedBoostTimer != null && _attackSpeedBoostTimer!.isMounted
+        ? _attackSpeedBoostTimer!.timer.limit -
+              _attackSpeedBoostTimer!.timer.current
+        : 0.0;
+
+    return PlayerState(
+      currentHealth: player.currentHealth,
+      hasSpeedBoost: player.movementSpeed > 120.0,
+      hasAttackSpeedBoost: player.hasAttackSpeedBoost,
+      speedBoostRemainingTime: speedBoostRemaining,
+      attackSpeedBoostRemainingTime: attackSpeedBoostRemaining,
+    );
+  }
+
   @override
   void onRemove() {
-    _audioManager.stopBackgroundMusic();
+    // 不在这里停止背景音乐，因为在关卡切换时会导致音乐中断
+    // 背景音乐会在真正退出游戏或新关卡开始时自动处理
     super.onRemove();
   }
 }
-

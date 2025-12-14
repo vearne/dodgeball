@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import '../game/mission_map.dart';
+import '../game/audio_manager.dart';
 import 'map_editor_screen.dart';
 import 'mission_game_screen.dart';
 
 /// Mission模式关卡选择界面
 class MissionSelectionScreen extends StatefulWidget {
   final double aiIntelligenceLevel;
+  final int maxHealth;
 
   const MissionSelectionScreen({
     super.key,
     this.aiIntelligenceLevel = 1.0,
+    this.maxHealth = 3,
   });
 
   @override
@@ -24,6 +27,13 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   void initState() {
     super.initState();
     _loadMaps();
+    // 当进入关卡选择界面时，停止背景音乐
+    _stopGameMusic();
+  }
+
+  /// 停止游戏背景音乐
+  Future<void> _stopGameMusic() async {
+    await AudioManager.instance.stopBackgroundMusic();
   }
 
   Future<void> _loadMaps() async {
@@ -51,87 +61,80 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
       MissionMap(
         id: '1',
         name: '关卡 1：新手训练',
-        description: '击败3个敌人',
+        description: '击败3个敌人，熟悉游戏操作',
         enemyCount: 3,
         obstacles: [
           Obstacle(
             type: ObstacleType.brickWall,
-            x: 400,
-            y: 300,
-            width: 40,
-            height: 40,
-          ),
-          Obstacle(
-            type: ObstacleType.rock,
-            x: 600,
-            y: 400,
-            width: 40,
-            height: 40,
+            x: 360,
+            y: 240,
+            width: 60,
+            height: 60,
           ),
         ],
       ),
       MissionMap(
         id: '2',
-        name: '关卡 2：小试牛刀',
-        description: '击败5个敌人',
+        name: '关卡 2：障碍挑战',
+        description: '击败5个敌人，学会利用障碍物',
         enemyCount: 5,
         obstacles: [
           Obstacle(
             type: ObstacleType.brickWall,
             x: 300,
-            y: 200,
-            width: 40,
-            height: 40,
-          ),
-          Obstacle(
-            type: ObstacleType.brickWall,
-            x: 500,
-            y: 400,
-            width: 40,
-            height: 40,
+            y: 180,
+            width: 60,
+            height: 60,
           ),
           Obstacle(
             type: ObstacleType.rock,
-            x: 700,
+            x: 480,
             y: 300,
-            width: 40,
-            height: 40,
+            width: 60,
+            height: 60,
+          ),
+          Obstacle(
+            type: ObstacleType.brickWall,
+            x: 420,
+            y: 420,
+            width: 60,
+            height: 60,
           ),
         ],
       ),
       MissionMap(
         id: '3',
-        name: '关卡 3：终极挑战',
-        description: '击败8个敌人',
+        name: '关卡 3：终极考验',
+        description: '击败8个敌人，证明你的实力',
         enemyCount: 8,
         obstacles: [
           Obstacle(
-            type: ObstacleType.brickWall,
-            x: 350,
-            y: 250,
-            width: 40,
-            height: 40,
+            type: ObstacleType.rock,
+            x: 360,
+            y: 240,
+            width: 60,
+            height: 60,
           ),
           Obstacle(
             type: ObstacleType.brickWall,
-            x: 450,
-            y: 350,
-            width: 40,
-            height: 40,
+            x: 480,
+            y: 180,
+            width: 120,
+            height: 60,
           ),
           Obstacle(
             type: ObstacleType.rock,
-            x: 550,
-            y: 450,
-            width: 40,
-            height: 40,
+            x: 540,
+            y: 360,
+            width: 60,
+            height: 60,
           ),
           Obstacle(
-            type: ObstacleType.rock,
-            x: 750,
-            y: 250,
-            width: 40,
-            height: 40,
+            type: ObstacleType.brickWall,
+            x: 420,
+            y: 420,
+            width: 60,
+            height: 120,
           ),
         ],
       ),
@@ -157,8 +160,8 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _maps.isEmpty
-              ? _buildEmptyState()
-              : _buildMapList(),
+          ? _buildEmptyState()
+          : _buildMapList(),
     );
   }
 
@@ -254,9 +257,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
 
   void _openMapEditor() async {
     final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (context) => const MapEditorScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const MapEditorScreen()),
     );
 
     // 如果保存成功，重新加载地图列表
@@ -281,9 +282,9 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   void _deleteMap(MissionMap map) async {
     // 只能删除自定义地图（ID以custom_开头）
     if (!map.id.startsWith('custom_')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('内置地图不能删除')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('内置地图不能删除')));
       return;
     }
 
@@ -311,29 +312,34 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         await MissionMapManager.deleteMap(map.id);
         _loadMaps();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('地图已删除')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('地图已删除')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('删除失败: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('删除失败: $e')));
         }
       }
     }
   }
 
   void _startMission(MissionMap map) {
+    // 找到当前关卡的索引
+    final currentIndex = _maps.indexOf(map);
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => MissionGameScreen(
           missionMap: map,
           aiIntelligenceLevel: widget.aiIntelligenceLevel,
+          maxHealth: widget.maxHealth,
+          allMaps: _maps,
+          currentMapIndex: currentIndex,
         ),
       ),
     );
   }
 }
-

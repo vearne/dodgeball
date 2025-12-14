@@ -24,8 +24,11 @@ class PlayerComponent extends PositionComponent
     this.radius = 16,
     this.aiIntelligenceLevel = 1.0,
     this.name, // 新增：玩家名称
+    int maxHealth = 3, // 新增：最大生命值参数
     ui.Color? color,
   }) : _color = color ?? _teamColor(team),
+       _maxHealth = maxHealth,
+       _currentHealth = maxHealth,
        super(
          position: position,
          size: Vector2.all(radius * 2),
@@ -47,8 +50,8 @@ class PlayerComponent extends PositionComponent
   bool _pendingRemoval = false; // 新增：标记是否待移除
 
   // 新增：生命值系统
-  int _maxHealth = 3; // 默认最大生命值
-  int _currentHealth = 3; // 当前生命值
+  int _maxHealth; // 最大生命值
+  int _currentHealth; // 当前生命值
   int _score = 0; // 得分（限时赛用）
 
   // 生命值访问器
@@ -72,6 +75,19 @@ class PlayerComponent extends PositionComponent
     _currentHealth = health;
     // 更新生命值显示
     _healthText?.text = '$_currentHealth/$_maxHealth';
+  }
+
+  // 设置当前生命值（用于关卡间传递）
+  void setCurrentHealth(int health) {
+    _currentHealth = health.clamp(0, _maxHealth);
+    // 更新生命值显示
+    _healthText?.text = '$_currentHealth/$_maxHealth';
+
+    // 如果生命值为0，标记为淘汰
+    if (_currentHealth <= 0 && !isEliminated) {
+      isEliminated = true;
+      eliminate();
+    }
   }
 
   // 受到伤害
@@ -131,10 +147,11 @@ class PlayerComponent extends PositionComponent
   bool _attackSpeedBoost = false; // 攻速提升标记
 
   // 冷却时间访问器
-  double get effectiveThrowCooldown => _attackSpeedBoost ? throwCooldown * 0.5 : throwCooldown; // 攻速提升时冷却时间减半
+  double get effectiveThrowCooldown =>
+      _attackSpeedBoost ? throwCooldown * 0.5 : throwCooldown; // 攻速提升时冷却时间减半
   bool get canThrow => _lastThrowTime >= effectiveThrowCooldown;
-  double get throwCooldownRemaining =>
-      (effectiveThrowCooldown - _lastThrowTime).clamp(0.0, effectiveThrowCooldown);
+  double get throwCooldownRemaining => (effectiveThrowCooldown - _lastThrowTime)
+      .clamp(0.0, effectiveThrowCooldown);
 
   // 重置投球冷却
   void resetThrowCooldown() {
@@ -145,6 +162,9 @@ class PlayerComponent extends PositionComponent
   void setAttackSpeedBoost(bool boost) {
     _attackSpeedBoost = boost;
   }
+
+  // 获取攻速提升状态
+  bool get hasAttackSpeedBoost => _attackSpeedBoost;
 
   // 投掷后调用（用于更新冷却时间）
   void onThrow() {

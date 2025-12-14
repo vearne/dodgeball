@@ -129,15 +129,9 @@ class BallComponent extends SpriteComponent
 
     // 验证碰撞的有效性
     if (_isValidPlayerCollision(player)) {
-      // 根据游戏模式处理碰撞
-      final game = findGame();
-      if (game != null && game is DodgeballGame) {
-        // 统一处理：玩家受到伤害
-        player.takeDamage();
-      } else {
-        // 默认行为：淘汰
-        player.eliminate();
-      }
+      // 统一处理：玩家受到伤害（减少生命值）
+      // 这样可以支持所有游戏模式（包括 DodgeballGame 和 MissionDodgeballGame）
+      player.takeDamage();
 
       hitPlayerAndContinue();
       onHitPlayer?.call(this, player);
