@@ -33,6 +33,7 @@ class MissionDodgeballGame extends FlameGame
     this.maxHealth = 3,
     this.playerState, // 玩家状态（用于关卡间传递）
     this.onMissionComplete,
+    this.onMissionFailed, // 新增：任务失败回调
   });
 
   final MissionMap missionMap;
@@ -40,6 +41,7 @@ class MissionDodgeballGame extends FlameGame
   final int maxHealth;
   final PlayerState? playerState; // 可选的初始玩家状态
   final VoidCallback? onMissionComplete;
+  final VoidCallback? onMissionFailed; // 新增：任务失败回调
   final Random _random = Random();
 
   // 道具效果计时器
@@ -489,16 +491,30 @@ class MissionDodgeballGame extends FlameGame
 
     add(victoryText);
 
-    // 如果玩家胜利，调用关卡完成回调
-    if (playerWins && onMissionComplete != null) {
-      // 停止背景音乐并播放胜利音效
-      _audioManager.stopBackgroundMusic();
-      _audioManager.playVictorySound();
+    if (playerWins) {
+      // 如果玩家胜利，调用关卡完成回调
+      if (onMissionComplete != null) {
+        // 停止背景音乐并播放胜利音效
+        _audioManager.stopBackgroundMusic();
+        _audioManager.playVictorySound();
 
-      // 延迟2.5秒后调用，让玩家看到胜利文字和听到胜利音效
-      Future.delayed(const Duration(milliseconds: 2500), () {
-        onMissionComplete!();
-      });
+        // 延迟2.5秒后调用，让玩家看到胜利文字和听到胜利音效
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          onMissionComplete!();
+        });
+      }
+    } else {
+      // 如果玩家失败，调用任务失败回调
+      if (onMissionFailed != null) {
+        // 停止背景音乐并播放击中音效
+        _audioManager.stopBackgroundMusic();
+        _audioManager.playHitSound();
+
+        // 延迟3秒后自动返回首页
+        Future.delayed(const Duration(seconds: 3), () {
+          onMissionFailed!();
+        });
+      }
     }
   }
 

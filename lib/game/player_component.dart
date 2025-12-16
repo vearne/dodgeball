@@ -322,7 +322,8 @@ class PlayerComponent extends PositionComponent
         ),
       ),
       anchor: Anchor.center,
-      position: Vector2.zero(),
+      // 放在箭头主体中部略偏右
+      position: Vector2(radius * 1.0, radius * 1.0),
     );
     _arrowIcon?.add(_playerLabel!);
   }

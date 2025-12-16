@@ -39,6 +39,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       maxHealth: widget.maxHealth,
       playerState: widget.playerState,
       onMissionComplete: _onMissionComplete,
+      onMissionFailed: _onMissionFailed,
     );
   }
 
@@ -56,6 +57,14 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       // 没有下一关，显示全部通关
       _showAllLevelsCompleteDialog();
     }
+  }
+
+  /// 任务失败回调 - 返回首页
+  void _onMissionFailed() {
+    if (!mounted) return;
+    
+    // 返回到关卡选择页面
+    Navigator.of(context).pop();
   }
 
   /// 显示进入下一关对话框（带自动跳转）
