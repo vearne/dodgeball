@@ -1,33 +1,59 @@
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
+import 'package:flutter/foundation.dart';
 import 'player_component.dart';
 
 /// 道具类型
 enum PowerUpType {
-  speedBoost, // 精灵鞋：移动速度加速
-  attackSpeed, // 攻速球：投掷冷却时间缩短
+  speedBoost, // 速度靴子：移动速度增加20%，持续10秒
+  attackSpeed, // 攻速球：投掷冷却时间缩短（保留原有功能）
+  health, // 血瓶：增加1条生命
 }
 
 /// 道具组件
 class PowerUpComponent extends PositionComponent
     with CollisionCallbacks, HasGameReference {
   PowerUpComponent({required this.type, required Vector2 position})
-    : super(position: position, size: Vector2.all(32), anchor: Anchor.center);
+    : super(
+        position: position,
+        size: Vector2.all(36), // 36x36像素
+        anchor: Anchor.center,
+      );
 
   final PowerUpType type;
   bool _collected = false;
+  Sprite? _sprite;
+
+  /// 获取道具图片路径
+  String get _imagePath {
+    switch (type) {
+      case PowerUpType.health:
+        return 'hp_potion_36_36.png';
+      case PowerUpType.speedBoost:
+        return 'boot_36_36.png';
+      case PowerUpType.attackSpeed:
+        return 'speed_ball_36_36.png';
+    }
+  }
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 加载道具图片，使用 Sprite.load 确保正确加载透明 PNG
+    try {
+      _sprite = await Sprite.load(_imagePath);
+    } catch (e) {
+      // 如果图片加载失败，使用备用绘制
+      debugPrint('Failed to load power-up image: $_imagePath');
+    }
+
     // 添加圆形碰撞箱
     add(CircleHitbox(radius: 16));
 
-    // 添加旋转动画效果
-    add(RotatingComponent());
+    // 添加上下浮动动画效果
+    add(FloatingComponent(parent: this));
   }
 
   @override
@@ -36,92 +62,47 @@ class PowerUpComponent extends PositionComponent
 
     if (_collected) return;
 
-    // 根据道具类型绘制不同的外观
+    if (_sprite != null) {
+      // 使用高质量渲染设置
+      final paint = ui.Paint()
+        ..isAntiAlias = true
+        ..filterQuality = ui.FilterQuality.high;
+
+      // 渲染道具图片（支持透明PNG）
+      final srcRect = _sprite!.src;
+      final dstRect = ui.Rect.fromLTWH(0, 0, size.x, size.y);
+      canvas.drawImageRect(_sprite!.image, srcRect, dstRect, paint);
+    } else {
+      // 备用：如果图片未加载，使用简单的颜色方块
+      _drawFallback(canvas);
+    }
+  }
+
+  /// 备用绘制方法（当图片加载失败时使用）
+  void _drawFallback(ui.Canvas canvas) {
+    final paint = ui.Paint()..style = ui.PaintingStyle.fill;
+
     switch (type) {
+      case PowerUpType.health:
+        paint.color = const ui.Color(0xFFFF1493); // 粉红色
+        break;
       case PowerUpType.speedBoost:
-        _drawSpeedBoost(canvas);
+        paint.color = const ui.Color(0xFF8B4513); // 棕色
         break;
       case PowerUpType.attackSpeed:
-        _drawAttackSpeed(canvas);
+        paint.color = const ui.Color(0xFFFF8C00); // 橙色
         break;
     }
-  }
-
-  void _drawSpeedBoost(ui.Canvas canvas) {
-    // 绘制精灵鞋：黄色星星形状
-    final paint = ui.Paint()
-      ..color =
-          const ui.Color(0xFFFFD700) // 金色
-      ..style = ui.PaintingStyle.fill;
-
-    // 绘制星星
-    final path = ui.Path();
-    final center = ui.Offset(size.x / 2, size.y / 2);
-    final outerRadius = 12.0;
-    final innerRadius = 6.0;
-    final points = 5;
-
-    for (int i = 0; i < points * 2; i++) {
-      final angle = (i * math.pi) / points - math.pi / 2;
-      final radius = i.isEven ? outerRadius : innerRadius;
-      final x = center.dx + radius * math.cos(angle);
-      final y = center.dy + radius * math.sin(angle);
-
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
-    }
-    path.close();
-
-    canvas.drawPath(path, paint);
-
-    // 绘制边框
-    final borderPaint = ui.Paint()
-      ..color =
-          const ui.Color(0xFFFFA500) // 橙色边框
-      ..style = ui.PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    canvas.drawPath(path, borderPaint);
-  }
-
-  void _drawAttackSpeed(ui.Canvas canvas) {
-    // 绘制攻速球：红色球形状
-    final paint = ui.Paint()
-      ..color =
-          const ui.Color(0xFFFF0000) // 红色
-      ..style = ui.PaintingStyle.fill;
 
     final center = ui.Offset(size.x / 2, size.y / 2);
-    canvas.drawCircle(center, 12.0, paint);
+    canvas.drawCircle(center, 16.0, paint);
 
-    // 绘制边框
+    // 边框
     final borderPaint = ui.Paint()
-      ..color =
-          const ui.Color(0xFFCC0000) // 深红色边框
+      ..color = const ui.Color(0xFF000000)
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 2.0;
-
-    canvas.drawCircle(center, 12.0, borderPaint);
-
-    // 绘制闪电符号
-    final lightningPaint = ui.Paint()
-      ..color =
-          const ui.Color(0xFFFFFFFF) // 白色
-      ..style = ui.PaintingStyle.fill;
-
-    final lightningPath = ui.Path();
-    lightningPath.moveTo(center.dx, center.dy - 8);
-    lightningPath.lineTo(center.dx + 3, center.dy);
-    lightningPath.lineTo(center.dx - 2, center.dy);
-    lightningPath.lineTo(center.dx, center.dy + 8);
-    lightningPath.lineTo(center.dx - 3, center.dy);
-    lightningPath.lineTo(center.dx + 2, center.dy);
-    lightningPath.close();
-
-    canvas.drawPath(lightningPath, lightningPaint);
+    canvas.drawCircle(center, 16.0, borderPaint);
   }
 
   @override
@@ -146,10 +127,13 @@ class PowerUpComponent extends PositionComponent
       case PowerUpType.attackSpeed:
         _applyAttackSpeed(player);
         break;
+      case PowerUpType.health:
+        _applyHealth(player);
+        break;
     }
   }
 
-  /// 应用精灵鞋效果：移动速度加速
+  /// 应用速度靴子效果：移动速度加速
   void _applySpeedBoost(PlayerComponent player) {
     final game = findGame();
     if (game != null) {
@@ -171,16 +155,24 @@ class PowerUpComponent extends PositionComponent
 
   void _applySpeedBoostFallback(PlayerComponent player, dynamic game) {
     const originalSpeed = 120.0;
-    player.movementSpeed = originalSpeed * 1.5;
+    player.movementSpeed = originalSpeed * 1.2; // 20%增速
 
     game.add(
       TimerComponent(
-        period: 30.0,
+        period: 10.0, // 10秒
         onTick: () {
           player.movementSpeed = originalSpeed;
         },
       ),
     );
+  }
+
+  /// 应用血瓶效果：增加1条生命
+  void _applyHealth(PlayerComponent player) {
+    // 增加1条生命值（不超过最大生命值）
+    if (player.currentHealth < player.maxHealth) {
+      player.setCurrentHealth(player.currentHealth + 1);
+    }
   }
 
   /// 应用攻速球效果：投掷冷却时间缩短
@@ -216,21 +208,33 @@ class PowerUpComponent extends PositionComponent
   }
 }
 
-/// 旋转组件：让道具旋转
-class RotatingComponent extends Component {
-  double _rotation = 0.0;
+/// 浮动组件：让道具上下浮动
+class FloatingComponent extends Component {
+  FloatingComponent({required this.parent});
+
+  final PositionComponent parent;
+  double _time = 0.0;
+  late final double _baseY;
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    _baseY = parent.position.y;
+  }
 
   @override
   void update(double dt) {
     super.update(dt);
-    _rotation += dt * 2.0; // 每秒旋转2弧度
-    if (_rotation > 6.28318) {
-      _rotation -= 6.28318;
-    }
+    _time += dt * 3.0; // 浮动频率
+
+    // 使用正弦函数创建上下浮动效果
+    parent.position.y = _baseY + 4.0 * _sin(_time);
   }
 
-  @override
-  void render(ui.Canvas canvas) {
-    // 旋转效果由父组件处理
+  double _sin(double x) {
+    // 简单的正弦近似
+    x = x % 6.28318;
+    if (x > 3.14159) x -= 6.28318;
+    return x - (x * x * x) / 6.0 + (x * x * x * x * x) / 120.0;
   }
 }

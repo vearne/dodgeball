@@ -431,13 +431,13 @@ class PlayerComponent extends PositionComponent
     final game = findGame();
     if (game == null) return false;
 
-    // 检查是否在对应的队伍区域内
+    // 检查是否在对应的队伍区域内（考虑玩家半径）
     final isRedTeam = team == Team.red;
 
     if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(newPosition, game.size);
+      return FieldConfig.isInRedTeamArea(newPosition, game.size, playerRadius: radius);
     } else {
-      return FieldConfig.isInBlueTeamArea(newPosition, game.size);
+      return FieldConfig.isInBlueTeamArea(newPosition, game.size, playerRadius: radius);
     }
   }
 

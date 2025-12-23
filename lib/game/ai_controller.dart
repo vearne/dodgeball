@@ -273,9 +273,9 @@ class AIController extends Component {
     final isRedTeam = player.team == Team.red;
 
     if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(position, gameSize);
+      return FieldConfig.isInRedTeamArea(position, gameSize, playerRadius: player.radius);
     } else {
-      return FieldConfig.isInBlueTeamArea(position, gameSize);
+      return FieldConfig.isInBlueTeamArea(position, gameSize, playerRadius: player.radius);
     }
   }
 
@@ -286,6 +286,7 @@ class AIController extends Component {
       _targetPosition,
       isRedTeam,
       gameSize,
+      playerRadius: player.radius,
     );
   }
 

@@ -3,7 +3,6 @@ import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
 
 import 'arrow_component.dart';
-import 'dodgeball_game.dart';
 import 'player_component.dart';
 import 'team.dart';
 
@@ -42,6 +41,7 @@ class BallComponent extends SpriteComponent
   final void Function(BallComponent ball, PlayerComponent hitPlayer)?
   onHitPlayer;
   final double ballRadius; // 球的半径，用于碰撞检测
+  bool _hasHitPlayer = false; // 防止重复扣血：记录是否已经击中玩家
 
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
@@ -122,6 +122,11 @@ class BallComponent extends SpriteComponent
 
   /// 处理与玩家的碰撞
   void _handlePlayerCollision(PlayerComponent player) {
+    // 防止重复扣血：如果已经击中过玩家，直接返回
+    if (_hasHitPlayer) {
+      return;
+    }
+
     // 检查玩家是否已经被淘汰或正在被移除
     if (player.isEliminated || player.team == team) {
       return;
@@ -129,6 +134,9 @@ class BallComponent extends SpriteComponent
 
     // 验证碰撞的有效性
     if (_isValidPlayerCollision(player)) {
+      // 标记已经击中玩家，防止重复扣血
+      _hasHitPlayer = true;
+
       // 统一处理：玩家受到伤害（减少生命值）
       // 这样可以支持所有游戏模式（包括 DodgeballGame 和 MissionDodgeballGame）
       player.takeDamage();
@@ -161,6 +169,14 @@ class BallComponent extends SpriteComponent
     final startPos = position - velocity * dt;
     final endPos = position;
 
+    // 如果球没有移动，使用静态碰撞检测
+    final moveDistance = (endPos - startPos).length;
+    if (moveDistance < 0.001) {
+      // 静态碰撞检测：直接检查距离
+      final distance = position.distanceTo(player.position);
+      return distance <= (ballRadius + player.radius);
+    }
+
     // 计算球轨迹与玩家碰撞体的最近距离
     final closestPoint = _getClosestPointOnLineToCircle(
       startPos,
@@ -169,9 +185,11 @@ class BallComponent extends SpriteComponent
       player.radius,
     );
 
-    // 如果最近距离小于球的半径，说明发生了碰撞
+    // 计算轨迹上最近点到玩家圆心的距离
     final distance = closestPoint.distanceTo(player.position);
-    return distance <= ballRadius;
+    // 如果距离小于球半径+玩家半径，说明发生了碰撞
+    final collisionDistance = ballRadius + player.radius;
+    return distance <= collisionDistance;
   }
 
   /// 计算线段到圆心的最近点
@@ -213,24 +231,23 @@ class BallComponent extends SpriteComponent
 
   /// 验证与玩家的碰撞是否有效
   bool _isValidPlayerCollision(PlayerComponent player) {
-    // 检查距离 - 使用更严格的碰撞距离
+    // 检查距离 - 使用标准碰撞距离（球半径 + 玩家半径）
     final distance = position.distanceTo(player.position);
-    final collisionDistance = ballRadius + player.radius * 0.9; // 减少到0.9倍半径，更严格
+    final collisionDistance = ballRadius + player.radius;
 
     if (distance > collisionDistance) {
       return false; // 距离太远
     }
 
-    // 对于高速球，使用更严格的穿透检测
+    // 对于高速球，使用穿透检测防止误判
     if (velocity.length > 120) {
-      // 降低阈值，更早检测
       final toPlayer = (player.position - position).normalized();
       final velocityDirection = velocity.normalized();
       final dotProduct = toPlayer.dot(velocityDirection);
 
-      // 如果球正在远离玩家，可能是穿透
-      if (dotProduct < -0.15) {
-        // 更严格的阈值
+      // 如果球正在远离玩家（点积为负），可能是已经穿透或误判
+      // 使用更宽松的阈值，避免漏检
+      if (dotProduct < -0.3) {
         return false;
       }
     }

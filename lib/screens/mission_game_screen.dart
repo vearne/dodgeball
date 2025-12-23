@@ -3,6 +3,7 @@ import 'package:flame/game.dart';
 import '../game/mission_dodgeball_game.dart';
 import '../game/mission_map.dart';
 import '../game/player_state.dart';
+import '../game/audio_manager.dart';
 
 /// Mission模式游戏界面
 class MissionGameScreen extends StatefulWidget {
@@ -62,7 +63,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   /// 任务失败回调 - 返回首页
   void _onMissionFailed() {
     if (!mounted) return;
-    
+
     // 返回到关卡选择页面
     Navigator.of(context).pop();
   }
@@ -184,15 +185,19 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // 游戏主体
+            // 游戏主体 - 使用FittedBox确保1280x720分辨率固定，不受窗口缩放影响
             Center(
-              child: AspectRatio(
-                aspectRatio: 1280 / 720,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black, width: 2),
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: 1280,
+                  height: 720,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: GameWidget.controlled(gameFactory: () => game),
                   ),
-                  child: GameWidget.controlled(gameFactory: () => game),
                 ),
               ),
             ),
@@ -346,6 +351,9 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   }
 
   void _showPauseMenu() {
+    // 暂停游戏引擎
+    game.pauseEngine();
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -362,12 +370,16 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         actions: [
           TextButton(
             onPressed: () {
+              // 恢复游戏引擎
+              game.resumeEngine();
               Navigator.of(context).pop();
             },
             child: const Text('继续游戏'),
           ),
           TextButton(
             onPressed: () {
+              // 退出游戏时停止背景音乐
+              AudioManager.instance.stopBackgroundMusic();
               Navigator.of(context).pop(); // 关闭对话框
               Navigator.of(context).pop(); // 返回上一页
             },

@@ -49,9 +49,9 @@ class MissionDodgeballGame extends FlameGame
   TimerComponent? _attackSpeedBoostTimer;
 
   /// 应用速度提升道具（由PowerUpComponent调用）
-  void applySpeedBoost(PlayerComponent player, {double duration = 30.0}) {
+  void applySpeedBoost(PlayerComponent player, {double duration = 10.0}) {
     const originalSpeed = 120.0; // 默认速度
-    player.movementSpeed = originalSpeed * 1.5;
+    player.movementSpeed = originalSpeed * 1.2; // 改为20%增速
 
     // 取消之前的定时器
     _speedBoostTimer?.removeFromParent();
@@ -327,12 +327,51 @@ class MissionDodgeballGame extends FlameGame
     if (player.isEliminated) return;
 
     final speed = player.movementSpeed;
-    final moveVector = direction * speed;
+    final moveVector = direction.normalized() * speed * 0.016; // 使用固定时间步长
     final newPosition = player.position + moveVector;
 
-    // 限制在可玩区域内
-    final clampedPosition = FieldConfig.clampToPlayableArea(newPosition, size);
-    player.position = clampedPosition;
+    // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
+    final isRedTeam = player.team == Team.red;
+    final isInArea = isRedTeam
+        ? FieldConfig.isInRedTeamArea(
+            newPosition,
+            size,
+            playerRadius: player.radius,
+          )
+        : FieldConfig.isInBlueTeamArea(
+            newPosition,
+            size,
+            playerRadius: player.radius,
+          );
+
+    // 只有在区域内且不与障碍物碰撞时才移动
+    if (isInArea && !_isPositionOnObstacle(newPosition, player.radius)) {
+      player.position = newPosition;
+    } else {
+      // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
+      final clampedPosition = FieldConfig.clampToTeamArea(
+        newPosition,
+        isRedTeam,
+        size,
+        playerRadius: player.radius,
+      );
+      // 只有当限制后的位置仍在区域内时才更新
+      final clampedInArea = isRedTeam
+          ? FieldConfig.isInRedTeamArea(
+              clampedPosition,
+              size,
+              playerRadius: player.radius,
+            )
+          : FieldConfig.isInBlueTeamArea(
+              clampedPosition,
+              size,
+              playerRadius: player.radius,
+            );
+      if (clampedInArea &&
+          !_isPositionOnObstacle(clampedPosition, player.radius)) {
+        player.position = clampedPosition;
+      }
+    }
   }
 
   @override
@@ -369,17 +408,51 @@ class MissionDodgeballGame extends FlameGame
       final moveVector = _keyboardMoveInput.normalized() * speed * dt;
       final newPosition = player.position + moveVector;
 
-      // 限制在可玩区域内
-      final clampedPosition = FieldConfig.clampToPlayableArea(
-        newPosition,
-        size,
-      );
+      // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
+      final isRedTeam = player.team == Team.red;
+      final isInArea = isRedTeam
+          ? FieldConfig.isInRedTeamArea(
+              newPosition,
+              size,
+              playerRadius: player.radius,
+            )
+          : FieldConfig.isInBlueTeamArea(
+              newPosition,
+              size,
+              playerRadius: player.radius,
+            );
 
-      // 检查是否与障碍物碰撞
-      if (!_isPositionOnObstacle(clampedPosition, player.radius)) {
-        player.position = clampedPosition;
+      // 只有在区域内且不与障碍物碰撞时才移动
+      if (isInArea && !_isPositionOnObstacle(newPosition, player.radius)) {
+        player.position = newPosition;
         // 更新玩家朝向
         player.setDirection(_keyboardMoveInput.normalized());
+      } else {
+        // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
+        final clampedPosition = FieldConfig.clampToTeamArea(
+          newPosition,
+          isRedTeam,
+          size,
+          playerRadius: player.radius,
+        );
+        // 只有当限制后的位置仍在区域内时才更新
+        final clampedInArea = isRedTeam
+            ? FieldConfig.isInRedTeamArea(
+                clampedPosition,
+                size,
+                playerRadius: player.radius,
+              )
+            : FieldConfig.isInBlueTeamArea(
+                clampedPosition,
+                size,
+                playerRadius: player.radius,
+              );
+        if (clampedInArea &&
+            !_isPositionOnObstacle(clampedPosition, player.radius)) {
+          player.position = clampedPosition;
+          // 更新玩家朝向
+          player.setDirection(_keyboardMoveInput.normalized());
+        }
       }
     }
   }
@@ -629,10 +702,14 @@ class MissionDodgeballGame extends FlameGame
 
   /// 掉落道具
   void _dropPowerUp(Vector2 position) {
-    // 随机选择道具类型
-    final powerUpType = _random.nextBool()
-        ? PowerUpType.speedBoost
-        : PowerUpType.attackSpeed;
+    // 如果地图没有配置道具，不掉落
+    if (missionMap.allowedPowerUps.isEmpty) {
+      return;
+    }
+
+    // 从地图允许的道具中随机选择
+    final powerUpType = missionMap
+        .allowedPowerUps[_random.nextInt(missionMap.allowedPowerUps.length)];
 
     final powerUp = PowerUpComponent(type: powerUpType, position: position);
 
@@ -641,26 +718,69 @@ class MissionDodgeballGame extends FlameGame
 
   /// 启动道具掉落定时器
   void _startPowerUpDropTimer() {
-    // 3-5分钟随机
-    final dropInterval = 180.0 + _random.nextInt(120).toDouble(); // 180-300秒
+    // 如果地图没有配置道具，不启动定时器
+    if (missionMap.allowedPowerUps.isEmpty) {
+      return;
+    }
+
+    // 使用地图配置的生成间隔
+    final dropInterval = missionMap.powerUpSpawnInterval;
 
     _powerUpDropTimer = TimerComponent(
       period: dropInterval,
       repeat: true,
       onTick: () {
-        // 在地图随机位置掉落道具
-        final randomX =
-            FieldConfig.wallThickness +
-            _random.nextDouble() * (size.x - FieldConfig.wallThickness * 2);
-        final randomY =
-            FieldConfig.wallThickness +
-            _random.nextDouble() * (size.y - FieldConfig.wallThickness * 2);
-
-        _dropPowerUp(Vector2(randomX, randomY));
+        // 在地图随机空白位置掉落道具
+        final position = _findValidPowerUpPosition();
+        if (position != null) {
+          _dropPowerUp(position);
+        }
       },
     );
 
     add(_powerUpDropTimer!);
+  }
+
+  /// 查找有效的道具生成位置（不在障碍物和玩家位置）
+  Vector2? _findValidPowerUpPosition() {
+    const powerUpRadius = 16.0;
+    const maxAttempts = 50;
+    final playableArea = FieldConfig.getPlayableArea(size);
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      // 在可玩区域内随机生成位置
+      final randomX =
+          playableArea.left + _random.nextDouble() * playableArea.width;
+      final randomY =
+          playableArea.top + _random.nextDouble() * playableArea.height;
+      final testPosition = Vector2(randomX, randomY);
+
+      // 检查是否在障碍物上
+      if (_isPositionOnObstacle(testPosition, powerUpRadius)) {
+        continue;
+      }
+
+      // 检查是否与玩家重叠
+      bool tooCloseToPlayer = false;
+      for (final player in children.whereType<PlayerComponent>()) {
+        if (player.isEliminated) continue;
+        final distance = testPosition.distanceTo(player.position);
+        if (distance < powerUpRadius + player.radius + 10.0) {
+          tooCloseToPlayer = true;
+          break;
+        }
+      }
+
+      if (tooCloseToPlayer) {
+        continue;
+      }
+
+      // 找到有效位置
+      return testPosition;
+    }
+
+    // 如果实在找不到，返回null
+    return null;
   }
 
   /// 实现 HasThrowRequest 的方法

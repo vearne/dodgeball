@@ -15,10 +15,10 @@ abstract class ObstacleComponent extends PositionComponent
   void handleBallCollision(BallComponent ball);
 }
 
-/// 原子砖块组件：60px*60px 的基本砖块单元
+/// 原子砖块组件：30px*30px 的基本砖块单元
 /// 继承 ObstacleComponent 以便与现有的碰撞检测系统兼容
 class AtomicBrickComponent extends ObstacleComponent {
-  static const double atomicSize = 60.0; // 原子砖块大小
+  static const double atomicSize = 30.0; // 原子砖块大小
   Sprite? _brickSprite; // 砖块图片精灵
 
   AtomicBrickComponent({required Vector2 position})
@@ -30,7 +30,7 @@ class AtomicBrickComponent extends ObstacleComponent {
 
     // 加载砖块图片
     try {
-      _brickSprite = await Sprite.load('wall_60_60.png');
+      _brickSprite = await Sprite.load('wall_30_30.png');
     } catch (e) {
       print('警告：无法加载砖块图片，将使用默认绘制: $e');
     }
@@ -172,7 +172,7 @@ class RockComponent extends ObstacleComponent {
 
     // 加载岩石图片
     try {
-      _rockSprite = await Sprite.load('stone_60_60.png');
+      _rockSprite = await Sprite.load('stone_30_30.png');
     } catch (e) {
       print('警告：无法加载岩石图片，将使用默认绘制: $e');
     }
@@ -187,17 +187,18 @@ class RockComponent extends ObstacleComponent {
 
     if (_rockSprite != null) {
       // 使用图片渲染（平铺方式填充整个区域）
-      final tilesX = (size.x / 60).ceil();
-      final tilesY = (size.y / 60).ceil();
+      final tileSize = 30.0;
+      final tilesX = (size.x / tileSize).ceil();
+      final tilesY = (size.y / tileSize).ceil();
 
       for (int row = 0; row < tilesY; row++) {
         for (int col = 0; col < tilesX; col++) {
-          final offsetX = col * 60.0;
-          final offsetY = row * 60.0;
+          final offsetX = col * tileSize;
+          final offsetY = row * tileSize;
 
           // 计算需要绘制的部分大小
-          final drawWidth = (offsetX + 60 > size.x) ? size.x - offsetX : 60.0;
-          final drawHeight = (offsetY + 60 > size.y) ? size.y - offsetY : 60.0;
+          final drawWidth = (offsetX + tileSize > size.x) ? size.x - offsetX : tileSize;
+          final drawHeight = (offsetY + tileSize > size.y) ? size.y - offsetY : tileSize;
 
           canvas.save();
           canvas.translate(offsetX, offsetY);
@@ -205,7 +206,7 @@ class RockComponent extends ObstacleComponent {
           // 裁剪以防止超出边界
           canvas.clipRect(ui.Rect.fromLTWH(0, 0, drawWidth, drawHeight));
 
-          _rockSprite!.render(canvas, size: Vector2(60, 60));
+          _rockSprite!.render(canvas, size: Vector2(tileSize, tileSize));
 
           canvas.restore();
         }

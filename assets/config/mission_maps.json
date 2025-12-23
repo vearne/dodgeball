@@ -12,13 +12,15 @@
         "width": 60,
         "height": 60
       }
-    ]
+    ],
+    "allowedPowerUps": ["health"],
+    "powerUpSpawnInterval": 45.0
   },
   {
     "id": "2",
     "name": "关卡 2：障碍挑战",
-    "description": "击败5个敌人，学会利用障碍物",
-    "enemyCount": 5,
+    "description": "击败3个敌人，学会利用障碍物",
+    "enemyCount": 3,
     "obstacles": [
       {
         "type": "brickWall",
@@ -41,13 +43,15 @@
         "width": 60,
         "height": 60
       }
-    ]
+    ],
+    "allowedPowerUps": ["health", "speedBoost"],
+    "powerUpSpawnInterval": 40.0
   },
   {
     "id": "3",
     "name": "关卡 3：终极考验",
-    "description": "击败8个敌人，证明你的实力",
-    "enemyCount": 8,
+    "description": "击败3个敌人，证明你的实力",
+    "enemyCount": 3,
     "obstacles": [
       {
         "type": "rock",
@@ -77,6 +81,8 @@
         "width": 60,
         "height": 120
       }
-    ]
+    ],
+    "allowedPowerUps": ["health", "speedBoost", "attackSpeed"],
+    "powerUpSpawnInterval": 35.0
   }
 ]

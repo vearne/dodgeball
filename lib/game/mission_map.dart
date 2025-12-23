@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'power_up_component.dart';
 
 /// 地图障碍物类型
 enum ObstacleType {
@@ -55,6 +56,8 @@ class MissionMap {
   final String description;
   final int enemyCount; // 敌人数量
   final List<Obstacle> obstacles; // 障碍物列表
+  final List<PowerUpType> allowedPowerUps; // 允许出现的道具类型
+  final double powerUpSpawnInterval; // 道具生成间隔（秒）
 
   const MissionMap({
     required this.id,
@@ -62,6 +65,8 @@ class MissionMap {
     required this.description,
     required this.enemyCount,
     this.obstacles = const [],
+    this.allowedPowerUps = const [], // 默认为空，表示不生成道具
+    this.powerUpSpawnInterval = 30.0, // 默认30秒生成一次
   });
 
   Map<String, dynamic> toJson() => {
@@ -70,19 +75,41 @@ class MissionMap {
     'description': description,
     'enemyCount': enemyCount,
     'obstacles': obstacles.map((o) => o.toJson()).toList(),
+    'allowedPowerUps': allowedPowerUps.map((p) => p.name).toList(),
+    'powerUpSpawnInterval': powerUpSpawnInterval,
   };
 
-  factory MissionMap.fromJson(Map<String, dynamic> json) => MissionMap(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    description: json['description'] as String,
-    enemyCount: json['enemyCount'] as int,
-    obstacles:
-        (json['obstacles'] as List<dynamic>?)
-            ?.map((o) => Obstacle.fromJson(o as Map<String, dynamic>))
+  factory MissionMap.fromJson(Map<String, dynamic> json) {
+    // 解析道具类型列表
+    final allowedPowerUpsList =
+        (json['allowedPowerUps'] as List<dynamic>?)
+            ?.map((p) {
+              try {
+                return PowerUpType.values.firstWhere((e) => e.name == p);
+              } catch (e) {
+                return null;
+              }
+            })
+            .where((p) => p != null)
+            .cast<PowerUpType>()
             .toList() ??
-        [],
-  );
+        [];
+
+    return MissionMap(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      enemyCount: json['enemyCount'] as int,
+      obstacles:
+          (json['obstacles'] as List<dynamic>?)
+              ?.map((o) => Obstacle.fromJson(o as Map<String, dynamic>))
+              .toList() ??
+          [],
+      allowedPowerUps: allowedPowerUpsList,
+      powerUpSpawnInterval:
+          (json['powerUpSpawnInterval'] as num?)?.toDouble() ?? 30.0,
+    );
+  }
 
   /// 创建副本用于编辑
   MissionMap copyWith({
@@ -91,6 +118,8 @@ class MissionMap {
     String? description,
     int? enemyCount,
     List<Obstacle>? obstacles,
+    List<PowerUpType>? allowedPowerUps,
+    double? powerUpSpawnInterval,
   }) {
     return MissionMap(
       id: id ?? this.id,
@@ -98,6 +127,8 @@ class MissionMap {
       description: description ?? this.description,
       enemyCount: enemyCount ?? this.enemyCount,
       obstacles: obstacles ?? this.obstacles,
+      allowedPowerUps: allowedPowerUps ?? this.allowedPowerUps,
+      powerUpSpawnInterval: powerUpSpawnInterval ?? this.powerUpSpawnInterval,
     );
   }
 }
