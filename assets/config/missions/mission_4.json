@@ -1,0 +1,34 @@
+{
+  "id": "4",
+  "name": "关卡 4：战术演练",
+  "description": "击败5个敌人，提升战斗技巧",
+  "enemyCount": 5,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 480,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost"
+  ],
+  "powerUpSpawnInterval": 25.0
+}

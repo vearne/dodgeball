@@ -1,0 +1,35 @@
+{
+  "id": "6",
+  "name": "关卡 6：双线作战",
+  "description": "击败6个敌人，应对多线攻击",
+  "enemyCount": 6,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 540,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 23.0
+}

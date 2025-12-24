@@ -1,0 +1,18 @@
+{
+  "id": "1",
+  "name": "关卡 1：新手训练",
+  "description": "击败3个敌人，熟悉游戏操作",
+  "enemyCount": 3,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": ["health"],
+  "powerUpSpawnInterval": 30.0
+}
+

@@ -135,108 +135,146 @@ class MissionMap {
 
 /// 地图管理器：负责加载和保存地图
 class MissionMapManager {
-  static const String _assetMapsPath = 'assets/config/mission_maps.json';
-  static const String _customMapsFileName = 'custom_mission_maps.json';
+  static const String _assetMissionsDir = 'assets/config/missions';
+  static const String _customMissionsDirName = 'missions';
+  static const int _maxBuiltInMissions = 30; // 内置关卡数量
 
-  /// 获取自定义地图文件路径
-  static Future<String> _getCustomMapsFilePath() async {
+  /// 获取自定义地图目录路径
+  static Future<String> _getCustomMissionsDirectory() async {
     final directory = await getApplicationDocumentsDirectory();
-    return '${directory.path}/$_customMapsFileName';
+    final missionsDir = Directory('${directory.path}/$_customMissionsDirName');
+    if (!await missionsDir.exists()) {
+      await missionsDir.create(recursive: true);
+    }
+    return missionsDir.path;
   }
 
   /// 加载所有地图（包括内置地图和自定义地图）
   static Future<List<MissionMap>> loadMaps() async {
     final List<MissionMap> allMaps = [];
 
-    // 1. 加载内置地图（从assets）
-    try {
-      final String jsonString = await rootBundle.loadString(_assetMapsPath);
-      final List<dynamic> jsonList = json.decode(jsonString);
-      final builtInMaps = jsonList
-          .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
-          .toList();
-      allMaps.addAll(builtInMaps);
-    } catch (e) {
-      // 如果内置地图不存在，继续
-      print('加载内置地图失败: $e');
+    // 1. 加载内置地图（从assets/missions目录，每个关卡一个文件）
+    for (int i = 1; i <= _maxBuiltInMissions; i++) {
+      try {
+        final missionPath = '$_assetMissionsDir/mission_$i.json';
+        final String jsonString = await rootBundle.loadString(missionPath);
+        final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
+        final mission = MissionMap.fromJson(jsonMap);
+        allMaps.add(mission);
+      } catch (e) {
+        // 如果某个关卡文件不存在，跳过
+        print('加载内置关卡 $i 失败: $e');
+      }
     }
 
-    // 2. 加载自定义地图（从文档目录）
+    // 2. 加载自定义地图（从文档目录/missions）
     try {
-      final customMapsPath = await _getCustomMapsFilePath();
-      final file = File(customMapsPath);
-      if (await file.exists()) {
-        final String jsonString = await file.readAsString();
-        final List<dynamic> jsonList = json.decode(jsonString);
-        final customMaps = jsonList
-            .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
-            .toList();
-        allMaps.addAll(customMaps);
+      final customMissionsDir = await _getCustomMissionsDirectory();
+      final directory = Directory(customMissionsDir);
+      if (await directory.exists()) {
+        final files = directory.listSync();
+        for (final file in files) {
+          if (file is File && file.path.endsWith('.json')) {
+            try {
+              final String jsonString = await file.readAsString();
+              final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
+              final mission = MissionMap.fromJson(jsonMap);
+              allMaps.add(mission);
+            } catch (e) {
+              print('加载自定义关卡失败 ${file.path}: $e');
+            }
+          }
+        }
       }
     } catch (e) {
-      // 如果自定义地图不存在或读取失败，继续
-      print('加载自定义地图失败: $e');
+      print('加载自定义地图目录失败: $e');
     }
+
+    // 按ID排序（内置关卡按数字，自定义关卡在后面）
+    allMaps.sort((a, b) {
+      final aIsNumeric = int.tryParse(a.id) != null;
+      final bIsNumeric = int.tryParse(b.id) != null;
+      if (aIsNumeric && bIsNumeric) {
+        return int.parse(a.id).compareTo(int.parse(b.id));
+      } else if (aIsNumeric) {
+        return -1;
+      } else if (bIsNumeric) {
+        return 1;
+      } else {
+        return a.id.compareTo(b.id);
+      }
+    });
 
     return allMaps;
   }
 
   /// 加载自定义地图列表
   static Future<List<MissionMap>> loadCustomMaps() async {
+    final List<MissionMap> customMaps = [];
     try {
-      final customMapsPath = await _getCustomMapsFilePath();
-      final file = File(customMapsPath);
-      if (await file.exists()) {
-        final String jsonString = await file.readAsString();
-        final List<dynamic> jsonList = json.decode(jsonString);
-        return jsonList
-            .map((json) => MissionMap.fromJson(json as Map<String, dynamic>))
-            .toList();
+      final customMissionsDir = await _getCustomMissionsDirectory();
+      final directory = Directory(customMissionsDir);
+      if (await directory.exists()) {
+        final files = directory.listSync();
+        for (final file in files) {
+          if (file is File && file.path.endsWith('.json')) {
+            try {
+              final String jsonString = await file.readAsString();
+              final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
+              final mission = MissionMap.fromJson(jsonMap);
+              customMaps.add(mission);
+            } catch (e) {
+              print('加载自定义关卡失败 ${file.path}: $e');
+            }
+          }
+        }
       }
     } catch (e) {
       print('加载自定义地图失败: $e');
     }
-    return [];
-  }
-
-  /// 保存自定义地图列表到文档目录
-  static Future<void> saveCustomMaps(List<MissionMap> maps) async {
-    try {
-      final customMapsPath = await _getCustomMapsFilePath();
-      final file = File(customMapsPath);
-      final jsonList = maps.map((map) => map.toJson()).toList();
-      final jsonString = json.encode(jsonList);
-      await file.writeAsString(jsonString);
-      print('成功保存 ${maps.length} 个自定义地图到: $customMapsPath');
-    } catch (e) {
-      print('保存自定义地图失败: $e');
-      rethrow;
-    }
+    return customMaps;
   }
 
   /// 保存单个地图（添加或更新）
   static Future<void> saveMap(MissionMap map) async {
-    final customMaps = await loadCustomMaps();
+    try {
+      final customMissionsDir = await _getCustomMissionsDirectory();
 
-    // 查找是否已存在相同ID的地图
-    final existingIndex = customMaps.indexWhere((m) => m.id == map.id);
+      // 确保ID以custom_开头
+      final mapId = map.id.startsWith('custom_') ? map.id : 'custom_${map.id}';
+      final fileName = 'mission_$mapId.json';
+      final filePath = '$customMissionsDir/$fileName';
 
-    if (existingIndex >= 0) {
-      // 更新现有地图
-      customMaps[existingIndex] = map;
-    } else {
-      // 添加新地图
-      customMaps.add(map);
+      final file = File(filePath);
+      final jsonString = json.encode(map.copyWith(id: mapId).toJson());
+      await file.writeAsString(jsonString);
+      print('成功保存地图到: $filePath');
+    } catch (e) {
+      print('保存地图失败: $e');
+      rethrow;
     }
-
-    await saveCustomMaps(customMaps);
   }
 
   /// 删除地图
   static Future<void> deleteMap(String mapId) async {
-    final customMaps = await loadCustomMaps();
-    customMaps.removeWhere((m) => m.id == mapId);
-    await saveCustomMaps(customMaps);
+    try {
+      final customMissionsDir = await _getCustomMissionsDirectory();
+      final fileName = mapId.startsWith('custom_')
+          ? 'mission_$mapId.json'
+          : 'mission_custom_$mapId.json';
+      final filePath = '$customMissionsDir/$fileName';
+      final file = File(filePath);
+
+      if (await file.exists()) {
+        await file.delete();
+        print('成功删除地图: $filePath');
+      } else {
+        print('地图文件不存在: $filePath');
+      }
+    } catch (e) {
+      print('删除地图失败: $e');
+      rethrow;
+    }
   }
 
   /// 导出地图到指定文件

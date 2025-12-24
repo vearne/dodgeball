@@ -1,0 +1,84 @@
+{
+  "id": "26",
+  "name": "关卡 26：地狱模式",
+  "description": "击败16个敌人，体验地狱模式",
+  "enemyCount": 16,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 300,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 300,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 300,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 420,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 420,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 480,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 3.0
+}

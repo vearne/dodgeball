@@ -1,0 +1,63 @@
+{
+  "id": "17",
+  "name": "关卡 17：防御工事",
+  "description": "击败11个敌人，攻破防御工事",
+  "enemyCount": 11,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 220,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 180,
+      "width": 120,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 260,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 480,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 260,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 340,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 12.0
+}

@@ -238,15 +238,16 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                     tooltip: '删除地图',
                   ),
                 const SizedBox(width: 8),
-                // 开始按钮
-                ElevatedButton(
-                  onPressed: () => _startMission(map),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('开始'),
-                ),
+                // 开始按钮 - 只允许从第1关开始
+                  if( _isFirstMission(map))
+                      ? ElevatedButton(
+                          onPressed: () => _startMission(map),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('开始'),
+                        )
               ],
             ),
           ),
@@ -326,7 +327,25 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
     }
   }
 
+  /// 判断是否是第1关（允许开始的关卡）
+  bool _isFirstMission(MissionMap map) {
+    // 检查是否是列表中的第一个关卡，或者ID为'1'
+    final index = _maps.indexOf(map);
+    return index == 0 || map.id == '1';
+  }
+
   void _startMission(MissionMap map) {
+    // 只允许从第1关开始
+    if (!_isFirstMission(map)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('关卡模式只允许从第1关开始'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     // 找到当前关卡的索引
     final currentIndex = _maps.indexOf(map);
 

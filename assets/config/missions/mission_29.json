@@ -1,0 +1,98 @@
+{
+  "id": "29",
+  "name": "关卡 29：最终决战",
+  "description": "击败18个敌人，迎接最终决战",
+  "enemyCount": 18,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 200,
+      "width": 120,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 260,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 480,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 360,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 400,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 0.5
+}
