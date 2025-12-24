@@ -54,9 +54,8 @@ class MobileController extends PositionComponent {
 
   /// 检查是否为移动设备
   static bool get isMobileDevice {
-    return !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.android);
+    return defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
   }
 
   /// 获取摇杆当前方向

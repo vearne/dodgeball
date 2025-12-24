@@ -42,12 +42,44 @@
 - **Flame** - 游戏引擎
 - **Dart** - 编程语言
 
+## 支持的平台
+
+- ✅ **Android** - 移动设备
+- ✅ **iOS** - iPhone/iPad
+- ✅ **macOS** - Mac 电脑
+- ✅ **Windows** - Windows 10/11
+
 ## 运行项目
 
-1. 确保已安装Flutter SDK
+### 通用步骤
+
+1. 确保已安装 Flutter SDK（3.0 或更高版本）
 2. 克隆项目到本地
 3. 运行 `flutter pub get` 安装依赖
 4. 运行 `flutter run` 启动游戏
+
+### 平台特定说明
+
+#### Windows 平台
+
+Windows 平台需要额外的开发工具：
+
+1. **安装 Visual Studio 2022**（包含 "Desktop development with C++" 工作负载）
+2. 启用 Windows 桌面支持：`flutter config --enable-windows-desktop`
+3. 运行：`flutter run -d windows`
+4. 构建发布版本：`flutter build windows --release`
+
+详细说明请参考 [Windows 平台支持文档](./WINDOWS_SUPPORT.md)
+
+#### macOS 平台
+
+1. 安装 Xcode
+2. 运行：`flutter run -d macos`
+
+#### Android/iOS 平台
+
+1. 连接设备或启动模拟器
+2. 运行：`flutter run`
 
 ## 游戏截图
 
@@ -61,6 +93,7 @@
 - [x] 生命值系统
 - [x] 得分统计
 - [x] 音效系统
+- [x] 多人网络对战
+- [x] Windows 平台支持
 - [ ] 更多游戏模式
-- [ ] 网络对战
 - [ ] 成就系统
