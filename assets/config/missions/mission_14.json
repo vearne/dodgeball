@@ -1,0 +1,56 @@
+{
+  "id": "14",
+  "name": "关卡 14：障碍重重",
+  "description": "击败10个敌人，穿越重重障碍",
+  "enemyCount": 10,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 480,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 15.0
+}

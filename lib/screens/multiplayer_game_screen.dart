@@ -3,6 +3,7 @@ import 'package:flame/game.dart';
 
 import '../game/game_mode.dart';
 import '../game/multiplayer_dodgeball_game.dart';
+import '../game/audio_manager.dart';
 import '../network/game_network_manager.dart';
 import 'multiplayer_lobby_screen.dart';
 
@@ -83,6 +84,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
   }
 
   void _showPauseMenu() {
+    // 暂停游戏引擎
+    _game.pauseEngine();
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -91,11 +95,17 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
         content: const Text('确定要离开游戏吗？'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              // 恢复游戏引擎
+              _game.resumeEngine();
+              Navigator.of(context).pop();
+            },
             child: const Text('继续游戏'),
           ),
           TextButton(
             onPressed: () {
+              // 退出游戏时停止背景音乐
+              AudioManager.instance.stopBackgroundMusic();
               Navigator.of(context).pop();
               _networkManager.disconnect();
             },
@@ -122,15 +132,19 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
       child: Scaffold(
         body: Stack(
           children: [
-            // 游戏主体 - 使用FittedBox确保1280x720分辨率正确缩放
+            // 游戏主体 - 使用FittedBox确保1280x720分辨率固定，不受窗口缩放影响
             Center(
-              child: AspectRatio(
-                aspectRatio: 1280 / 720, // 保持16:9的宽高比
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black, width: 2),
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox(
+                  width: 1280,
+                  height: 720,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.black, width: 2),
+                    ),
+                    child: GameWidget.controlled(gameFactory: () => _game),
                   ),
-                  child: GameWidget.controlled(gameFactory: () => _game),
                 ),
               ),
             ),

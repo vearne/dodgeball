@@ -1,0 +1,56 @@
+{
+  "id": "15",
+  "name": "关卡 15：双面夹击",
+  "description": "击败10个敌人，应对双面夹击",
+  "enemyCount": 10,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 240,
+      "width": 120,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 480,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 360,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 14.0
+}

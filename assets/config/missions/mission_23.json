@@ -1,0 +1,77 @@
+{
+  "id": "23",
+  "name": "关卡 23：绝地反击",
+  "description": "击败14个敌人，展开绝地反击",
+  "enemyCount": 14,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 240,
+      "width": 120,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 480,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 480,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 540,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 360,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 6.0
+}

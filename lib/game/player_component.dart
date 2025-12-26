@@ -24,8 +24,11 @@ class PlayerComponent extends PositionComponent
     this.radius = 16,
     this.aiIntelligenceLevel = 1.0,
     this.name, // 新增：玩家名称
+    int maxHealth = 3, // 新增：最大生命值参数
     ui.Color? color,
   }) : _color = color ?? _teamColor(team),
+       _maxHealth = maxHealth,
+       _currentHealth = maxHealth,
        super(
          position: position,
          size: Vector2.all(radius * 2),
@@ -47,8 +50,8 @@ class PlayerComponent extends PositionComponent
   bool _pendingRemoval = false; // 新增：标记是否待移除
 
   // 新增：生命值系统
-  int _maxHealth = 3; // 默认最大生命值
-  int _currentHealth = 3; // 当前生命值
+  int _maxHealth; // 最大生命值
+  int _currentHealth; // 当前生命值
   int _score = 0; // 得分（限时赛用）
 
   // 生命值访问器
@@ -72,6 +75,19 @@ class PlayerComponent extends PositionComponent
     _currentHealth = health;
     // 更新生命值显示
     _healthText?.text = '$_currentHealth/$_maxHealth';
+  }
+
+  // 设置当前生命值（用于关卡间传递）
+  void setCurrentHealth(int health) {
+    _currentHealth = health.clamp(0, _maxHealth);
+    // 更新生命值显示
+    _healthText?.text = '$_currentHealth/$_maxHealth';
+
+    // 如果生命值为0，标记为淘汰
+    if (_currentHealth <= 0 && !isEliminated) {
+      isEliminated = true;
+      eliminate();
+    }
   }
 
   // 受到伤害
@@ -118,6 +134,17 @@ class PlayerComponent extends PositionComponent
 
   // 提供访问器以便游戏主类可以访问输入控制器
   InputController? get inputController => _inputController;
+  
+  // 设置输入控制器
+  set inputController(InputController? controller) {
+    // 移除旧的控制器
+    _inputController?.removeFromParent();
+    _inputController = controller;
+    // 如果新控制器不为空且已加载，添加到组件树
+    if (_inputController != null && isMounted) {
+      add(_inputController!);
+    }
+  }
 
   // 移动相关
   double movementSpeed = 120.0;
@@ -128,15 +155,31 @@ class PlayerComponent extends PositionComponent
   // 投球冷却
   double _lastThrowTime = 0.0;
   static const double throwCooldown = 10.0; // 10秒冷却时间
+  bool _attackSpeedBoost = false; // 攻速提升标记
 
   // 冷却时间访问器
-  bool get canThrow => _lastThrowTime >= throwCooldown;
-  double get throwCooldownRemaining =>
-      (throwCooldown - _lastThrowTime).clamp(0.0, throwCooldown);
+  double get effectiveThrowCooldown =>
+      _attackSpeedBoost ? throwCooldown * 0.5 : throwCooldown; // 攻速提升时冷却时间减半
+  bool get canThrow => _lastThrowTime >= effectiveThrowCooldown;
+  double get throwCooldownRemaining => (effectiveThrowCooldown - _lastThrowTime)
+      .clamp(0.0, effectiveThrowCooldown);
 
   // 重置投球冷却
   void resetThrowCooldown() {
     _lastThrowTime = 0.0;
+  }
+
+  // 设置攻速提升
+  void setAttackSpeedBoost(bool boost) {
+    _attackSpeedBoost = boost;
+  }
+
+  // 获取攻速提升状态
+  bool get hasAttackSpeedBoost => _attackSpeedBoost;
+
+  // 投掷后调用（用于更新冷却时间）
+  void onThrow() {
+    resetThrowCooldown();
   }
 
   // 设置朝向方向（供AI控制器使用）
@@ -290,7 +333,8 @@ class PlayerComponent extends PositionComponent
         ),
       ),
       anchor: Anchor.center,
-      position: Vector2.zero(),
+      // 放在箭头主体中部略偏右
+      position: Vector2(radius * 1.0, radius * 1.0),
     );
     _arrowIcon?.add(_playerLabel!);
   }
@@ -398,13 +442,13 @@ class PlayerComponent extends PositionComponent
     final game = findGame();
     if (game == null) return false;
 
-    // 检查是否在对应的队伍区域内
+    // 检查是否在对应的队伍区域内（考虑玩家半径）
     final isRedTeam = team == Team.red;
 
     if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(newPosition, game.size);
+      return FieldConfig.isInRedTeamArea(newPosition, game.size, playerRadius: radius);
     } else {
-      return FieldConfig.isInBlueTeamArea(newPosition, game.size);
+      return FieldConfig.isInBlueTeamArea(newPosition, game.size, playerRadius: radius);
     }
   }
 

@@ -1,0 +1,42 @@
+{
+  "id": "8",
+  "name": "关卡 8：火力全开",
+  "description": "击败7个敌人，展现你的实力",
+  "enemyCount": 7,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 300,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 540,
+      "y": 300,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 600,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 21.0
+}

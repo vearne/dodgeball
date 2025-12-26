@@ -1,0 +1,32 @@
+{
+  "id": "3",
+  "name": "关卡 3：初试锋芒",
+  "description": "击败4个敌人，掌握基本战术",
+  "enemyCount": 4,
+  "obstacles": [
+    {
+      "type": "brickWall",
+      "x": 360,
+      "y": 200,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 540,
+      "y": 360,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": ["health", "speedBoost"],
+  "powerUpSpawnInterval": 26.0
+}
+

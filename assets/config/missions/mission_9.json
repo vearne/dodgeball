@@ -1,0 +1,49 @@
+{
+  "id": "9",
+  "name": "关卡 9：复杂地形",
+  "description": "击败7个敌人，在复杂环境中战斗",
+  "enemyCount": 7,
+  "obstacles": [
+    {
+      "type": "rock",
+      "x": 360,
+      "y": 180,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 420,
+      "y": 280,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 480,
+      "y": 360,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "brickWall",
+      "x": 540,
+      "y": 240,
+      "width": 60,
+      "height": 60
+    },
+    {
+      "type": "rock",
+      "x": 600,
+      "y": 320,
+      "width": 60,
+      "height": 60
+    }
+  ],
+  "allowedPowerUps": [
+    "health",
+    "speedBoost",
+    "attackSpeed"
+  ],
+  "powerUpSpawnInterval": 20.0
+}
