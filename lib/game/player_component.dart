@@ -134,6 +134,17 @@ class PlayerComponent extends PositionComponent
 
   // 提供访问器以便游戏主类可以访问输入控制器
   InputController? get inputController => _inputController;
+  
+  // 设置输入控制器
+  set inputController(InputController? controller) {
+    // 移除旧的控制器
+    _inputController?.removeFromParent();
+    _inputController = controller;
+    // 如果新控制器不为空且已加载，添加到组件树
+    if (_inputController != null && isMounted) {
+      add(_inputController!);
+    }
+  }
 
   // 移动相关
   double movementSpeed = 120.0;

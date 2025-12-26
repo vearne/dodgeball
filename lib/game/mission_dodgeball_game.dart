@@ -10,6 +10,8 @@ import 'ball_component.dart';
 import 'field_background.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
+import 'input_controller.dart';
+import 'keyboard_config.dart';
 import 'mobile_controller.dart';
 import 'mission_map.dart';
 import 'obstacle_component.dart';
@@ -34,6 +36,7 @@ class MissionDodgeballGame extends FlameGame
     this.playerState, // 玩家状态（用于关卡间传递）
     this.onMissionComplete,
     this.onMissionFailed, // 新增：任务失败回调
+    this.playerCount = 1, // 玩家数量（1或2）
   });
 
   final MissionMap missionMap;
@@ -42,6 +45,7 @@ class MissionDodgeballGame extends FlameGame
   final PlayerState? playerState; // 可选的初始玩家状态
   final VoidCallback? onMissionComplete;
   final VoidCallback? onMissionFailed; // 新增：任务失败回调
+  final int playerCount; // 玩家数量
   final Random _random = Random();
 
   // 道具效果计时器
@@ -92,9 +96,8 @@ class MissionDodgeballGame extends FlameGame
   // 游戏状态
   GameState gameState = GameState.playing;
 
-  // 人类玩家冷却时间监听（秒）
-  final ValueNotifier<double> humanCooldownRemainingNotifier =
-      ValueNotifier<double>(0);
+  // 人类玩家冷却时间监听（秒）- 每个玩家独立
+  final Map<int, ValueNotifier<double>> playerCooldownNotifiers = {};
   // 击杀数
   final ValueNotifier<int> killCountNotifier = ValueNotifier<int>(0);
   // 玩家当前生命值
@@ -109,8 +112,14 @@ class MissionDodgeballGame extends FlameGame
   // 道具掉落定时器
   TimerComponent? _powerUpDropTimer;
 
-  // 键盘输入状态
-  Vector2 _keyboardMoveInput = Vector2.zero();
+  // 键盘输入状态（每个玩家）
+  final Map<int, Vector2> _keyboardMoveInputs = {};
+  
+  // 输入控制器（每个玩家）
+  final Map<int, InputController> _inputControllers = {};
+  
+  // 键盘配置（每个玩家）
+  final Map<int, KeyboardConfig> _keyboardConfigs = {};
 
   @override
   Future<void> onLoad() async {
@@ -127,6 +136,9 @@ class MissionDodgeballGame extends FlameGame
 
     // 加载地图障碍物
     _loadMapObstacles();
+
+    // 加载键盘配置
+    await _loadKeyboardConfigs();
 
     // 生成玩家和敌人
     await _spawnPlayerAndEnemies();
@@ -161,34 +173,114 @@ class MissionDodgeballGame extends FlameGame
     }
   }
 
+  /// 加载键盘配置
+  Future<void> _loadKeyboardConfigs() async {
+    for (int i = 0; i < playerCount; i++) {
+      _keyboardConfigs[i] = await KeyboardConfig.load(i);
+      _keyboardMoveInputs[i] = Vector2.zero();
+    }
+  }
+
   /// 生成玩家和敌人
   Future<void> _spawnPlayerAndEnemies() async {
     // 玩家在左侧（红队区域）生成
     final playerArea = FieldConfig.getRedTeamArea(size);
-    final playerPosition = _findValidSpawnPosition(
+    
+    // 生成玩家1
+    final player1Position = _findValidSpawnPosition(
       playerArea,
       Vector2(
-        playerArea.left + playerArea.width / 2,
+        playerArea.left + playerArea.width / 3,
         playerArea.top + playerArea.height / 2,
       ),
     );
 
-    final player = PlayerComponent(
+    final player1 = PlayerComponent(
       team: Team.red,
       playerId: 0,
-      position: playerPosition,
+      position: player1Position,
       controllerType: PlayerControllerType.human,
       aiIntelligenceLevel: aiIntelligenceLevel,
-      name: '玩家',
-      maxHealth: maxHealth, // 使用从首页传递的生命值
+      name: '玩家1',
+      maxHealth: maxHealth,
     );
 
-    playerTeam.add(player);
-    add(player);
+    playerTeam.add(player1);
+    add(player1);
 
-    // 如果有保存的玩家状态，应用它
+    // 等待玩家组件加载完成（onLoad会自动调用）
+    await Future.delayed(const Duration(milliseconds: 10));
+    
+    // 为玩家1创建输入控制器（替换默认的）
+    final inputController1 = InputController(
+      playerId: 0,
+      keyboardConfig: _keyboardConfigs[0],
+      onMove: (direction) {
+        _keyboardMoveInputs[0] = direction;
+      },
+      onThrow: (direction) {
+        if (player1.isEliminated || !player1.canThrow) return;
+        final throwTarget = player1.position + direction * 100;
+        _throwFromPlayer(player1, throwTarget);
+      },
+    );
+    // 替换默认的输入控制器
+    player1.inputController = inputController1;
+    _inputControllers[0] = inputController1;
+    
+    // 为玩家1创建冷却时间通知器
+    playerCooldownNotifiers[0] = ValueNotifier<double>(0);
+
+    // 如果有保存的玩家状态，应用它（只应用到玩家1）
     if (playerState != null) {
-      _applyPlayerState(player, playerState!);
+      _applyPlayerState(player1, playerState!);
+    }
+
+    // 如果支持2人游戏，生成玩家2
+    if (playerCount >= 2) {
+      final player2Position = _findValidSpawnPosition(
+        playerArea,
+        Vector2(
+          playerArea.left + playerArea.width * 2 / 3,
+          playerArea.top + playerArea.height / 2,
+        ),
+      );
+
+      final player2 = PlayerComponent(
+        team: Team.red,
+        playerId: 1,
+        position: player2Position,
+        controllerType: PlayerControllerType.human,
+        aiIntelligenceLevel: aiIntelligenceLevel,
+        name: '玩家2',
+        maxHealth: maxHealth,
+      );
+
+      playerTeam.add(player2);
+      add(player2);
+
+      // 等待玩家组件加载完成（onLoad会自动调用）
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      // 为玩家2创建输入控制器（替换默认的）
+      final inputController2 = InputController(
+        playerId: 1,
+        keyboardConfig: _keyboardConfigs[1],
+        onMove: (direction) {
+          _keyboardMoveInputs[1] = direction;
+        },
+        onThrow: (direction) {
+          if (player2.isEliminated || !player2.canThrow) return;
+          final throwTarget = player2.position + direction * 100;
+          _throwFromPlayer(player2, throwTarget);
+        },
+      );
+      // 替换默认的输入控制器
+      player2.inputController = inputController2;
+      _inputControllers[1] = inputController2;
+      
+      // 为玩家2创建冷却时间通知器
+      playerCooldownNotifiers[1] = ValueNotifier<double>(0);
     }
 
     // 敌人在右侧（蓝队区域）随机生成
@@ -398,14 +490,17 @@ class MissionDodgeballGame extends FlameGame
 
   /// 应用键盘输入移动玩家
   void _applyKeyboardMovement(double dt) {
-    if (playerTeam.isEmpty) return;
-    final player = playerTeam.first;
-    if (player.isEliminated) return;
+    // 为每个玩家应用输入
+    for (final player in playerTeam) {
+      if (player.isEliminated || player.controllerType != PlayerControllerType.human) {
+        continue;
+      }
 
-    // 如果有键盘输入
-    if (_keyboardMoveInput.length > 0.01) {
+      final input = _keyboardMoveInputs[player.playerId];
+      if (input == null || input.length < 0.01) continue;
+
       final speed = player.movementSpeed;
-      final moveVector = _keyboardMoveInput.normalized() * speed * dt;
+      final moveVector = input.normalized() * speed * dt;
       final newPosition = player.position + moveVector;
 
       // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
@@ -426,7 +521,7 @@ class MissionDodgeballGame extends FlameGame
       if (isInArea && !_isPositionOnObstacle(newPosition, player.radius)) {
         player.position = newPosition;
         // 更新玩家朝向
-        player.setDirection(_keyboardMoveInput.normalized());
+        player.setDirection(input.normalized());
       } else {
         // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
         final clampedPosition = FieldConfig.clampToTeamArea(
@@ -451,46 +546,62 @@ class MissionDodgeballGame extends FlameGame
             !_isPositionOnObstacle(clampedPosition, player.radius)) {
           player.position = clampedPosition;
           // 更新玩家朝向
-          player.setDirection(_keyboardMoveInput.normalized());
+          player.setDirection(input.normalized());
         }
       }
     }
   }
 
   void _updateHumanCooldownNotifier() {
-    if (playerTeam.isEmpty) {
-      if (humanCooldownRemainingNotifier.value != 0) {
-        humanCooldownRemainingNotifier.value = 0;
+    // 更新所有人类玩家的冷却时间
+    for (final player in playerTeam) {
+      if (player.controllerType != PlayerControllerType.human || player.isEliminated) {
+        continue;
       }
-      return;
-    }
 
-    final player = playerTeam.first;
-    if (player.isEliminated) {
-      if (humanCooldownRemainingNotifier.value != 0) {
-        humanCooldownRemainingNotifier.value = 0;
+      final playerId = player.playerId;
+      final notifier = playerCooldownNotifiers[playerId];
+      
+      if (notifier != null) {
+        final remaining = player.throwCooldownRemaining;
+        if (notifier.value != remaining) {
+          notifier.value = remaining;
+        }
+      } else {
+        // 如果通知器不存在，创建一个
+        playerCooldownNotifiers[playerId] = ValueNotifier<double>(player.throwCooldownRemaining);
       }
-      return;
     }
-
-    final remaining = player.throwCooldownRemaining;
-    if (humanCooldownRemainingNotifier.value != remaining) {
-      humanCooldownRemainingNotifier.value = remaining;
+    
+    // 清理已淘汰玩家的通知器
+    final activePlayerIds = playerTeam
+        .where((p) => p.controllerType == PlayerControllerType.human && !p.isEliminated)
+        .map((p) => p.playerId)
+        .toSet();
+    
+    playerCooldownNotifiers.removeWhere((playerId, _) => !activePlayerIds.contains(playerId));
+  }
+  
+  /// 获取玩家的冷却时间通知器（用于向后兼容）
+  ValueNotifier<double> get humanCooldownRemainingNotifier {
+    // 返回第一个玩家的冷却时间通知器，如果没有则创建一个默认的
+    if (playerCooldownNotifiers.isEmpty) {
+      return ValueNotifier<double>(0);
     }
+    return playerCooldownNotifiers.values.first;
   }
 
   void _updatePlayerHealthNotifier() {
-    if (playerTeam.isEmpty) {
-      if (playerHealthNotifier.value != 0) {
-        playerHealthNotifier.value = 0;
+    // 计算所有人类玩家的总生命值
+    int totalHealth = 0;
+    for (final player in playerTeam) {
+      if (player.controllerType == PlayerControllerType.human && !player.isEliminated) {
+        totalHealth += player.currentHealth;
       }
-      return;
     }
 
-    final player = playerTeam.first;
-    final currentHealth = player.currentHealth;
-    if (playerHealthNotifier.value != currentHealth) {
-      playerHealthNotifier.value = currentHealth;
+    if (playerHealthNotifier.value != totalHealth) {
+      playerHealthNotifier.value = totalHealth;
     }
   }
 
@@ -603,38 +714,9 @@ class MissionDodgeballGame extends FlameGame
       return KeyEventResult.handled;
     }
 
-    if (playerTeam.isEmpty) return KeyEventResult.handled;
-    final player = playerTeam.first;
-    if (player.isEliminated) return KeyEventResult.handled;
-
-    // 计算移动方向
-    _keyboardMoveInput = Vector2.zero();
-
-    // WASD 或箭头键移动
-    if (keysPressed.contains(LogicalKeyboardKey.keyW) ||
-        keysPressed.contains(LogicalKeyboardKey.arrowUp)) {
-      _keyboardMoveInput.y -= 1;
-    }
-    if (keysPressed.contains(LogicalKeyboardKey.keyS) ||
-        keysPressed.contains(LogicalKeyboardKey.arrowDown)) {
-      _keyboardMoveInput.y += 1;
-    }
-    if (keysPressed.contains(LogicalKeyboardKey.keyA) ||
-        keysPressed.contains(LogicalKeyboardKey.arrowLeft)) {
-      _keyboardMoveInput.x -= 1;
-    }
-    if (keysPressed.contains(LogicalKeyboardKey.keyD) ||
-        keysPressed.contains(LogicalKeyboardKey.arrowRight)) {
-      _keyboardMoveInput.x += 1;
-    }
-
-    // 空格键投掷（沿箭头方向）
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.space) {
-      // 直接沿着箭头方向投掷
-      if (player.currentDirection.length > 0.1) {
-        final throwTarget = player.position + player.currentDirection * 100;
-        _throwFromPlayer(player, throwTarget);
-      }
+    // 将按键事件传递给所有输入控制器
+    for (final controller in _inputControllers.values) {
+      controller.handleKeyEvent(keysPressed);
     }
 
     return KeyEventResult.handled;
@@ -828,10 +910,19 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 获取当前玩家状态（用于关卡间传递）
+  /// 注意：只返回第一个玩家的状态
   PlayerState? getCurrentPlayerState() {
     if (playerTeam.isEmpty) return null;
 
-    final player = playerTeam.first;
+    // 找到第一个人类玩家
+    PlayerComponent? player;
+    for (final p in playerTeam) {
+      if (p.controllerType == PlayerControllerType.human && !p.isEliminated) {
+        player = p;
+        break;
+      }
+    }
+    if (player == null) return null;
 
     // 计算道具剩余时间
     final speedBoostRemaining =

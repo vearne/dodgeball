@@ -1,0 +1,168 @@
+{
+  "@@locale": "en",
+  "appTitle": "Dodgeball Battle",
+  "missionMode": "Mission Mode",
+  "missionModeSelectLevel": "Mission Mode - Select Level",
+  "playerCount": "Player Count:",
+  "onePlayer": "1 Player",
+  "twoPlayers": "2 Players",
+  "mapEditor": "Map Editor",
+  "noMaps": "No Maps Available",
+  "createMap": "Create Map",
+  "enemyCount": "Enemies: {count}",
+  "@enemyCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "obstacles": "Obstacles: {count}",
+  "@obstacles": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "edit": "Edit",
+  "delete": "Delete",
+  "start": "Start",
+  "missionOnlyFromFirst": "Mission mode can only start from level 1",
+  "confirmDelete": "Confirm Delete",
+  "confirmDeleteMap": "Are you sure you want to delete map \"{name}\"?",
+  "@confirmDeleteMap": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "deleteAction": "Delete",
+  "mapDeleted": "Map deleted",
+  "deleteFailed": "Delete failed: {error}",
+  "@deleteFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "builtinMapCannotDelete": "Built-in maps cannot be deleted",
+  "killCount": "Kills: {current} / {total}",
+  "@killCount": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "cooldownTime": "Cooldown: {seconds}s",
+  "@cooldownTime": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "player1": "Player 1",
+  "player2": "Player 2",
+  "gamePaused": "Game Paused",
+  "map": "Map: {name}",
+  "@map": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "target": "Target: Eliminate {count} enemies",
+  "@target": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "continueGame": "Continue",
+  "exitGame": "Exit Game",
+  "victory": "Victory!",
+  "defeat": "Defeat!",
+  "levelComplete": "🎉 Level Complete!",
+  "levelCompleteMessage": "Congratulations on completing {name}!",
+  "@levelCompleteMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "preparingNextLevel": "Preparing for {name}",
+  "@preparingNextLevel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "currentStatus": "Current Status:",
+  "health": "💚 Health: {health}",
+  "@health": {
+    "placeholders": {
+      "health": {
+        "type": "int"
+      }
+    }
+  },
+  "speedBoost": "⚡ Speed Boost: {time}s",
+  "@speedBoost": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "attackSpeedBoost": "🎯 Attack Speed Boost: {time}s",
+  "@attackSpeedBoost": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "statusCarryOver": "💡 Your health and power-up effects will carry over to the next level!",
+  "backToSelection": "Back to Selection",
+  "continueNow": "Continue Now",
+  "allLevelsComplete": "🏆 All Levels Complete!",
+  "allLevelsCompleteMessage": "Congratulations! You've completed all levels!",
+  "lastLevel": "Last Level: {name}",
+  "@lastLevel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "back": "Back",
+  "missionDescription": "• Eliminate all enemies to complete the level\n• Automatically proceed to the next level after completion\n• Set health and AI difficulty before starting the challenge",
+  "maxHealth": "Max Health: {health}",
+  "@maxHealth": {
+    "placeholders": {
+      "health": {
+        "type": "int"
+      }
+    }
+  },
+  "aiDifficulty": "AI Difficulty",
+  "easy": "Easy",
+  "normal": "Normal",
+  "hard": "Hard",
+  "expert": "Expert",
+  "master": "Master",
+  "startGame": "Start Game"
+}
+

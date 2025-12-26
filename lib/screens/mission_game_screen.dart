@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../game/mission_dodgeball_game.dart';
 import '../game/mission_map.dart';
 import '../game/player_state.dart';
@@ -13,6 +14,7 @@ class MissionGameScreen extends StatefulWidget {
   final List<MissionMap> allMaps;
   final int currentMapIndex;
   final PlayerState? playerState; // 玩家状态（用于关卡间传递）
+  final int playerCount; // 玩家数量（1或2）
 
   const MissionGameScreen({
     super.key,
@@ -22,6 +24,7 @@ class MissionGameScreen extends StatefulWidget {
     this.allMaps = const [],
     this.currentMapIndex = 0,
     this.playerState,
+    this.playerCount = 1,
   });
 
   @override
@@ -41,6 +44,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       playerState: widget.playerState,
       onMissionComplete: _onMissionComplete,
       onMissionFailed: _onMissionFailed,
+      playerCount: widget.playerCount,
     );
   }
 
@@ -71,21 +75,22 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   /// 显示进入下一关对话框（带自动跳转）
   void _showNextLevelDialog(int nextIndex, PlayerState? playerState) {
     final nextMap = widget.allMaps[nextIndex];
+    final l10n = AppLocalizations.of(context)!;
 
     // 构建玩家状态信息
     String playerStatusInfo = '';
     if (playerState != null) {
       playerStatusInfo =
-          '\n\n当前状态：\n'
-          '💚 生命值：${playerState.currentHealth}\n';
+          '\n\n${l10n.currentStatus}\n'
+          '${l10n.health(playerState.currentHealth)}\n';
 
       if (playerState.hasSpeedBoost) {
         playerStatusInfo +=
-            '⚡ 速度提升：${playerState.speedBoostRemainingTime.toStringAsFixed(1)}秒\n';
+            '${l10n.speedBoost(playerState.speedBoostRemainingTime.toStringAsFixed(1))}\n';
       }
       if (playerState.hasAttackSpeedBoost) {
         playerStatusInfo +=
-            '🎯 攻速提升：${playerState.attackSpeedBoostRemainingTime.toStringAsFixed(1)}秒\n';
+            '${l10n.attackSpeedBoost(playerState.attackSpeedBoostRemainingTime.toStringAsFixed(1))}\n';
       }
     }
 
@@ -135,6 +140,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
           allMaps: widget.allMaps,
           currentMapIndex: nextIndex,
           playerState: playerState, // 传递玩家状态
+          playerCount: widget.playerCount, // 传递玩家数量
         ),
       ),
     );
@@ -147,13 +153,13 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('🏆 全部通关！'),
+        title: Text(AppLocalizations.of(context)!.allLevelsComplete),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('恭喜你完成了所有关卡！'),
+            Text(AppLocalizations.of(context)!.allLevelsCompleteMessage),
             const SizedBox(height: 16),
-            Text('最后关卡：${widget.missionMap.name}'),
+            Text(AppLocalizations.of(context)!.lastLevel(widget.missionMap.name)),
           ],
         ),
         actions: [
@@ -166,7 +172,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
-            child: const Text('返回'),
+            child: Text(AppLocalizations.of(context)!.back),
           ),
         ],
       ),
@@ -210,12 +216,17 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
               child: SafeArea(child: _buildTopBar()),
             ),
 
-            // 冷却时间进度条
+            // 冷却时间进度条（支持多个玩家）
             Positioned(
               top: 70,
               left: 100,
               right: 100,
-              child: SafeArea(child: _buildCooldownBar()),
+              child: SafeArea(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 100),
+                  child: _buildCooldownBars(),
+                ),
+              ),
             ),
           ],
         ),
@@ -286,7 +297,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                 valueListenable: game.killCountNotifier,
                 builder: (context, killCount, child) {
                   return Text(
-                    '击杀: $killCount / ${widget.missionMap.enemyCount}',
+                    AppLocalizations.of(context)!.killCount(killCount, widget.missionMap.enemyCount),
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   );
                 },
@@ -315,35 +326,103 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     }
   }
 
-  Widget _buildCooldownBar() {
+  Widget _buildCooldownBars() {
+    // 获取所有玩家的冷却时间通知器
+    final cooldownNotifiers = game.playerCooldownNotifiers;
+    
+    if (cooldownNotifiers.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+      final l10n = AppLocalizations.of(context)!;
+      // 如果是单人游戏，显示单个进度条
+    if (cooldownNotifiers.length == 1) {
+      final notifier = cooldownNotifiers.values.first;
+      return _buildSingleCooldownBar(notifier, l10n.player1);
+    }
+    
+    // 如果是双人游戏，显示两个进度条
+    return Column(
+      children: [
+        // 玩家1的冷却时间
+        if (cooldownNotifiers.containsKey(0))
+          _buildSingleCooldownBar(
+            cooldownNotifiers[0]!,
+            l10n.player1,
+            Colors.red.shade300,
+          ),
+        const SizedBox(height: 8),
+        // 玩家2的冷却时间
+        if (cooldownNotifiers.containsKey(1))
+          _buildSingleCooldownBar(
+            cooldownNotifiers[1]!,
+            l10n.player2,
+            Colors.blue.shade300,
+          ),
+      ],
+    );
+  }
+  
+  Widget _buildSingleCooldownBar(
+    ValueNotifier<double> notifier,
+    String playerLabel, [
+    Color? progressColor,
+  ]) {
+    final l10n = AppLocalizations.of(context)!;
+    final displayLabel = playerLabel == '玩家1' ? l10n.player1 : l10n.player2;
     return ValueListenableBuilder<double>(
-      valueListenable: game.humanCooldownRemainingNotifier,
+      valueListenable: notifier,
       builder: (context, cooldown, child) {
         final progress = cooldown > 0 ? cooldown / 10.0 : 0.0;
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            LinearProgressIndicator(
-              value: 1.0 - progress,
-              backgroundColor: Colors.grey[300],
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-              minHeight: 8,
-            ),
-            const SizedBox(height: 4),
-            if (cooldown > 0)
-              Text(
-                '冷却时间: ${cooldown.toStringAsFixed(1)}秒',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 2.0,
-                      color: Colors.black,
-                      offset: Offset(1, 1),
-                    ),
-                  ],
+            Row(
+              children: [
+                Text(
+                  '$displayLabel:',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        blurRadius: 2.0,
+                        color: Colors.black,
+                        offset: Offset(1, 1),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: LinearProgressIndicator(
+                    value: 1.0 - progress,
+                    backgroundColor: Colors.grey[300],
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      progressColor ?? Colors.blue,
+                    ),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (cooldown > 0)
+                  Text(
+                    '${cooldown.toStringAsFixed(1)}s',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      shadows: [
+                        Shadow(
+                          blurRadius: 2.0,
+                          color: Colors.black,
+                          offset: Offset(1, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ],
         );
       },
@@ -357,36 +436,39 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('游戏暂停'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('地图: ${widget.missionMap.name}'),
-            const SizedBox(height: 8),
-            Text('目标: 消灭 ${widget.missionMap.enemyCount} 个敌人'),
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: Text(l10n.gamePaused),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.map(widget.missionMap.name)),
+              const SizedBox(height: 8),
+              Text(l10n.target(widget.missionMap.enemyCount)),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // 恢复游戏引擎
+                game.resumeEngine();
+                Navigator.of(context).pop();
+              },
+              child: Text(l10n.continueGame),
+            ),
+            TextButton(
+              onPressed: () {
+                // 退出游戏时停止背景音乐
+                AudioManager.instance.stopBackgroundMusic();
+                Navigator.of(context).pop(); // 关闭对话框
+                Navigator.of(context).pop(); // 返回上一页
+              },
+              child: Text(l10n.exitGame),
+            ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // 恢复游戏引擎
-              game.resumeEngine();
-              Navigator.of(context).pop();
-            },
-            child: const Text('继续游戏'),
-          ),
-          TextButton(
-            onPressed: () {
-              // 退出游戏时停止背景音乐
-              AudioManager.instance.stopBackgroundMusic();
-              Navigator.of(context).pop(); // 关闭对话框
-              Navigator.of(context).pop(); // 返回上一页
-            },
-            child: const Text('退出游戏'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -443,17 +525,18 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('🎉 关卡完成！'),
+      title: Text(l10n.levelComplete),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('恭喜完成 ${widget.currentMapName}！'),
+          Text(l10n.levelCompleteMessage(widget.currentMapName)),
           const SizedBox(height: 16),
           Row(
             children: [
-              Text('准备进入 ${widget.nextMap.name}'),
+              Text(l10n.preparingNextLevel(widget.nextMap.name)),
               const SizedBox(width: 8),
               if (_countdown > 0)
                 Container(
@@ -483,9 +566,9 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
               style: const TextStyle(fontSize: 14, color: Colors.green),
             ),
             const SizedBox(height: 8),
-            const Text(
-              '💡 你的生命值和道具效果将保留到下一关！',
-              style: TextStyle(
+            Text(
+              l10n.statusCarryOver,
+              style: const TextStyle(
                 fontSize: 12,
                 fontStyle: FontStyle.italic,
                 color: Colors.blue,
@@ -497,7 +580,7 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
       actions: [
         TextButton(
           onPressed: widget.onBackToSelection,
-          child: const Text('返回选关'),
+          child: Text(l10n.backToSelection),
         ),
         ElevatedButton(
           onPressed: widget.onContinue,
@@ -505,7 +588,7 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
             backgroundColor: Colors.green,
             foregroundColor: Colors.white,
           ),
-          child: const Text('立即继续'),
+          child: Text(l10n.continueNow),
         ),
       ],
     );

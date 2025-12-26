@@ -1,5 +1,7 @@
 import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
+import 'keyboard_config.dart';
+import 'gamepad_config.dart';
 
 /// 输入控制器，处理键盘和手柄输入
 class InputController extends Component {
@@ -7,11 +9,16 @@ class InputController extends Component {
     required this.onMove,
     required this.onThrow,
     this.playerId = 0,
-  });
+    KeyboardConfig? keyboardConfig,
+    GamepadConfig? gamepadConfig,
+  })  : _keyboardConfig = keyboardConfig ?? KeyboardConfig.getDefault(playerId),
+        _gamepadConfig = gamepadConfig ?? GamepadConfig(playerId: playerId);
 
   final Function(Vector2 direction) onMove;
   final Function(Vector2 direction) onThrow;
   final int playerId;
+  KeyboardConfig _keyboardConfig;
+  final GamepadConfig _gamepadConfig;
 
   // 键盘状态
   final Set<LogicalKeyboardKey> _pressedKeys = <LogicalKeyboardKey>{};
@@ -21,6 +28,10 @@ class InputController extends Component {
 
   // 定时器
   TimerComponent? _inputUpdateTimer;
+
+  // 手柄输入状态
+  Vector2 _gamepadStickInput = Vector2.zero();
+  bool _gamepadThrowPressed = false;
 
   @override
   Future<void> onLoad() async {
@@ -46,6 +57,24 @@ class InputController extends Component {
     _pressedKeys.addAll(keysPressed);
   }
 
+  /// 设置键盘配置
+  void setKeyboardConfig(KeyboardConfig config) {
+    _keyboardConfig = config;
+  }
+
+  /// 获取键盘配置
+  KeyboardConfig get keyboardConfig => _keyboardConfig;
+
+  /// 处理手柄摇杆输入
+  void handleGamepadStick(Vector2 direction) {
+    _gamepadStickInput = direction;
+  }
+
+  /// 处理手柄按钮输入
+  void handleGamepadButton(bool pressed) {
+    _gamepadThrowPressed = pressed;
+  }
+
   /// 处理移动设备输入
   void handleMobileInput(Vector2 direction) {
     _movementInput = direction;
@@ -64,67 +93,67 @@ class InputController extends Component {
   /// 更新输入状态
   void _updateInput() {
     _updateKeyboardInput();
+    _updateGamepadInput();
     _updateMovement();
   }
 
   /// 更新键盘输入
   void _updateKeyboardInput() {
-    // 玩家1控制 (WASD + 空格投掷)
-    if (playerId == 0) {
-      _movementInput = Vector2.zero();
+    _movementInput = Vector2.zero();
 
-      // WASD 移动
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyW)) {
-        _movementInput.y -= 1;
-      }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyS)) {
-        _movementInput.y += 1;
-      }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyA)) {
-        _movementInput.x -= 1;
-      }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyD)) {
-        _movementInput.x += 1;
-      }
-
-      // 空格键投掷（使用当前移动方向）
-      if (_pressedKeys.contains(LogicalKeyboardKey.space)) {
-        if (_movementInput.length > 0.1) {
-          onThrow(_movementInput.normalized());
-        } else {
-          // 如果没有移动，默认向右投掷
-          onThrow(Vector2(1, 0));
-        }
-        _pressedKeys.remove(LogicalKeyboardKey.space); // 防止连续投掷
-      }
+    // 使用配置的按键
+    if (_pressedKeys.contains(_keyboardConfig.up)) {
+      _movementInput.y -= 1;
     }
-    // 玩家2控制 (IJKL + 数字0投掷)
-    else if (playerId == 1) {
-      _movementInput = Vector2.zero();
+    if (_pressedKeys.contains(_keyboardConfig.down)) {
+      _movementInput.y += 1;
+    }
+    if (_pressedKeys.contains(_keyboardConfig.left)) {
+      _movementInput.x -= 1;
+    }
+    if (_pressedKeys.contains(_keyboardConfig.right)) {
+      _movementInput.x += 1;
+    }
 
-      // IJKL 移动
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyI)) {
-        _movementInput.y -= 1;
+    // 投掷键（使用当前移动方向）
+    if (_pressedKeys.contains(_keyboardConfig.throwKey)) {
+      if (_movementInput.length > 0.1) {
+        onThrow(_movementInput.normalized());
+      } else {
+        // 如果没有移动，默认向右投掷
+        onThrow(Vector2(1, 0));
       }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyK)) {
-        _movementInput.y += 1;
-      }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyJ)) {
-        _movementInput.x -= 1;
-      }
-      if (_pressedKeys.contains(LogicalKeyboardKey.keyL)) {
-        _movementInput.x += 1;
-      }
+      _pressedKeys.remove(_keyboardConfig.throwKey); // 防止连续投掷
+    }
+  }
 
-      // 数字0投掷（使用当前移动方向）
-      if (_pressedKeys.contains(LogicalKeyboardKey.digit0)) {
-        if (_movementInput.length > 0.1) {
-          onThrow(_movementInput.normalized());
-        } else {
-          // 如果没有移动，默认向右投掷
-          onThrow(Vector2(1, 0));
-        }
-        _pressedKeys.remove(LogicalKeyboardKey.digit0);
+  /// 更新手柄输入
+  void _updateGamepadInput() {
+    // 如果手柄有输入，优先使用手柄
+    if (_gamepadStickInput.length > 0.1) {
+      _movementInput = _gamepadStickInput;
+    }
+
+    // 手柄投掷按钮
+    if (_gamepadThrowPressed) {
+      if (_movementInput.length > 0.1) {
+        onThrow(_movementInput.normalized());
+      } else {
+        onThrow(Vector2(1, 0));
+      }
+      _gamepadThrowPressed = false; // 防止连续投掷
+    }
+
+    // 同时处理手柄按键映射（通过键盘事件）
+    final (gamepadDirection, gamepadThrow) = _gamepadConfig.handleGamepadInput(_pressedKeys);
+    if (gamepadDirection.length > 0.1) {
+      _movementInput = gamepadDirection;
+    }
+    if (gamepadThrow) {
+      if (_movementInput.length > 0.1) {
+        onThrow(_movementInput.normalized());
+      } else {
+        onThrow(Vector2(1, 0));
       }
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../game/mission_map.dart';
 import '../game/audio_manager.dart';
 import 'map_editor_screen.dart';
@@ -22,6 +23,7 @@ class MissionSelectionScreen extends StatefulWidget {
 class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   List<MissionMap> _maps = [];
   bool _loading = true;
+  int _playerCount = 1; // 玩家数量（1或2）
 
   @override
   void initState() {
@@ -145,7 +147,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mission模式 - 选择关卡'),
+        title: Text(AppLocalizations.of(context)!.missionModeSelectLevel),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
@@ -153,15 +155,56 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: _openMapEditor,
-            tooltip: '地图编辑器',
+            tooltip: AppLocalizations.of(context)!.mapEditor,
           ),
         ],
       ),
-      body: _loading
+      body: Column(
+        children: [
+          // 玩家数量选择器
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.blue.shade50,
+            child: Row(
+              children: [
+                Text(
+                  AppLocalizations.of(context)!.playerCount,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 16),
+                SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment(
+                      value: 1,
+                      label: Text(AppLocalizations.of(context)!.onePlayer),
+                      icon: const Icon(Icons.person),
+                    ),
+                    ButtonSegment(
+                      value: 2,
+                      label: Text(AppLocalizations.of(context)!.twoPlayers),
+                      icon: const Icon(Icons.people),
+                    ),
+                  ],
+                  selected: {_playerCount},
+                  onSelectionChanged: (Set<int> newSelection) {
+                    setState(() {
+                      _playerCount = newSelection.first;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          // 关卡列表
+          Expanded(
+            child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _maps.isEmpty
           ? _buildEmptyState()
           : _buildMapList(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -172,15 +215,15 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         children: [
           const Icon(Icons.map, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
-            '暂无关卡',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
+          Text(
+            AppLocalizations.of(context)!.noMaps,
+            style: const TextStyle(fontSize: 18, color: Colors.grey),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _openMapEditor,
             icon: const Icon(Icons.add),
-            label: const Text('创建关卡'),
+            label: Text(AppLocalizations.of(context)!.createMap),
           ),
         ],
       ),
@@ -211,11 +254,11 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                   children: [
                     const Icon(Icons.people, size: 16, color: Colors.blue),
                     const SizedBox(width: 4),
-                    Text('敌人数量: ${map.enemyCount}'),
+                    Text(AppLocalizations.of(context)!.enemyCount(map.enemyCount)),
                     const SizedBox(width: 16),
                     const Icon(Icons.block, size: 16, color: Colors.orange),
                     const SizedBox(width: 4),
-                    Text('障碍物: ${map.obstacles.length}'),
+                    Text(AppLocalizations.of(context)!.obstacles(map.obstacles.length)),
                   ],
                 ),
               ],
@@ -228,14 +271,14 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                   IconButton(
                     icon: const Icon(Icons.edit),
                     onPressed: () => _editMap(map),
-                    tooltip: '编辑地图',
+                    tooltip: AppLocalizations.of(context)!.edit,
                   ),
                 // 删除按钮（仅自定义地图可删除）
                 if (map.id.startsWith('custom_'))
                   IconButton(
                     icon: const Icon(Icons.delete, color: Colors.red),
                     onPressed: () => _deleteMap(map),
-                    tooltip: '删除地图',
+                    tooltip: AppLocalizations.of(context)!.delete,
                   ),
                 const SizedBox(width: 8),
                 // 开始按钮 - 只允许从第1关开始
@@ -246,7 +289,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
                           ),
-                          child: const Text('开始'),
+                          child: Text(AppLocalizations.of(context)!.start),
                         )
               ],
             ),
@@ -285,7 +328,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
     if (!map.id.startsWith('custom_')) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('内置地图不能删除')));
+      ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.builtinMapCannotDelete)));
       return;
     }
 
@@ -315,13 +358,13 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('地图已删除')));
+          ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.mapDeleted)));
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('删除失败: $e')));
+          ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.deleteFailed(e.toString()))));
         }
       }
     }
@@ -338,9 +381,9 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
     // 只允许从第1关开始
     if (!_isFirstMission(map)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('关卡模式只允许从第1关开始'),
-          duration: Duration(seconds: 2),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.missionOnlyFromFirst),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -357,6 +400,7 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
           maxHealth: widget.maxHealth,
           allMaps: _maps,
           currentMapIndex: currentIndex,
+          playerCount: _playerCount,
         ),
       ),
     );
