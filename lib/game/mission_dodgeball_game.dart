@@ -167,8 +167,10 @@ class MissionDodgeballGame extends FlameGame
 
   /// 加载地图障碍物
   void _loadMapObstacles() {
+    print('📦 开始加载地图障碍物，共 ${missionMap.obstacles.length} 个');
     for (final obstacle in missionMap.obstacles) {
       final obstacleComponent = createObstacleFromData(obstacle);
+      print('  ➕ 添加障碍物：类型=${obstacle.type}, 位置=(${obstacle.x}, ${obstacle.y}), 大小=(${obstacle.width}, ${obstacle.height})');
       add(obstacleComponent);
     }
   }
@@ -338,23 +340,46 @@ class MissionDodgeballGame extends FlameGame
 
   /// 检查位置是否在障碍物上
   bool _isPositionOnObstacle(Vector2 position, double radius) {
-    // 检查所有障碍物组件（包括原子砖块和岩石）
-    for (final obstacle in children.whereType<ObstacleComponent>()) {
-      final obstacleRect = Rect.fromLTWH(
-        obstacle.position.x,
-        obstacle.position.y,
-        obstacle.size.x,
-        obstacle.size.y,
-      );
+    // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
+    final result = _checkObstacleCollisionRecursive(this, position, radius);
+    // if (result) {
+    //   print('🚫 位置 $position（半径 $radius）与障碍物碰撞');
+    // }
+    return result;
+  }
 
-      // 扩展障碍物矩形以包含玩家半径
-      final expandedRect = obstacleRect.inflate(radius);
-
-      if (expandedRect.contains(Offset(position.x, position.y))) {
+  /// 递归检查组件树中的障碍物碰撞
+  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+    for (final child in parent.children) {
+      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
+      if (child is ObstacleComponent) {
+        final obstacleAbsPos = child.absolutePosition;
+        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
+          return true;
+        }
+      }
+      
+      // 递归检查子组件（例如 BrickWallComponent 的子组件）
+      if (_checkObstacleCollisionRecursive(child, position, radius)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// 检查圆形与矩形是否碰撞
+  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
+    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
+
+    // 计算最近点到圆心的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+    // 如果距离小于圆的半径，则发生碰撞
+    return distanceSquared < (circleRadius * circleRadius);
   }
 
   /// 在指定区域内生成敌人位置

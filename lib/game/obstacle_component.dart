@@ -119,6 +119,8 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
     final numColumns = (size.x / AtomicBrickComponent.atomicSize).ceil();
     final numRows = (size.y / AtomicBrickComponent.atomicSize).ceil();
 
+    print('🧱 BrickWallComponent onLoad: 位置=$position (绝对位置=$absolutePosition), 大小=$size, 将创建 ${numColumns}x${numRows} 个原子砖块');
+
     // 创建原子砖块网格
     for (int row = 0; row < numRows; row++) {
       for (int col = 0; col < numColumns; col++) {
@@ -127,14 +129,17 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
 
         // 确保砖块不超出定义的大小
         if (brickX < size.x && brickY < size.y) {
+          // 砖块位置是相对于父组件的
           final atomicBrick = AtomicBrickComponent(
-            position: position + Vector2(brickX, brickY),
+            position: Vector2(brickX, brickY),
           );
           _atomicBricks.add(atomicBrick);
           await add(atomicBrick);
         }
       }
     }
+    
+    print('  ✅ 创建完成，实际创建了 ${_atomicBricks.length} 个原子砖块');
   }
 
   @override

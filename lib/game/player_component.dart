@@ -12,6 +12,7 @@ import 'dodgeball_game.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
+import 'obstacle_component.dart';
 import 'team.dart';
 
 class PlayerComponent extends PositionComponent
@@ -79,8 +80,9 @@ class PlayerComponent extends PositionComponent
 
   // 设置当前生命值（用于关卡间传递）
   void setCurrentHealth(int health) {
-    _currentHealth = health.clamp(0, _maxHealth);
-    // 更新生命值显示
+    // 允许生命值超过初始最大值（吃血瓶可以加血超过3），但不能低于0
+    _currentHealth = health.clamp(0, double.infinity.toInt());
+    // 更新生命值显示（显示当前值/初始最大值）
     _healthText?.text = '$_currentHealth/$_maxHealth';
 
     // 如果生命值为0，标记为淘汰
@@ -338,13 +340,7 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupAIPlayerVisuals() {
-    // AI玩家：在箭头内部添加标识（多人模式显示名称，单人模式显示"AI"）
-    final game = findGame();
-    final isMultiplayer =
-        game != null &&
-        game is DodgeballGame &&
-        game.gameMode == GameModeType.multiPlayer;
-
+    // AI玩家：在箭头内部添加标识
     _playerLabel = TextComponent(
       text: 'AI',
       textRenderer: TextPaint(
@@ -449,9 +445,10 @@ class PlayerComponent extends PositionComponent
     for (int i = 0; i < substeps; i++) {
       final newPosition = position + subVelocity;
 
-      // 边界检查和玩家重叠检查
+      // 边界检查、玩家重叠检查和障碍物碰撞检查
       if (_isValidPlayerPosition(newPosition) &&
-          !_wouldOverlapWithOtherPlayers(newPosition)) {
+          !_wouldOverlapWithOtherPlayers(newPosition) &&
+          !_wouldCollideWithObstacles(newPosition)) {
         position = newPosition;
       } else {
         // 如果碰撞，停止移动
@@ -491,6 +488,50 @@ class PlayerComponent extends PositionComponent
     }
 
     return false; // 不会重叠
+  }
+
+  bool _wouldCollideWithObstacles(Vector2 newPosition) {
+    final game = findGame();
+    if (game == null) return false;
+
+    // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
+    return _checkObstacleCollisionRecursive(game, newPosition, radius);
+  }
+
+  /// 递归检查组件树中的障碍物碰撞
+  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+    for (final child in parent.children) {
+      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
+      if (child is ObstacleComponent) {
+        final obstacleAbsPos = child.absolutePosition;
+        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
+          // 调试信息：检测到碰撞
+          print('玩家 $playerId 与障碍物碰撞：玩家位置=$position, 障碍物位置=$obstacleAbsPos, 障碍物大小=${child.size}');
+          return true;
+        }
+      }
+      
+      // 递归检查子组件（例如 BrickWallComponent 的子组件）
+      if (_checkObstacleCollisionRecursive(child, position, radius)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// 检查圆形与矩形是否碰撞
+  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
+    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
+
+    // 计算最近点到圆心的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+    // 如果距离小于圆的半径，则发生碰撞
+    return distanceSquared < (circleRadius * circleRadius);
   }
 
   void _handleMovementInput(Vector2 direction) {

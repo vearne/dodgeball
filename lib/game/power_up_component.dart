@@ -169,10 +169,8 @@ class PowerUpComponent extends PositionComponent
 
   /// 应用血瓶效果：增加1条生命
   void _applyHealth(PlayerComponent player) {
-    // 增加1条生命值（不超过最大生命值）
-    if (player.currentHealth < player.maxHealth) {
-      player.setCurrentHealth(player.currentHealth + 1);
-    }
+    // 增加1条生命值（可以超过初始最大生命值）
+    player.setCurrentHealth(player.currentHealth + 1);
   }
 
   /// 应用攻速球效果：投掷冷却时间缩短

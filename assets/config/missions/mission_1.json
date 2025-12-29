@@ -1,18 +1,69 @@
 {
   "id": "1",
-  "name": "关卡 1：新手训练",
-  "description": "击败3个敌人，熟悉游戏操作",
+  "name": "customer",
+  "description": "",
   "enemyCount": 3,
-  "obstacles": [
-    {
-      "type": "brickWall",
-      "x": 360,
-      "y": 240,
-      "width": 60,
-      "height": 60
-    }
-  ],
-  "allowedPowerUps": ["health"],
+  "obstacles": [{
+    "type": "brickWall",
+    "x": 240.0,
+    "y": 210.0,
+    "width": 90.0,
+    "height": 30.0
+  }, {
+    "type": "rock",
+    "x": 510.0,
+    "y": 210.0,
+    "width": 30.0,
+    "height": 180.0
+  }, {
+    "type": "rock",
+    "x": 720.0,
+    "y": 210.0,
+    "width": 30.0,
+    "height": 180.0
+  }, {
+    "type": "brickWall",
+    "x": 930.0,
+    "y": 210.0,
+    "width": 90.0,
+    "height": 30.0
+  }, {
+    "type": "brickWall",
+    "x": 210.0,
+    "y": 240.0,
+    "width": 30.0,
+    "height": 120.0
+  }, {
+    "type": "brickWall",
+    "x": 330.0,
+    "y": 240.0,
+    "width": 30.0,
+    "height": 120.0
+  }, {
+    "type": "brickWall",
+    "x": 900.0,
+    "y": 240.0,
+    "width": 30.0,
+    "height": 150.0
+  }, {
+    "type": "brickWall",
+    "x": 1020.0,
+    "y": 240.0,
+    "width": 30.0,
+    "height": 150.0
+  }, {
+    "type": "brickWall",
+    "x": 240.0,
+    "y": 360.0,
+    "width": 90.0,
+    "height": 30.0
+  }, {
+    "type": "brickWall",
+    "x": 930.0,
+    "y": 390.0,
+    "width": 90.0,
+    "height": 30.0
+  }],
+  "allowedPowerUps": ["health", "speedBoost", "attackSpeed"],
   "powerUpSpawnInterval": 30.0
 }
-

@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:flame/components.dart';
-import 'package:flutter/material.dart';
 import 'ball_component.dart';
 import 'field_config.dart';
 import 'obstacle_component.dart';
@@ -314,22 +313,42 @@ class AIController extends Component {
     final game = findGame();
     if (game == null) return false;
 
-    for (final obstacle in game.children.whereType<ObstacleComponent>()) {
-      final obstacleRect = Rect.fromLTWH(
-        obstacle.position.x,
-        obstacle.position.y,
-        obstacle.size.x,
-        obstacle.size.y,
-      );
+    // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
+    return _checkObstacleCollisionRecursive(game, position, radius);
+  }
 
-      // 扩展障碍物矩形以包含玩家半径
-      final expandedRect = obstacleRect.inflate(radius);
-
-      if (expandedRect.contains(Offset(position.x, position.y))) {
-        return true; // 在障碍物上
+  /// 递归检查组件树中的障碍物碰撞
+  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+    for (final child in parent.children) {
+      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
+      if (child is ObstacleComponent) {
+        final obstacleAbsPos = child.absolutePosition;
+        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
+          return true;
+        }
+      }
+      
+      // 递归检查子组件（例如 BrickWallComponent 的子组件）
+      if (_checkObstacleCollisionRecursive(child, position, radius)) {
+        return true;
       }
     }
-    return false; // 不在障碍物上
+    return false;
+  }
+
+  /// 检查圆形与矩形是否碰撞
+  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
+    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
+
+    // 计算最近点到圆心的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+    // 如果距离小于圆的半径，则发生碰撞
+    return distanceSquared < (circleRadius * circleRadius);
   }
 
   /// 请求投球
