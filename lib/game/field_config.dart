@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// 游戏场地配置
 class FieldConfig {
   static const double wallThickness = 20.0;
-  static const double playAreaMargin = 30.0; // 玩家活动区域与墙壁的间距
-  static const double centerGap = 40.0; // 红蓝区域之间的间隔
+  static const double playAreaMargin = 25.0; // 玩家活动区域与墙壁的间距（调整为25使区域高度为30的整数倍）
+  static const double centerGap = 50.0; // 红蓝区域之间的间隔（调整为50使区域宽度为30的整数倍）
   
   // 场地颜色
   static const Color redTeamAreaColor = Color(0x30E53935);  // 半透明红色

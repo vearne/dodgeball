@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../gen_l10n/app_localizations.dart';
 import '../game/mission_map.dart';
 import '../game/audio_manager.dart';
 import 'map_editor_screen.dart';

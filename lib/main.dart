@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'gen_l10n/app_localizations.dart';
 import 'game/audio_manager.dart';
 import 'screens/game_mode_selection_screen.dart';
 import 'network/player_identity.dart';

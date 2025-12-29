@@ -83,20 +83,77 @@ class KeyboardConfig {
   static LogicalKeyboardKey? _findKeyById(int keyId) {
     // 尝试常见的键
     final commonKeys = [
-      LogicalKeyboardKey.keyW,
-      LogicalKeyboardKey.keyS,
+      // 字母键
       LogicalKeyboardKey.keyA,
+      LogicalKeyboardKey.keyB,
+      LogicalKeyboardKey.keyC,
       LogicalKeyboardKey.keyD,
+      LogicalKeyboardKey.keyE,
+      LogicalKeyboardKey.keyF,
+      LogicalKeyboardKey.keyG,
+      LogicalKeyboardKey.keyH,
       LogicalKeyboardKey.keyI,
-      LogicalKeyboardKey.keyK,
       LogicalKeyboardKey.keyJ,
+      LogicalKeyboardKey.keyK,
       LogicalKeyboardKey.keyL,
-      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.keyM,
+      LogicalKeyboardKey.keyN,
+      LogicalKeyboardKey.keyO,
+      LogicalKeyboardKey.keyP,
+      LogicalKeyboardKey.keyQ,
+      LogicalKeyboardKey.keyR,
+      LogicalKeyboardKey.keyS,
+      LogicalKeyboardKey.keyT,
+      LogicalKeyboardKey.keyU,
+      LogicalKeyboardKey.keyV,
+      LogicalKeyboardKey.keyW,
+      LogicalKeyboardKey.keyX,
+      LogicalKeyboardKey.keyY,
+      LogicalKeyboardKey.keyZ,
+      // 数字键
       LogicalKeyboardKey.digit0,
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7,
+      LogicalKeyboardKey.digit8,
+      LogicalKeyboardKey.digit9,
+      // 方向键
       LogicalKeyboardKey.arrowUp,
       LogicalKeyboardKey.arrowDown,
       LogicalKeyboardKey.arrowLeft,
       LogicalKeyboardKey.arrowRight,
+      // 特殊键
+      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.enter,
+      LogicalKeyboardKey.shift,
+      LogicalKeyboardKey.shiftLeft,
+      LogicalKeyboardKey.shiftRight,
+      LogicalKeyboardKey.control,
+      LogicalKeyboardKey.controlLeft,
+      LogicalKeyboardKey.controlRight,
+      LogicalKeyboardKey.alt,
+      LogicalKeyboardKey.altLeft,
+      LogicalKeyboardKey.altRight,
+      LogicalKeyboardKey.tab,
+      LogicalKeyboardKey.escape,
+      LogicalKeyboardKey.backspace,
+      // 功能键
+      LogicalKeyboardKey.f1,
+      LogicalKeyboardKey.f2,
+      LogicalKeyboardKey.f3,
+      LogicalKeyboardKey.f4,
+      LogicalKeyboardKey.f5,
+      LogicalKeyboardKey.f6,
+      LogicalKeyboardKey.f7,
+      LogicalKeyboardKey.f8,
+      LogicalKeyboardKey.f9,
+      LogicalKeyboardKey.f10,
+      LogicalKeyboardKey.f11,
+      LogicalKeyboardKey.f12,
     ];
     
     for (final key in commonKeys) {
@@ -141,21 +198,33 @@ class KeyboardConfig {
       if (debugName.startsWith('Digit ')) {
         return debugName.substring(6);
       }
-      if (debugName == 'Space') {
-        return '空格';
+      
+      // 特殊键名映射
+      final specialKeyNames = {
+        'Space': '空格',
+        'Arrow Up': '↑',
+        'Arrow Down': '↓',
+        'Arrow Left': '←',
+        'Arrow Right': '→',
+        'Enter': '回车',
+        'Shift Left': '左Shift',
+        'Shift Right': '右Shift',
+        'Control Left': '左Ctrl',
+        'Control Right': '右Ctrl',
+        'Alt Left': '左Alt',
+        'Alt Right': '右Alt',
+        'Tab': 'Tab',
+        'Escape': 'Esc',
+        'Backspace': '退格',
+        'Shift': 'Shift',
+        'Control': 'Ctrl',
+        'Alt': 'Alt',
+      };
+      
+      if (specialKeyNames.containsKey(debugName)) {
+        return specialKeyNames[debugName]!;
       }
-      if (debugName == 'Arrow Up') {
-        return '↑';
-      }
-      if (debugName == 'Arrow Down') {
-        return '↓';
-      }
-      if (debugName == 'Arrow Left') {
-        return '←';
-      }
-      if (debugName == 'Arrow Right') {
-        return '→';
-      }
+      
       return debugName;
     }
     return '未知';

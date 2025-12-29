@@ -13,6 +13,9 @@ class AudioManager {
   bool _isSoundEnabled = true;
   double _musicVolume = 0.5;
   double _soundVolume = 0.7;
+  
+  // 初始化标志，防止重复初始化
+  bool _isInitialized = false;
 
   // 音频文件路径
   static const String _backgroundMusicPath = 'background_music.mp3';
@@ -22,8 +25,14 @@ class AudioManager {
 
   /// 初始化音频管理器
   Future<void> initialize() async {
+    // 如果已经初始化过，直接返回
+    if (_isInitialized) {
+      return;
+    }
+    
     await _loadSettings();
     await _preloadAudio();
+    _isInitialized = true;
   }
 
   /// 加载用户设置
@@ -62,9 +71,9 @@ class AudioManager {
     if (!_isMusicEnabled) return;
 
     try {
-      // 如果音乐已经在播放，先停止再重新播放
+      // 如果音乐已经在播放，不需要重复播放
       if (FlameAudio.bgm.isPlaying) {
-        await FlameAudio.bgm.stop();
+        return;
       }
 
       await FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);

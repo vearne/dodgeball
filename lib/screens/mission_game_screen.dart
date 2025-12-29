@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../gen_l10n/app_localizations.dart';
 import '../game/mission_dodgeball_game.dart';
 import '../game/mission_map.dart';
 import '../game/player_state.dart';
@@ -159,7 +159,9 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
           children: [
             Text(AppLocalizations.of(context)!.allLevelsCompleteMessage),
             const SizedBox(height: 16),
-            Text(AppLocalizations.of(context)!.lastLevel(widget.missionMap.name)),
+            Text(
+              AppLocalizations.of(context)!.lastLevel(widget.missionMap.name),
+            ),
           ],
         ),
         actions: [
@@ -297,7 +299,9 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                 valueListenable: game.killCountNotifier,
                 builder: (context, killCount, child) {
                   return Text(
-                    AppLocalizations.of(context)!.killCount(killCount, widget.missionMap.enemyCount),
+                    AppLocalizations.of(
+                      context,
+                    )!.killCount(killCount, widget.missionMap.enemyCount),
                     style: const TextStyle(color: Colors.white, fontSize: 16),
                   );
                 },
@@ -329,18 +333,18 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   Widget _buildCooldownBars() {
     // 获取所有玩家的冷却时间通知器
     final cooldownNotifiers = game.playerCooldownNotifiers;
-    
+
     if (cooldownNotifiers.isEmpty) {
       return const SizedBox.shrink();
     }
-    
-      final l10n = AppLocalizations.of(context)!;
-      // 如果是单人游戏，显示单个进度条
+
+    final l10n = AppLocalizations.of(context)!;
+    // 如果是单人游戏，显示单个进度条
     if (cooldownNotifiers.length == 1) {
       final notifier = cooldownNotifiers.values.first;
       return _buildSingleCooldownBar(notifier, l10n.player1);
     }
-    
+
     // 如果是双人游戏，显示两个进度条
     return Column(
       children: [
@@ -362,7 +366,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
       ],
     );
   }
-  
+
   Widget _buildSingleCooldownBar(
     ValueNotifier<double> notifier,
     String playerLabel, [

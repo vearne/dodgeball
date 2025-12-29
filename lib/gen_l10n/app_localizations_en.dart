@@ -155,7 +155,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get statusCarryOver => '💡 Your health and power-up effects will carry over to the next level!';
+  String get statusCarryOver =>
+      '💡 Your health and power-up effects will carry over to the next level!';
 
   @override
   String get backToSelection => 'Back to Selection';
@@ -167,7 +168,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get allLevelsComplete => '🏆 All Levels Complete!';
 
   @override
-  String get allLevelsCompleteMessage => 'Congratulations! You\'ve completed all levels!';
+  String get allLevelsCompleteMessage =>
+      'Congratulations! You\'ve completed all levels!';
 
   @override
   String lastLevel(String name) {
@@ -178,7 +180,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get back => 'Back';
 
   @override
-  String get missionDescription => '• Eliminate all enemies to complete the level\n• Automatically proceed to the next level after completion\n• Set health and AI difficulty before starting the challenge';
+  String get missionDescription =>
+      '• Eliminate all enemies to complete the level\n• Automatically proceed to the next level after completion\n• Set health and AI difficulty before starting the challenge';
 
   @override
   String maxHealth(int health) {

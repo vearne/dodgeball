@@ -178,7 +178,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get back => '返回';
 
   @override
-  String get missionDescription => '• 消灭所有敌人完成关卡\n• 通过关卡后自动进入下一关\n• 设置好生命值和AI难度后开始挑战';
+  String get missionDescription =>
+      '• 消灭所有敌人完成关卡\n• 通过关卡后自动进入下一关\n• 设置好生命值和AI难度后开始挑战';
 
   @override
   String maxHealth(int health) {

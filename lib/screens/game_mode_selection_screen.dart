@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'mission_selection_screen.dart';
+import 'input_settings_screen.dart';
 
 /// 游戏模式选择界面
 class GameModeSelectionScreen extends StatefulWidget {
@@ -21,6 +22,19 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
         title: const Text('躲避球游戏'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: '输入设置',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const InputSettingsScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
