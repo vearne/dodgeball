@@ -34,8 +34,8 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
   }
 
   /// 停止游戏背景音乐
-  Future<void> _stopGameMusic() async {
-    await AudioManager.instance.stopBackgroundMusic();
+  void _stopGameMusic() {
+    AudioManager.instance.stopBackgroundMusic();
   }
 
   Future<void> _loadMaps() async {

@@ -21,7 +21,7 @@ class DodgeballGame extends FlameGame
         HasCollisionDetection,
         TapCallbacks,
         DoubleTapCallbacks,
-        HasKeyboardHandlerComponents,
+        KeyboardEvents,
         HasThrowRequest,
         HasPlayerThrowRequest {
   DodgeballGame({
@@ -100,7 +100,7 @@ class DodgeballGame extends FlameGame
     _setupTeamCountDisplay();
 
     // 播放背景音乐
-    await _audioManager.playBackgroundMusic();
+    _audioManager.playBackgroundMusic();
 
     // 如果是移动设备，添加移动控制器
 

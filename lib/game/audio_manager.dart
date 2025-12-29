@@ -17,6 +17,10 @@ class AudioManager {
   // 初始化标志，防止重复初始化
   bool _isInitialized = false;
 
+  // 防止音效在短时间内重复播放的标志
+  bool _isPlayingHitSound = false;
+  bool _isPlayingThrowSound = false;
+
   // 音频文件路径
   static const String _backgroundMusicPath = 'background_music.mp3';
   static const String _hitSoundPath = 'hit_sound.mp3';
@@ -67,7 +71,7 @@ class AudioManager {
   }
 
   /// 播放背景音乐
-  Future<void> playBackgroundMusic() async {
+  void playBackgroundMusic() {
     if (!_isMusicEnabled) return;
 
     try {
@@ -76,49 +80,68 @@ class AudioManager {
         return;
       }
 
-      await FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
+      // 不要 await，避免重复响应问题
+      FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
     } catch (e) {
       print('播放背景音乐失败: $e');
     }
   }
 
   /// 停止背景音乐
-  Future<void> stopBackgroundMusic() async {
+  void stopBackgroundMusic() {
     try {
-      await FlameAudio.bgm.stop();
+      // 不要 await，避免重复响应问题
+      FlameAudio.bgm.stop();
     } catch (e) {
       print('停止背景音乐失败: $e');
     }
   }
 
   /// 播放击中音效
-  Future<void> playHitSound() async {
-    if (!_isSoundEnabled) return;
+  void playHitSound() {
+    if (!_isSoundEnabled || _isPlayingHitSound) return;
 
     try {
-      await FlameAudio.play(_hitSoundPath, volume: _soundVolume);
+      _isPlayingHitSound = true;
+      // 不要 await 音效播放，避免重复响应问题
+      FlameAudio.play(_hitSoundPath, volume: _soundVolume);
+      
+      // 100ms 后重置标志，防止音效播放太频繁
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _isPlayingHitSound = false;
+      });
     } catch (e) {
+      _isPlayingHitSound = false;
       print('播放击中音效失败: $e');
     }
   }
 
   /// 播放投掷音效
-  Future<void> playThrowSound() async {
-    if (!_isSoundEnabled) return;
+  void playThrowSound() {
+    if (!_isSoundEnabled || _isPlayingThrowSound) return;
 
     try {
-      await FlameAudio.play(_throwSoundPath, volume: _soundVolume);
+      _isPlayingThrowSound = true;
+      // 不要 await 音效播放，避免重复响应问题
+      FlameAudio.play(_throwSoundPath, volume: _soundVolume);
+      
+      // 100ms 后重置标志，防止音效播放太频繁
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _isPlayingThrowSound = false;
+      });
     } catch (e) {
+      _isPlayingThrowSound = false;
       print('播放投掷音效失败: $e');
     }
   }
 
   /// 播放胜利音效
-  Future<void> playVictorySound() async {
+  void playVictorySound() {
     if (!_isSoundEnabled) return;
 
     try {
-      await FlameAudio.play(_victorySoundPath, volume: _soundVolume);
+      // 不要 await 音效播放，避免重复响应问题
+      FlameAudio.play(_victorySoundPath, volume: _soundVolume);
     } catch (e) {
       print('播放胜利音效失败: $e');
     }
@@ -130,9 +153,9 @@ class AudioManager {
     await _saveSettings();
 
     if (enabled) {
-      await playBackgroundMusic();
+      playBackgroundMusic();
     } else {
-      await stopBackgroundMusic();
+      stopBackgroundMusic();
     }
   }
 
@@ -167,7 +190,7 @@ class AudioManager {
   double get soundVolume => _soundVolume;
 
   /// 释放资源
-  Future<void> dispose() async {
-    await stopBackgroundMusic();
+  void dispose() {
+    stopBackgroundMusic();
   }
 }

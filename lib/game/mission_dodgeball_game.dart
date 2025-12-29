@@ -26,7 +26,7 @@ class MissionDodgeballGame extends FlameGame
         HasCollisionDetection,
         TapCallbacks,
         DoubleTapCallbacks,
-        HasKeyboardHandlerComponents,
+        KeyboardEvents,
         HasThrowRequest,
         HasPlayerThrowRequest {
   MissionDodgeballGame({
@@ -208,8 +208,9 @@ class MissionDodgeballGame extends FlameGame
     playerTeam.add(player1);
     add(player1);
 
-    // 等待玩家组件加载完成（onLoad会自动调用）
-    await Future.delayed(const Duration(milliseconds: 10));
+    // 等待玩家组件完全加载
+    await player1.loaded;
+    print('Player 1 loaded, isMounted=${player1.isMounted}');
     
     // 为玩家1创建输入控制器（替换默认的）
     final inputController1 = InputController(
@@ -217,6 +218,7 @@ class MissionDodgeballGame extends FlameGame
       keyboardConfig: _keyboardConfigs[0],
       onMove: (direction) {
         _keyboardMoveInputs[0] = direction;
+        print('Player 0 move input: $direction');
       },
       onThrow: (direction) {
         if (player1.isEliminated || !player1.canThrow) return;
@@ -225,11 +227,13 @@ class MissionDodgeballGame extends FlameGame
       },
     );
     // 替换默认的输入控制器
+    print('Setting inputController for player 0, player1.isMounted=${player1.isMounted}');
     player1.inputController = inputController1;
     _inputControllers[0] = inputController1;
     
     // 为玩家1创建冷却时间通知器
     playerCooldownNotifiers[0] = ValueNotifier<double>(0);
+    print('Created cooldown notifier for player 0: ${playerCooldownNotifiers[0]}');
 
     // 如果有保存的玩家状态，应用它（只应用到玩家1）
     if (playerState != null) {
@@ -259,8 +263,9 @@ class MissionDodgeballGame extends FlameGame
       playerTeam.add(player2);
       add(player2);
 
-      // 等待玩家组件加载完成（onLoad会自动调用）
-      await Future.delayed(const Duration(milliseconds: 10));
+      // 等待玩家组件完全加载
+      await player2.loaded;
+      print('Player 2 loaded, isMounted=${player2.isMounted}');
 
       // 为玩家2创建输入控制器（替换默认的）
       final inputController2 = InputController(
@@ -490,6 +495,11 @@ class MissionDodgeballGame extends FlameGame
 
   /// 应用键盘输入移动玩家
   void _applyKeyboardMovement(double dt) {
+    // 调试：打印键盘移动输入
+    if (_keyboardMoveInputs.isNotEmpty && _keyboardMoveInputs.values.any((v) => v.length > 0.01)) {
+      print('Keyboard move inputs: ${_keyboardMoveInputs}');
+    }
+    
     // 为每个玩家应用输入
     for (final player in playerTeam) {
       if (player.isEliminated || player.controllerType != PlayerControllerType.human) {
@@ -709,6 +719,12 @@ class MissionDodgeballGame extends FlameGame
   ) {
     // 调用父类方法
     super.onKeyEvent(event, keysPressed);
+
+    // 调试：打印按键事件
+    if (keysPressed.isNotEmpty) {
+      print('Keys pressed: ${keysPressed.map((k) => k.debugName).join(", ")}');
+      print('Input controllers: ${_inputControllers.length}');
+    }
 
     if (gameState != GameState.playing) {
       return KeyEventResult.handled;

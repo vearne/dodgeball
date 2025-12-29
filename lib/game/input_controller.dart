@@ -36,12 +36,14 @@ class InputController extends Component {
   @override
   Future<void> onLoad() async {
     super.onLoad();
+    print('InputController onLoad for player $playerId');
     _inputUpdateTimer = TimerComponent(
       period: 0.016, // ~60fps
       repeat: true,
       onTick: _updateInput,
     );
     add(_inputUpdateTimer!);
+    print('InputController timer added for player $playerId');
   }
 
   @override
@@ -55,6 +57,9 @@ class InputController extends Component {
     // 更新按键状态
     _pressedKeys.clear();
     _pressedKeys.addAll(keysPressed);
+    if (keysPressed.isNotEmpty) {
+      print('InputController $playerId: handleKeyEvent ${keysPressed.map((k) => k.debugName).join(", ")}');
+    }
   }
 
   /// 设置键盘配置
@@ -164,7 +169,12 @@ class InputController extends Component {
     const deadZone = 0.1;
 
     if (_movementInput.length > deadZone) {
-      onMove(_movementInput.normalized());
+      final normalizedInput = _movementInput.normalized();
+      print('InputController: calling onMove with $normalizedInput');
+      onMove(normalizedInput);
+    } else {
+      // 没有输入时，发送零向量
+      onMove(Vector2.zero());
     }
   }
 

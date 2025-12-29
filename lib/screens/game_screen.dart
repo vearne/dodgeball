@@ -58,10 +58,12 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // 游戏区域
-          GameWidget(game: game),
+      body: Focus(
+        autofocus: true,
+        child: Stack(
+          children: [
+            // 游戏区域
+            GameWidget(game: game),
 
           // 顶部冷却与得分条（缩短宽度避免遮挡）
           Positioned(
@@ -94,22 +96,23 @@ class _GameScreenState extends State<GameScreen> {
                         shadows: [Shadow(color: Colors.black, blurRadius: 2)],
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    // 进度条（缩短长度）
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: clamped,
-                          minHeight: 8,
-                          backgroundColor: Colors.black26,
-                          valueColor: AlwaysStoppedAnimation(
-                            isReady ? Colors.greenAccent : Colors.amber,
-                          ),
+                  const SizedBox(width: 10),
+                  // 进度条（固定宽度）
+                  SizedBox(
+                    width: 150, // 固定宽度150像素
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: clamped,
+                        minHeight: 8,
+                        backgroundColor: Colors.black26,
+                        valueColor: AlwaysStoppedAnimation(
+                          isReady ? Colors.greenAccent : Colors.amber,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 14),
+                  ),
+                  const SizedBox(width: 14),
                     // 分数显示
                     ValueListenableBuilder<int>(
                       valueListenable: game.humanScoreNotifier,
@@ -258,7 +261,8 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }

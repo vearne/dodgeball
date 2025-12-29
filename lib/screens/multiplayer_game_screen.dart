@@ -130,24 +130,26 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
         }
       },
       child: Scaffold(
-        body: Stack(
-          children: [
-            // 游戏主体 - 使用FittedBox确保1280x720分辨率固定，不受窗口缩放影响
-            Center(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: 1280,
-                  height: 720,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black, width: 2),
+        body: Focus(
+          autofocus: true,
+          child: Stack(
+            children: [
+              // 游戏主体 - 使用FittedBox确保1280x720分辨率固定，不受窗口缩放影响
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: 1280,
+                    height: 720,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: GameWidget.controlled(gameFactory: () => _game),
                     ),
-                    child: GameWidget.controlled(gameFactory: () => _game),
                   ),
                 ),
               ),
-            ),
 
             // 顶部状态栏
             Positioned(
@@ -171,7 +173,8 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
               right: 16,
               child: SafeArea(child: _buildNetworkStatus()),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -275,8 +278,9 @@ class _MultiplayerGameScreenState extends State<MultiplayerGameScreen> {
               ),
             ),
             const SizedBox(width: 10),
-            // 进度条（缩短长度）
-            Expanded(
+            // 进度条（固定宽度）
+            SizedBox(
+              width: 150, // 固定宽度150像素
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(

@@ -70,7 +70,7 @@ class MultiplayerDodgeballGame extends DodgeballGame {
     developer.log('📊 队伍统计显示设置完成');
 
     // 播放背景音乐
-    await audioManager.playBackgroundMusic();
+    audioManager.playBackgroundMusic();
     developer.log('🎵 背景音乐开始播放');
 
     // 监听网络状态更新

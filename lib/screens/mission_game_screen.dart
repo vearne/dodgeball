@@ -226,7 +226,11 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
               child: SafeArea(
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 100),
-                  child: _buildCooldownBars(),
+                  // 使用 FutureBuilder 等待游戏加载完成
+                  child: StreamBuilder(
+                    stream: Stream.periodic(const Duration(milliseconds: 100)),
+                    builder: (context, snapshot) => _buildCooldownBars(),
+                  ),
                 ),
               ),
             ),
@@ -334,8 +338,28 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     // 获取所有玩家的冷却时间通知器
     final cooldownNotifiers = game.playerCooldownNotifiers;
 
+    // 调试：打印通知器数量
+    print('Cooldown notifiers count: ${cooldownNotifiers.length}');
+
     if (cooldownNotifiers.isEmpty) {
-      return const SizedBox.shrink();
+      // 如果没有通知器，返回一个占位符而不是空widget
+      return Container(
+        padding: const EdgeInsets.all(8),
+        child: const Text(
+          '等待玩家加载...',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+            shadows: [
+              Shadow(
+                blurRadius: 2.0,
+                color: Colors.black,
+                offset: Offset(1, 1),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final l10n = AppLocalizations.of(context)!;
@@ -399,7 +423,8 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
+                SizedBox(
+                  width: 200, // 固定宽度200像素
                   child: LinearProgressIndicator(
                     value: 1.0 - progress,
                     backgroundColor: Colors.grey[300],

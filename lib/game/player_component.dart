@@ -137,12 +137,16 @@ class PlayerComponent extends PositionComponent
   
   // 设置输入控制器
   set inputController(InputController? controller) {
+    print('PlayerComponent $playerId: setting inputController, isMounted=$isMounted');
     // 移除旧的控制器
     _inputController?.removeFromParent();
     _inputController = controller;
     // 如果新控制器不为空且已加载，添加到组件树
     if (_inputController != null && isMounted) {
+      print('PlayerComponent $playerId: adding inputController to component tree');
       add(_inputController!);
+    } else if (_inputController != null) {
+      print('PlayerComponent $playerId: NOT adding inputController - not mounted yet');
     }
   }
 
@@ -229,6 +233,24 @@ class PlayerComponent extends PositionComponent
 
     // 添加生命值显示
     _setupHealthDisplay();
+    
+    // 如果有待添加的输入控制器，现在添加它
+    if (_inputController != null && !_inputController!.isMounted) {
+      print('PlayerComponent $playerId: onLoad completed, adding pending inputController');
+      add(_inputController!);
+    }
+  }
+
+  @override
+  void onMount() {
+    super.onMount();
+    print('PlayerComponent $playerId: onMount, isMounted=$isMounted');
+    
+    // 如果有待添加的输入控制器，现在添加它
+    if (_inputController != null && !_inputController!.isMounted) {
+      print('PlayerComponent $playerId: onMount - adding pending inputController');
+      add(_inputController!);
+    }
   }
 
   void _setupAIController() {
@@ -479,6 +501,11 @@ class PlayerComponent extends PositionComponent
         _currentDirection = direction;
       }
     }
+  }
+
+  // 公共方法：外部直接设置移动方向
+  void setMovementDirection(Vector2 direction) {
+    _handleMovementInput(direction);
   }
 
   void _handleThrowInput(Vector2 direction) {
