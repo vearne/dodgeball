@@ -313,13 +313,15 @@ class MissionDodgeballGame extends FlameGame
     }
   }
 
-  /// 查找有效的生成位置（不与障碍物重叠）
+  /// 查找有效的生成位置（不与障碍物和其他玩家重叠）
   Vector2 _findValidSpawnPosition(Rect area, Vector2 preferredPosition) {
     const playerRadius = 16.0;
     const maxAttempts = 50;
+    const minDistanceBetweenPlayers = playerRadius * 2 + 4.0; // 玩家之间的最小距离
 
     // 首先尝试首选位置
-    if (!_isPositionOnObstacle(preferredPosition, playerRadius)) {
+    if (!_isPositionOnObstacle(preferredPosition, playerRadius) &&
+        !_isPositionTooCloseToPlayers(preferredPosition, minDistanceBetweenPlayers)) {
       return preferredPosition;
     }
 
@@ -329,13 +331,26 @@ class MissionDodgeballGame extends FlameGame
       final randomY = area.top + _random.nextDouble() * area.height;
       final testPosition = Vector2(randomX, randomY);
 
-      if (!_isPositionOnObstacle(testPosition, playerRadius)) {
+      if (!_isPositionOnObstacle(testPosition, playerRadius) &&
+          !_isPositionTooCloseToPlayers(testPosition, minDistanceBetweenPlayers)) {
         return testPosition;
       }
     }
 
     // 如果实在找不到，返回首选位置（容错）
     return preferredPosition;
+  }
+
+  /// 检查位置是否离其他已生成的玩家太近
+  bool _isPositionTooCloseToPlayers(Vector2 position, double minDistance) {
+    // 检查与已添加到游戏中的所有玩家的距离
+    for (final player in children.whereType<PlayerComponent>()) {
+      final distance = position.distanceTo(player.position);
+      if (distance < minDistance) {
+        return true; // 太近了
+      }
+    }
+    return false; // 距离足够远
   }
 
   /// 检查位置是否在障碍物上
@@ -404,7 +419,11 @@ class MissionDodgeballGame extends FlameGame
         final offsetX = (_random.nextDouble() - 0.5) * cellWidth * 0.3;
         final offsetY = (_random.nextDouble() - 0.5) * cellHeight * 0.3;
 
-        positions.add(Vector2(baseX + offsetX, baseY + offsetY));
+        final preferredPosition = Vector2(baseX + offsetX, baseY + offsetY);
+        
+        // 使用 _findValidSpawnPosition 确保位置不与障碍物碰撞
+        final validPosition = _findValidSpawnPosition(area, preferredPosition);
+        positions.add(validPosition);
         enemyIndex++;
       }
     }

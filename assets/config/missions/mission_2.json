@@ -1,25 +1,45 @@
 {
   "id": "2",
-  "name": "关卡 2：障碍挑战",
-  "description": "击败4个敌人，学会利用障碍物",
-  "enemyCount": 4,
-  "obstacles": [
-    {
-      "type": "brickWall",
-      "x": 300,
-      "y": 180,
-      "width": 60,
-      "height": 60
-    },
-    {
-      "type": "rock",
-      "x": 480,
-      "y": 300,
-      "width": 60,
-      "height": 60
-    }
-  ],
-  "allowedPowerUps": ["health", "speedBoost"],
-  "powerUpSpawnInterval": 28.0
+  "name": "关卡 2",
+  "description": "",
+  "enemyCount": 3,
+  "obstacles": [{
+    "type": "brickWall",
+    "x": 150.0,
+    "y": 150.0,
+    "width": 240.0,
+    "height": 60.0
+  }, {
+    "type": "brickWall",
+    "x": 870.0,
+    "y": 150.0,
+    "width": 240.0,
+    "height": 60.0
+  }, {
+    "type": "rock",
+    "x": 240.0,
+    "y": 270.0,
+    "width": 60.0,
+    "height": 120.0
+  }, {
+    "type": "rock",
+    "x": 960.0,
+    "y": 270.0,
+    "width": 60.0,
+    "height": 120.0
+  }, {
+    "type": "brickWall",
+    "x": 150.0,
+    "y": 450.0,
+    "width": 240.0,
+    "height": 60.0
+  }, {
+    "type": "brickWall",
+    "x": 870.0,
+    "y": 450.0,
+    "width": 240.0,
+    "height": 60.0
+  }],
+  "allowedPowerUps": [],
+  "powerUpSpawnInterval": 30.0
 }
-

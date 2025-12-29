@@ -81,7 +81,7 @@ class PlayerComponent extends PositionComponent
   // 设置当前生命值（用于关卡间传递）
   void setCurrentHealth(int health) {
     // 允许生命值超过初始最大值（吃血瓶可以加血超过3），但不能低于0
-    _currentHealth = health.clamp(0, double.infinity.toInt());
+    _currentHealth = health < 0 ? 0 : health;
     // 更新生命值显示（显示当前值/初始最大值）
     _healthText?.text = '$_currentHealth/$_maxHealth';
 

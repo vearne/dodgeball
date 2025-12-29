@@ -338,9 +338,6 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     // 获取所有玩家的冷却时间通知器
     final cooldownNotifiers = game.playerCooldownNotifiers;
 
-    // 调试：打印通知器数量
-    print('Cooldown notifiers count: ${cooldownNotifiers.length}');
-
     if (cooldownNotifiers.isEmpty) {
       // 如果没有通知器，返回一个占位符而不是空widget
       return Container(

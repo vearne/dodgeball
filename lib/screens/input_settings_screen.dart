@@ -342,7 +342,8 @@ class _InputSettingsScreenState extends State<InputSettingsScreen>
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
+          SizedBox(
+            width: 200, // 固定宽度，让输入框更紧凑
             child: ElevatedButton(
               onPressed: () => _startWaitingForKey(playerId, action),
               style: ElevatedButton.styleFrom(
