@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 
 import 'ai_controller.dart';
 import 'arrow_component.dart';
-import 'crown_component.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
@@ -183,7 +182,6 @@ class PlayerComponent extends PositionComponent
 
   // 视觉组件
   ArrowComponent? _arrowIcon;
-  CrownComponent? _crownIcon;
   TextComponent? _playerLabel;
   TimerComponent? _breathingTimer;
   TextComponent? _healthText; // 生命值显示
@@ -553,7 +551,6 @@ class PlayerComponent extends PositionComponent
     _inputController?.removeFromParent();
     // 清理视觉组件
     _arrowIcon?.removeFromParent();
-    _crownIcon?.removeFromParent();
     _playerLabel?.removeFromParent();
     _breathingTimer?.removeFromParent();
     _healthText?.removeFromParent();
