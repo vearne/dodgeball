@@ -282,15 +282,15 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                   ),
                 const SizedBox(width: 8),
                 // 开始按钮 - 只允许从第1关开始
-                  if( _isFirstMission(map))
-                      ? ElevatedButton(
-                          onPressed: () => _startMission(map),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
-                          child: Text(AppLocalizations.of(context)!.start),
-                        )
+                if (_isFirstMission(map))
+                  ElevatedButton(
+                    onPressed: () => _startMission(map),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(AppLocalizations.of(context)!.start),
+                  )
               ],
             ),
           ),

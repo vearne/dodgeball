@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'mission_selection_screen.dart';
 import 'input_settings_screen.dart';
+import 'game_help_screen.dart';
+import 'audio_settings_screen.dart';
 
 /// 游戏模式选择界面
 class GameModeSelectionScreen extends StatefulWidget {
@@ -23,6 +25,26 @@ class _GameModeSelectionScreenState extends State<GameModeSelectionScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            tooltip: '游戏帮助',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const GameHelpScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.volume_up),
+            tooltip: '音频设置',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AudioSettingsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: '输入设置',

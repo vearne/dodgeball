@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'ai_controller.dart';
 import 'arrow_component.dart';
 import 'crown_component.dart';
-import 'dodgeball_game.dart';
 import 'field_config.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
@@ -61,17 +60,8 @@ class PlayerComponent extends PositionComponent
   int get score => _score;
   bool get isAlive => _currentHealth > 0;
 
-  // 设置最大生命值（淘汰赛用）
+  // 设置最大生命值
   void setMaxHealth(int health) {
-    // 检查游戏模式
-    final game = findGame();
-    if (game != null && game is DodgeballGame) {
-      if (game.gameplayMode == GameplayMode.timeLimit) {
-        // 限时赛模式：不设置生命值
-        return;
-      }
-    }
-
     _maxHealth = health;
     _currentHealth = health;
     // 更新生命值显示
@@ -94,16 +84,7 @@ class PlayerComponent extends PositionComponent
 
   // 受到伤害
   void takeDamage() {
-    // 检查游戏模式
-    final game = findGame();
-    if (game != null && game is DodgeballGame) {
-      if (game.gameplayMode == GameplayMode.timeLimit) {
-        // 限时赛模式：不减少生命值，不淘汰玩家
-        return;
-      }
-    }
-
-    // 淘汰赛模式：正常处理伤害
+    // 正常处理伤害
     if (_currentHealth > 0 && !isEliminated) {
       _currentHealth--;
       // 更新生命值显示
@@ -292,15 +273,9 @@ class PlayerComponent extends PositionComponent
 
   void _setupHumanPlayerVisuals() {
     // 为人类玩家添加特殊的视觉效果
-    // 1. 添加玩家标识（多人模式显示名称，单人模式显示"YOU"）
-    final game = findGame();
-    final isMultiplayer =
-        game != null &&
-        game is DodgeballGame &&
-        game.gameMode == GameModeType.multiPlayer;
-
+    // 1. 添加玩家标识
     String displayText;
-    if (isMultiplayer && name != null && name!.isNotEmpty) {
+    if (name != null && name!.isNotEmpty) {
       displayText = name!;
     } else {
       displayText = 'YOU';
@@ -358,26 +333,20 @@ class PlayerComponent extends PositionComponent
   }
 
   void _setupHealthDisplay() {
-    // 检查游戏模式，只在淘汰赛模式下显示生命值
-    final game = findGame();
-    if (game != null && game is DodgeballGame) {
-      if (game.gameplayMode == GameplayMode.elimination) {
-        // 生命值显示在玩家上方
-        _healthText = TextComponent(
-          text: '$_currentHealth/$_maxHealth',
-          textRenderer: TextPaint(
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: ui.Color(0xFFFFFFFF),
-            ),
-          ),
-          anchor: Anchor.center,
-          position: Vector2(0, -radius - 15), // 在玩家上方显示
-        );
-        add(_healthText!);
-      }
-    }
+    // 生命值显示在玩家上方
+    _healthText = TextComponent(
+      text: '$_currentHealth/$_maxHealth',
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: ui.Color(0xFFFFFFFF),
+        ),
+      ),
+      anchor: Anchor.center,
+      position: Vector2(0, -radius - 15), // 在玩家上方显示
+    );
+    add(_healthText!);
   }
 
   ui.Color _getBrightTeamColor(Team team) {
@@ -578,12 +547,6 @@ class PlayerComponent extends PositionComponent
     if (isEliminated && _pendingRemoval) return; // 如果已经标记为待移除，直接返回
     isEliminated = true;
     _pendingRemoval = true; // 标记待移除
-
-    // 通知游戏主类玩家被淘汰
-    final game = findGame();
-    if (game != null && game is DodgeballGame) {
-      game.onPlayerEliminated(this);
-    }
 
     // 停止控制器
     _aiController?.removeFromParent();

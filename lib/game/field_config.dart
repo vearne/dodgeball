@@ -11,7 +11,7 @@ class FieldConfig {
   static const Color redTeamAreaColor = Color(0x30E53935);  // 半透明红色
   static const Color blueTeamAreaColor = Color(0x301E88E5); // 半透明蓝色
   static const Color wallColor = Color(0xFF000000);         // 黑色墙壁
-  static const Color fieldBackgroundColor = Color(0xFFF5F5F5); // 浅灰色背景
+  static const Color fieldBackgroundColor = Color(0xFFD0D0D0); // 中灰色背景
   
   /// 获取整个可玩区域（被墙壁包围的内部区域）
   static Rect getPlayableArea(Vector2 gameSize) {
