@@ -220,7 +220,7 @@ class MissionDodgeballGame extends FlameGame
       keyboardConfig: _keyboardConfigs[0],
       onMove: (direction) {
         _keyboardMoveInputs[0] = direction;
-        print('Player 0 move input: $direction');
+        // print('Player 0 move input: $direction');
       },
       onThrow: (direction) {
         if (player1.isEliminated || !player1.canThrow) return;

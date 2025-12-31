@@ -208,4 +208,62 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get startGame => 'Start Game';
+
+  @override
+  String get gameHelp => 'Game Help';
+
+  @override
+  String get gameObjective => 'Game Objective';
+
+  @override
+  String get gameObjectiveDesc =>
+      'Eliminate all enemies on the field to complete the level! Hit enemies with the ball to knock them out, but be careful not to get hit. After completing a level, you\'ll automatically proceed to the next one, and your health and power-up effects will carry over.';
+
+  @override
+  String get basicControls => 'Basic Controls';
+
+  @override
+  String get basicControlsDesc =>
+      '• Movement: Use arrow keys, WASD, virtual joystick, or gamepad to move\n• Throw: Auto-aims at nearest enemy, press Space, J key, or gamepad button to throw\n• Cooldown: Wait 10 seconds after throwing before you can throw again\n• Two Players: Player 2 uses arrow keys to move and L key to throw';
+
+  @override
+  String get powerUps => 'Power-Ups';
+
+  @override
+  String get healthPotion => 'Health Potion';
+
+  @override
+  String get healthPotionDesc =>
+      'Restores 1 health point. When you get hit, you lose health. Use health potions to stay in the fight.';
+
+  @override
+  String get speedBoostItem => 'Speed Boost';
+
+  @override
+  String get speedBoostItemDesc =>
+      'Increases movement speed for 30 seconds. Pick up to dodge enemy attacks more easily and chase down enemies faster.';
+
+  @override
+  String get attackSpeedItem => 'Attack Speed Boost';
+
+  @override
+  String get attackSpeedItemDesc =>
+      'Reduces throw cooldown for 30 seconds. Pick up to throw balls more frequently and increase your combat efficiency.';
+
+  @override
+  String get gameTips => 'Game Tips';
+
+  @override
+  String get gameTipsDesc =>
+      '• Use obstacles to dodge enemy attacks\n• Power-up effects stack and carry over to next level\n• Keep moving when you can\'t throw\n• Prioritize the most threatening enemies\n• Two-player cooperation makes difficult levels easier';
+
+  @override
+  String get obstaclesTitle => 'Obstacles';
+
+  @override
+  String get obstaclesDesc =>
+      'Stones and walls on the field block ball trajectories. Use obstacles wisely to dodge enemy attacks, but remember they also block your own throws.';
+
+  @override
+  String get gotIt => 'Got It';
 }

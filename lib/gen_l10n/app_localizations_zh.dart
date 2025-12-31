@@ -206,4 +206,59 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get startGame => '开始游戏';
+
+  @override
+  String get gameHelp => '游戏帮助';
+
+  @override
+  String get gameObjective => '游戏目标';
+
+  @override
+  String get gameObjectiveDesc =>
+      '消灭场上所有敌人完成关卡！击中敌人可以将其淘汰，但要小心不要被敌人的球击中。完成关卡后会自动进入下一关，你的生命值和道具效果会保留。';
+
+  @override
+  String get basicControls => '基本操作';
+
+  @override
+  String get basicControlsDesc =>
+      '• 移动：使用方向键、WASD键、虚拟摇杆或手柄移动角色\n• 投球：自动瞄准最近的敌人，按空格键、J键或手柄按钮投掷\n• 冷却时间：投球后需要等待10秒才能再次投球\n• 双人游戏：玩家2使用方向键移动，使用L键投球';
+
+  @override
+  String get powerUps => '道具说明';
+
+  @override
+  String get healthPotion => '生命药水';
+
+  @override
+  String get healthPotionDesc => '恢复1点生命值。当你被击中时会失去生命值，使用生命药水可以让你继续战斗。';
+
+  @override
+  String get speedBoostItem => '速度提升';
+
+  @override
+  String get speedBoostItemDesc => '提升移动速度30秒。拾取后可以更快地躲避敌人的攻击，也能更好地追击敌人。';
+
+  @override
+  String get attackSpeedItem => '攻速提升';
+
+  @override
+  String get attackSpeedItemDesc => '减少投球冷却时间30秒。拾取后可以更快地连续投球，大大提高战斗效率。';
+
+  @override
+  String get gameTips => '游戏提示';
+
+  @override
+  String get gameTipsDesc =>
+      '• 利用障碍物躲避敌人的攻击\n• 道具效果可以叠加，并会保留到下一关\n• 注意冷却时间，在无法投球时要保持移动\n• 优先击杀威胁最大的敌人\n• 双人合作可以更容易地完成困难关卡';
+
+  @override
+  String get obstaclesTitle => '障碍物';
+
+  @override
+  String get obstaclesDesc =>
+      '场上的石头和墙壁可以阻挡球的飞行。合理利用障碍物可以躲避敌人的攻击，但同时也会阻挡你的投球路径。';
+
+  @override
+  String get gotIt => '知道了';
 }

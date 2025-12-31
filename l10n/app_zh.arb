@@ -301,6 +301,74 @@
   "startGame": "开始游戏",
   "@startGame": {
     "description": "开始游戏按钮"
+  },
+  "gameHelp": "游戏帮助",
+  "@gameHelp": {
+    "description": "游戏帮助标题"
+  },
+  "gameObjective": "游戏目标",
+  "@gameObjective": {
+    "description": "游戏目标标题"
+  },
+  "gameObjectiveDesc": "消灭场上所有敌人完成关卡！击中敌人可以将其淘汰，但要小心不要被敌人的球击中。完成关卡后会自动进入下一关，你的生命值和道具效果会保留。",
+  "@gameObjectiveDesc": {
+    "description": "游戏目标说明"
+  },
+  "basicControls": "基本操作",
+  "@basicControls": {
+    "description": "基本操作标题"
+  },
+  "basicControlsDesc": "• 移动：使用方向键、WASD键、虚拟摇杆或手柄移动角色\n• 投球：自动瞄准最近的敌人，按空格键、J键或手柄按钮投掷\n• 冷却时间：投球后需要等待10秒才能再次投球\n• 双人游戏：玩家2使用方向键移动，使用L键投球",
+  "@basicControlsDesc": {
+    "description": "基本操作说明"
+  },
+  "powerUps": "道具说明",
+  "@powerUps": {
+    "description": "道具说明标题"
+  },
+  "healthPotion": "生命药水",
+  "@healthPotion": {
+    "description": "生命药水名称"
+  },
+  "healthPotionDesc": "恢复1点生命值。当你被击中时会失去生命值，使用生命药水可以让你继续战斗。",
+  "@healthPotionDesc": {
+    "description": "生命药水说明"
+  },
+  "speedBoostItem": "速度提升",
+  "@speedBoostItem": {
+    "description": "速度提升名称"
+  },
+  "speedBoostItemDesc": "提升移动速度30秒。拾取后可以更快地躲避敌人的攻击，也能更好地追击敌人。",
+  "@speedBoostItemDesc": {
+    "description": "速度提升说明"
+  },
+  "attackSpeedItem": "攻速提升",
+  "@attackSpeedItem": {
+    "description": "攻速提升名称"
+  },
+  "attackSpeedItemDesc": "减少投球冷却时间30秒。拾取后可以更快地连续投球，大大提高战斗效率。",
+  "@attackSpeedItemDesc": {
+    "description": "攻速提升说明"
+  },
+  "gameTips": "游戏提示",
+  "@gameTips": {
+    "description": "游戏提示标题"
+  },
+  "gameTipsDesc": "• 利用障碍物躲避敌人的攻击\n• 道具效果可以叠加，并会保留到下一关\n• 注意冷却时间，在无法投球时要保持移动\n• 优先击杀威胁最大的敌人\n• 双人合作可以更容易地完成困难关卡",
+  "@gameTipsDesc": {
+    "description": "游戏提示说明"
+  },
+  "obstaclesTitle": "障碍物",
+  "@obstaclesTitle": {
+    "description": "障碍物标题"
+  },
+  "obstaclesDesc": "场上的石头和墙壁可以阻挡球的飞行。合理利用障碍物可以躲避敌人的攻击，但同时也会阻挡你的投球路径。",
+  "@obstaclesDesc": {
+    "description": "障碍物说明"
+  },
+  "gotIt": "知道了",
+  "@gotIt": {
+    "description": "知道了按钮"
   }
 }
 
