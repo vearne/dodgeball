@@ -114,10 +114,10 @@ class MissionDodgeballGame extends FlameGame
 
   // 键盘输入状态（每个玩家）
   final Map<int, Vector2> _keyboardMoveInputs = {};
-  
+
   // 输入控制器（每个玩家）
   final Map<int, InputController> _inputControllers = {};
-  
+
   // 键盘配置（每个玩家）
   final Map<int, KeyboardConfig> _keyboardConfigs = {};
 
@@ -134,8 +134,8 @@ class MissionDodgeballGame extends FlameGame
     // 添加外围边界墙壁
     _addBoundaryWalls();
 
-    // 加载地图障碍物
-    _loadMapObstacles();
+    // 加载地图障碍物（等待加载完成）
+    await _loadMapObstacles();
 
     // 加载键盘配置
     await _loadKeyboardConfigs();
@@ -166,13 +166,19 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 加载地图障碍物
-  void _loadMapObstacles() {
+  Future<void> _loadMapObstacles() async {
     print('📦 开始加载地图障碍物，共 ${missionMap.obstacles.length} 个');
     for (final obstacle in missionMap.obstacles) {
       final obstacleComponent = createObstacleFromData(obstacle);
-      print('  ➕ 添加障碍物：类型=${obstacle.type}, 位置=(${obstacle.x}, ${obstacle.y}), 大小=(${obstacle.width}, ${obstacle.height})');
+      print(
+        '  ➕ 添加障碍物：类型=${obstacle.type}, 位置=(${obstacle.x}, ${obstacle.y}), 大小=(${obstacle.width}, ${obstacle.height})',
+      );
       add(obstacleComponent);
+      // 等待障碍物完全加载（确保 onLoad 完成，子组件创建完毕）
+      await obstacleComponent.loaded;
+      print('  ✅ 障碍物加载完成：类型=${obstacle.type}');
     }
+    print('📦 所有障碍物加载完成');
   }
 
   /// 加载键盘配置
@@ -187,7 +193,7 @@ class MissionDodgeballGame extends FlameGame
   Future<void> _spawnPlayerAndEnemies() async {
     // 玩家在左侧（红队区域）生成
     final playerArea = FieldConfig.getRedTeamArea(size);
-    
+
     // 生成玩家1
     final player1Position = _findValidSpawnPosition(
       playerArea,
@@ -213,7 +219,7 @@ class MissionDodgeballGame extends FlameGame
     // 等待玩家组件完全加载
     await player1.loaded;
     print('Player 1 loaded, isMounted=${player1.isMounted}');
-    
+
     // 为玩家1创建输入控制器（替换默认的）
     final inputController1 = InputController(
       playerId: 0,
@@ -229,13 +235,17 @@ class MissionDodgeballGame extends FlameGame
       },
     );
     // 替换默认的输入控制器
-    print('Setting inputController for player 0, player1.isMounted=${player1.isMounted}');
+    print(
+      'Setting inputController for player 0, player1.isMounted=${player1.isMounted}',
+    );
     player1.inputController = inputController1;
     _inputControllers[0] = inputController1;
-    
+
     // 为玩家1创建冷却时间通知器
     playerCooldownNotifiers[0] = ValueNotifier<double>(0);
-    print('Created cooldown notifier for player 0: ${playerCooldownNotifiers[0]}');
+    print(
+      'Created cooldown notifier for player 0: ${playerCooldownNotifiers[0]}',
+    );
 
     // 如果有保存的玩家状态，应用它（只应用到玩家1）
     if (playerState != null) {
@@ -285,7 +295,7 @@ class MissionDodgeballGame extends FlameGame
       // 替换默认的输入控制器
       player2.inputController = inputController2;
       _inputControllers[1] = inputController2;
-      
+
       // 为玩家2创建冷却时间通知器
       playerCooldownNotifiers[1] = ValueNotifier<double>(0);
     }
@@ -319,25 +329,44 @@ class MissionDodgeballGame extends FlameGame
     const maxAttempts = 50;
     const minDistanceBetweenPlayers = playerRadius * 2 + 4.0; // 玩家之间的最小距离
 
+    print('🔍 开始查找有效生成位置，首选位置: $preferredPosition');
+
     // 首先尝试首选位置
-    if (!_isPositionOnObstacle(preferredPosition, playerRadius) &&
-        !_isPositionTooCloseToPlayers(preferredPosition, minDistanceBetweenPlayers)) {
+    final obstacleCheck = _isPositionOnObstacle(
+      preferredPosition,
+      playerRadius,
+    );
+    final playerCheck = _isPositionTooCloseToPlayers(
+      preferredPosition,
+      minDistanceBetweenPlayers,
+    );
+
+    print('  首选位置检查：障碍物碰撞=$obstacleCheck, 玩家重叠=$playerCheck');
+
+    if (!obstacleCheck && !playerCheck) {
+      print('  ✅ 首选位置可用');
       return preferredPosition;
     }
 
     // 如果首选位置被占用，随机尝试其他位置
+    print('  ⚠️ 首选位置不可用，开始随机尝试...');
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       final randomX = area.left + _random.nextDouble() * area.width;
       final randomY = area.top + _random.nextDouble() * area.height;
       final testPosition = Vector2(randomX, randomY);
 
       if (!_isPositionOnObstacle(testPosition, playerRadius) &&
-          !_isPositionTooCloseToPlayers(testPosition, minDistanceBetweenPlayers)) {
+          !_isPositionTooCloseToPlayers(
+            testPosition,
+            minDistanceBetweenPlayers,
+          )) {
+        print('  ✅ 找到有效位置：$testPosition (尝试次数: ${attempt + 1})');
         return testPosition;
       }
     }
 
     // 如果实在找不到，返回首选位置（容错）
+    print('  ❌ 警告：尝试 $maxAttempts 次后仍未找到有效位置，使用首选位置（可能会碰撞）');
     return preferredPosition;
   }
 
@@ -364,16 +393,25 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 递归检查组件树中的障碍物碰撞
-  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+  bool _checkObstacleCollisionRecursive(
+    Component parent,
+    Vector2 position,
+    double radius,
+  ) {
     for (final child in parent.children) {
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
         final obstacleAbsPos = child.absolutePosition;
-        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
+        if (_circleCollidesWithRect(
+          position,
+          radius,
+          obstacleAbsPos,
+          child.size,
+        )) {
           return true;
         }
       }
-      
+
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
       if (_checkObstacleCollisionRecursive(child, position, radius)) {
         return true;
@@ -383,7 +421,12 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 检查圆形与矩形是否碰撞
-  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
+  bool _circleCollidesWithRect(
+    Vector2 circleCenter,
+    double circleRadius,
+    Vector2 rectPos,
+    Vector2 rectSize,
+  ) {
     // 找到矩形上离圆心最近的点
     final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
     final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
@@ -420,7 +463,7 @@ class MissionDodgeballGame extends FlameGame
         final offsetY = (_random.nextDouble() - 0.5) * cellHeight * 0.3;
 
         final preferredPosition = Vector2(baseX + offsetX, baseY + offsetY);
-        
+
         // 使用 _findValidSpawnPosition 确保位置不与障碍物碰撞
         final validPosition = _findValidSpawnPosition(area, preferredPosition);
         positions.add(validPosition);
@@ -540,13 +583,15 @@ class MissionDodgeballGame extends FlameGame
   /// 应用键盘输入移动玩家
   void _applyKeyboardMovement(double dt) {
     // 调试：打印键盘移动输入
-    if (_keyboardMoveInputs.isNotEmpty && _keyboardMoveInputs.values.any((v) => v.length > 0.01)) {
+    if (_keyboardMoveInputs.isNotEmpty &&
+        _keyboardMoveInputs.values.any((v) => v.length > 0.01)) {
       print('Keyboard move inputs: ${_keyboardMoveInputs}');
     }
-    
+
     // 为每个玩家应用输入
     for (final player in playerTeam) {
-      if (player.isEliminated || player.controllerType != PlayerControllerType.human) {
+      if (player.isEliminated ||
+          player.controllerType != PlayerControllerType.human) {
         continue;
       }
 
@@ -609,13 +654,14 @@ class MissionDodgeballGame extends FlameGame
   void _updateHumanCooldownNotifier() {
     // 更新所有人类玩家的冷却时间
     for (final player in playerTeam) {
-      if (player.controllerType != PlayerControllerType.human || player.isEliminated) {
+      if (player.controllerType != PlayerControllerType.human ||
+          player.isEliminated) {
         continue;
       }
 
       final playerId = player.playerId;
       final notifier = playerCooldownNotifiers[playerId];
-      
+
       if (notifier != null) {
         final remaining = player.throwCooldownRemaining;
         if (notifier.value != remaining) {
@@ -623,19 +669,26 @@ class MissionDodgeballGame extends FlameGame
         }
       } else {
         // 如果通知器不存在，创建一个
-        playerCooldownNotifiers[playerId] = ValueNotifier<double>(player.throwCooldownRemaining);
+        playerCooldownNotifiers[playerId] = ValueNotifier<double>(
+          player.throwCooldownRemaining,
+        );
       }
     }
-    
+
     // 清理已淘汰玩家的通知器
     final activePlayerIds = playerTeam
-        .where((p) => p.controllerType == PlayerControllerType.human && !p.isEliminated)
+        .where(
+          (p) =>
+              p.controllerType == PlayerControllerType.human && !p.isEliminated,
+        )
         .map((p) => p.playerId)
         .toSet();
-    
-    playerCooldownNotifiers.removeWhere((playerId, _) => !activePlayerIds.contains(playerId));
+
+    playerCooldownNotifiers.removeWhere(
+      (playerId, _) => !activePlayerIds.contains(playerId),
+    );
   }
-  
+
   /// 获取玩家的冷却时间通知器（用于向后兼容）
   ValueNotifier<double> get humanCooldownRemainingNotifier {
     // 返回第一个玩家的冷却时间通知器，如果没有则创建一个默认的
@@ -649,7 +702,8 @@ class MissionDodgeballGame extends FlameGame
     // 计算所有人类玩家的总生命值
     int totalHealth = 0;
     for (final player in playerTeam) {
-      if (player.controllerType == PlayerControllerType.human && !player.isEliminated) {
+      if (player.controllerType == PlayerControllerType.human &&
+          !player.isEliminated) {
         totalHealth += player.currentHealth;
       }
     }
@@ -951,8 +1005,8 @@ class MissionDodgeballGame extends FlameGame
 
   /// 应用玩家状态（用于关卡间传递）
   void _applyPlayerState(PlayerComponent player, PlayerState state) {
-    // 设置生命值（不能超过最大生命值）
-    final healthToSet = state.currentHealth.clamp(1, player.maxHealth);
+    // 设置生命值（保留上一关的生命值，包括超过默认最大值的情况）
+    final healthToSet = state.currentHealth.clamp(1, double.infinity.toInt());
     player.setCurrentHealth(healthToSet);
 
     // 应用速度提升效果（使用剩余时间）

@@ -2,7 +2,7 @@
   "id": "3",
   "name": "关卡 3",
   "description": "",
-  "enemyCount": 3,
+  "enemyCount": 5,
   "obstacles": [{
     "type": "rock",
     "x": 870.0,

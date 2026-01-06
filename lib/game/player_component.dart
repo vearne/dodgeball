@@ -297,19 +297,6 @@ class PlayerComponent extends PositionComponent
     // 2. 更新箭头颜色，让人类玩家更亮
     final brightColor = _getBrightTeamColor(team);
     _arrowIcon?.color = brightColor;
-
-    // 3. 添加呼吸动画效果
-    _breathingTimer = TimerComponent(
-      period: 1.0,
-      repeat: true,
-      onTick: () {
-        // 创建缩放动画效果
-        final currentScale = scale.x;
-        final targetScale = currentScale == 1.0 ? 1.1 : 1.0;
-        scale = Vector2.all(targetScale);
-      },
-    );
-    add(_breathingTimer!);
   }
 
   void _setupAIPlayerVisuals() {
@@ -486,7 +473,7 @@ class PlayerComponent extends PositionComponent
     return false;
   }
 
-  /// 检查圆形与矩形是否碰撞
+  // 检查圆形与矩形是否碰撞
   bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
     // 找到矩形上离圆心最近的点
     final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);

@@ -2,7 +2,7 @@
   "id": "2",
   "name": "关卡 2",
   "description": "",
-  "enemyCount": 3,
+  "enemyCount": 5,
   "obstacles": [{
     "type": "brickWall",
     "x": 150.0,
