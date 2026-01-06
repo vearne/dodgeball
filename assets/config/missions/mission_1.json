@@ -178,6 +178,8 @@
     "width": 60.0,
     "height": 30.0
   }],
-  "allowedPowerUps": [],
+  "allowedPowerUps": [
+    "health"
+  ],
   "powerUpSpawnInterval": 30.0
 }

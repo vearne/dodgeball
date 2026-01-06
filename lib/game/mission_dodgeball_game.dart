@@ -1006,7 +1006,8 @@ class MissionDodgeballGame extends FlameGame
   /// 应用玩家状态（用于关卡间传递）
   void _applyPlayerState(PlayerComponent player, PlayerState state) {
     // 设置生命值（保留上一关的生命值，包括超过默认最大值的情况）
-    final healthToSet = state.currentHealth.clamp(1, double.infinity.toInt());
+    // 使用一个合理的最大值上限（999），避免 Infinity 转换错误
+    final healthToSet = state.currentHealth.clamp(1, 999);
     player.setCurrentHealth(healthToSet);
 
     // 应用速度提升效果（使用剩余时间）

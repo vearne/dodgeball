@@ -84,6 +84,14 @@ class AtomicBrickComponent extends ObstacleComponent {
 
   @override
   void handleBallCollision(BallComponent ball) {
+    // 检查球是否已经击中过障碍物，防止一个球摧毁多个原子单位
+    if (ball.hasHitObstacle) {
+      return;
+    }
+    
+    // 标记球已经击中障碍物
+    ball.hasHitObstacle = true;
+    
     // 球体消失
     ball.removeFromParent();
     // 原子砖块消失

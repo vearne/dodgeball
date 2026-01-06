@@ -42,9 +42,14 @@ class BallComponent extends SpriteComponent
   onHitPlayer;
   final double ballRadius; // 球的半径，用于碰撞检测
   bool _hasHitPlayer = false; // 防止重复扣血：记录是否已经击中玩家
+  bool _hasHitObstacle = false; // 防止重复摧毁：记录是否已经击中障碍物
 
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
+
+  // 公共访问器：障碍物组件需要检查和设置此标记
+  bool get hasHitObstacle => _hasHitObstacle;
+  set hasHitObstacle(bool value) => _hasHitObstacle = value;
 
   @override
   Future<void> onLoad() async {
