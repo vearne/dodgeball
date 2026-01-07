@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui';
 import 'package:flame/components.dart';
 import 'ball_component.dart';
 import 'field_config.dart';
@@ -224,7 +225,7 @@ class AIController extends Component {
     // 确保不会移动出边界、不与其他玩家重叠、不与障碍物碰撞
     if (_isValidPosition(newPosition) &&
         !_wouldOverlapWithOtherPlayers(newPosition) &&
-        !_isPositionOnObstacle(newPosition, player.radius)) {
+        !_isPositionOnObstacle(newPosition, player.size)) {
       player.position = newPosition;
 
       // 更新玩家的朝向方向为移动方向
@@ -251,20 +252,17 @@ class AIController extends Component {
           area.left + margin + _random.nextDouble() * (area.width - margin * 2);
       final y =
           area.top + margin + _random.nextDouble() * (area.height - margin * 2);
-      
+
       final position = Vector2(x, y);
-      
+
       // 检查这个位置是否在障碍物上
-      if (!_isPositionOnObstacle(position, player.radius)) {
+      if (!_isPositionOnObstacle(position, player.size)) {
         return position;
       }
     }
 
     // 如果尝试30次都没找到，返回中心位置（容错）
-    return Vector2(
-      area.left + area.width / 2,
-      area.top + area.height / 2,
-    );
+    return Vector2(area.left + area.width / 2, area.top + area.height / 2);
   }
 
   /// 检查位置是否有效
@@ -272,9 +270,17 @@ class AIController extends Component {
     final isRedTeam = player.team == Team.red;
 
     if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(position, gameSize, playerRadius: player.radius);
+      return FieldConfig.isInRedTeamArea(
+        position,
+        gameSize,
+        playerRadius: player.radius,
+      );
     } else {
-      return FieldConfig.isInBlueTeamArea(position, gameSize, playerRadius: player.radius);
+      return FieldConfig.isInBlueTeamArea(
+        position,
+        gameSize,
+        playerRadius: player.radius,
+      );
     }
   }
 
@@ -308,47 +314,44 @@ class AIController extends Component {
     return false; // 不会重叠
   }
 
-  /// 检查位置是否在障碍物上
-  bool _isPositionOnObstacle(Vector2 position, double radius) {
+  /// 检查位置是否在障碍物上（使用矩形碰撞检测）
+  bool _isPositionOnObstacle(Vector2 position, Vector2 playerSize) {
     final game = findGame();
     if (game == null) return false;
 
+    // 玩家的矩形碰撞区域（以 position 为中心）
+    final playerRect = Rect.fromCenter(
+      center: Offset(position.x, position.y),
+      width: playerSize.x,
+      height: playerSize.y,
+    );
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    return _checkObstacleCollisionRecursive(game, position, radius);
+    return _checkObstacleCollisionRecursive(game, playerRect);
   }
 
-  /// 递归检查组件树中的障碍物碰撞
-  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+  /// 递归检查组件树中的障碍物碰撞（矩形碰撞检测）
+  bool _checkObstacleCollisionRecursive(Component parent, Rect playerRect) {
     for (final child in parent.children) {
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
         final obstacleAbsPos = child.absolutePosition;
-        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
+        final obstacleRect = Rect.fromLTWH(
+          obstacleAbsPos.x,
+          obstacleAbsPos.y,
+          child.size.x,
+          child.size.y,
+        );
+        if (playerRect.overlaps(obstacleRect)) {
           return true;
         }
       }
-      
+
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, position, radius)) {
+      if (_checkObstacleCollisionRecursive(child, playerRect)) {
         return true;
       }
     }
     return false;
-  }
-
-  /// 检查圆形与矩形是否碰撞
-  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
-    // 找到矩形上离圆心最近的点
-    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
-    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
-
-    // 计算最近点到圆心的距离
-    final distanceX = circleCenter.x - closestX;
-    final distanceY = circleCenter.y - closestY;
-    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
-
-    // 如果距离小于圆的半径，则发生碰撞
-    return distanceSquared < (circleRadius * circleRadius);
   }
 
   /// 请求投球

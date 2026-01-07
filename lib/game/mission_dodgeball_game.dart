@@ -328,14 +328,12 @@ class MissionDodgeballGame extends FlameGame
     const playerRadius = 16.0;
     const maxAttempts = 50;
     const minDistanceBetweenPlayers = playerRadius * 2 + 4.0; // 玩家之间的最小距离
+    final playerSize = Vector2.all(playerRadius * 2); // 玩家矩形碰撞区域大小
 
     print('🔍 开始查找有效生成位置，首选位置: $preferredPosition');
 
     // 首先尝试首选位置
-    final obstacleCheck = _isPositionOnObstacle(
-      preferredPosition,
-      playerRadius,
-    );
+    final obstacleCheck = _isPositionOnObstacle(preferredPosition, playerSize);
     final playerCheck = _isPositionTooCloseToPlayers(
       preferredPosition,
       minDistanceBetweenPlayers,
@@ -355,7 +353,7 @@ class MissionDodgeballGame extends FlameGame
       final randomY = area.top + _random.nextDouble() * area.height;
       final testPosition = Vector2(randomX, randomY);
 
-      if (!_isPositionOnObstacle(testPosition, playerRadius) &&
+      if (!_isPositionOnObstacle(testPosition, playerSize) &&
           !_isPositionTooCloseToPlayers(
             testPosition,
             minDistanceBetweenPlayers,
@@ -382,62 +380,54 @@ class MissionDodgeballGame extends FlameGame
     return false; // 距离足够远
   }
 
-  /// 检查位置是否在障碍物上
-  bool _isPositionOnObstacle(Vector2 position, double radius) {
+  /// 检查位置是否在障碍物上（使用矩形碰撞检测）
+  bool _isPositionOnObstacle(Vector2 position, Vector2 playerSize) {
+    // 玩家的矩形碰撞区域（以 position 为中心）
+    final playerRect = Rect.fromCenter(
+      center: Offset(position.x, position.y),
+      width: playerSize.x,
+      height: playerSize.y,
+    );
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    final result = _checkObstacleCollisionRecursive(this, position, radius);
-    // if (result) {
-    //   print('🚫 位置 $position（半径 $radius）与障碍物碰撞');
-    // }
-    return result;
+    return _checkObstacleCollisionRecursive(this, playerRect);
   }
 
-  /// 递归检查组件树中的障碍物碰撞
+  /// 递归检查组件树中的障碍物碰撞（矩形碰撞检测）
+  /// parentOffset: 累积的父组件偏移量，用于手动计算绝对位置
   bool _checkObstacleCollisionRecursive(
     Component parent,
-    Vector2 position,
-    double radius,
-  ) {
+    Rect playerRect, [
+    Vector2? parentOffset,
+  ]) {
+    final offset = parentOffset ?? Vector2.zero();
+
     for (final child in parent.children) {
+      // 计算当前子组件的偏移量（如果是 PositionComponent）
+      Vector2 childOffset = offset;
+      if (child is PositionComponent) {
+        childOffset = offset + child.position;
+      }
+
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
-        final obstacleAbsPos = child.absolutePosition;
-        if (_circleCollidesWithRect(
-          position,
-          radius,
-          obstacleAbsPos,
-          child.size,
-        )) {
+        // 使用手动计算的绝对位置进行矩形碰撞检测
+        final obstacleRect = Rect.fromLTWH(
+          childOffset.x,
+          childOffset.y,
+          child.size.x,
+          child.size.y,
+        );
+        if (playerRect.overlaps(obstacleRect)) {
           return true;
         }
       }
 
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, position, radius)) {
+      if (_checkObstacleCollisionRecursive(child, playerRect, childOffset)) {
         return true;
       }
     }
     return false;
-  }
-
-  /// 检查圆形与矩形是否碰撞
-  bool _circleCollidesWithRect(
-    Vector2 circleCenter,
-    double circleRadius,
-    Vector2 rectPos,
-    Vector2 rectSize,
-  ) {
-    // 找到矩形上离圆心最近的点
-    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
-    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
-
-    // 计算最近点到圆心的距离
-    final distanceX = circleCenter.x - closestX;
-    final distanceY = circleCenter.y - closestY;
-    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
-
-    // 如果距离小于圆的半径，则发生碰撞
-    return distanceSquared < (circleRadius * circleRadius);
   }
 
   /// 在指定区域内生成敌人位置
@@ -529,7 +519,7 @@ class MissionDodgeballGame extends FlameGame
           );
 
     // 只有在区域内且不与障碍物碰撞时才移动
-    if (isInArea && !_isPositionOnObstacle(newPosition, player.radius)) {
+    if (isInArea && !_isPositionOnObstacle(newPosition, player.size)) {
       player.position = newPosition;
     } else {
       // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
@@ -552,7 +542,7 @@ class MissionDodgeballGame extends FlameGame
               playerRadius: player.radius,
             );
       if (clampedInArea &&
-          !_isPositionOnObstacle(clampedPosition, player.radius)) {
+          !_isPositionOnObstacle(clampedPosition, player.size)) {
         player.position = clampedPosition;
       }
     }
@@ -582,12 +572,6 @@ class MissionDodgeballGame extends FlameGame
 
   /// 应用键盘输入移动玩家
   void _applyKeyboardMovement(double dt) {
-    // 调试：打印键盘移动输入
-    if (_keyboardMoveInputs.isNotEmpty &&
-        _keyboardMoveInputs.values.any((v) => v.length > 0.01)) {
-      print('Keyboard move inputs: ${_keyboardMoveInputs}');
-    }
-
     // 为每个玩家应用输入
     for (final player in playerTeam) {
       if (player.isEliminated ||
@@ -604,6 +588,15 @@ class MissionDodgeballGame extends FlameGame
 
       // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
       final isRedTeam = player.team == Team.red;
+      final area = isRedTeam 
+          ? FieldConfig.getRedTeamArea(size) 
+          : FieldConfig.getBluTeamArea(size);
+      
+      // 调试：打印边界信息
+      print('📍 玩家位置=${player.position}, 目标=${newPosition}, 半径=${player.radius}');
+      print('   区域边界: left=${area.left}, right=${area.right}, top=${area.top}, bottom=${area.bottom}');
+      print('   有效范围: x=[${area.left + player.radius}, ${area.right - player.radius}], y=[${area.top + player.radius}, ${area.bottom - player.radius}]');
+      
       final isInArea = isRedTeam
           ? FieldConfig.isInRedTeamArea(
               newPosition,
@@ -616,20 +609,25 @@ class MissionDodgeballGame extends FlameGame
               playerRadius: player.radius,
             );
 
-      // 只有在区域内且不与障碍物碰撞时才移动
-      if (isInArea && !_isPositionOnObstacle(newPosition, player.radius)) {
+      // 只有在区域内且不与障碍物碰撞时才移动（使用矩形碰撞检测）
+      final obstacleCollision = _isPositionOnObstacle(newPosition, player.size);
+      
+      print('   isInArea=$isInArea, obstacleCollision=$obstacleCollision');
+
+      if (isInArea && !obstacleCollision) {
         player.position = newPosition;
         // 更新玩家朝向
         player.setDirection(input.normalized());
       } else {
-        // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
+        // 如果不在区域内或与障碍物碰撞，尝试限制到边界内
         final clampedPosition = FieldConfig.clampToTeamArea(
           newPosition,
           isRedTeam,
           size,
           playerRadius: player.radius,
         );
-        // 只有当限制后的位置仍在区域内时才更新
+        print('   clampedPosition=$clampedPosition');
+        // 只有当限制后的位置仍在区域内且不与障碍物碰撞时才更新
         final clampedInArea = isRedTeam
             ? FieldConfig.isInRedTeamArea(
                 clampedPosition,
@@ -642,7 +640,7 @@ class MissionDodgeballGame extends FlameGame
                 playerRadius: player.radius,
               );
         if (clampedInArea &&
-            !_isPositionOnObstacle(clampedPosition, player.radius)) {
+            !_isPositionOnObstacle(clampedPosition, player.size)) {
           player.position = clampedPosition;
           // 更新玩家朝向
           player.setDirection(input.normalized());
@@ -939,9 +937,10 @@ class MissionDodgeballGame extends FlameGame
 
   /// 查找有效的道具生成位置（不在障碍物和玩家位置）
   Vector2? _findValidPowerUpPosition() {
-    const powerUpRadius = 16.0;
+    const powerUpSize = 32.0; // 道具大小
     const maxAttempts = 50;
     final playableArea = FieldConfig.getPlayableArea(size);
+    final powerUpSizeVec = Vector2.all(powerUpSize);
 
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       // 在可玩区域内随机生成位置
@@ -951,8 +950,8 @@ class MissionDodgeballGame extends FlameGame
           playableArea.top + _random.nextDouble() * playableArea.height;
       final testPosition = Vector2(randomX, randomY);
 
-      // 检查是否在障碍物上
-      if (_isPositionOnObstacle(testPosition, powerUpRadius)) {
+      // 检查是否在障碍物上（使用矩形碰撞检测）
+      if (_isPositionOnObstacle(testPosition, powerUpSizeVec)) {
         continue;
       }
 
@@ -961,7 +960,7 @@ class MissionDodgeballGame extends FlameGame
       for (final player in children.whereType<PlayerComponent>()) {
         if (player.isEliminated) continue;
         final distance = testPosition.distanceTo(player.position);
-        if (distance < powerUpRadius + player.radius + 10.0) {
+        if (distance < powerUpSize / 2 + player.radius + 10.0) {
           tooCloseToPlayer = true;
           break;
         }

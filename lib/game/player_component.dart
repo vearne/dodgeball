@@ -116,19 +116,25 @@ class PlayerComponent extends PositionComponent
 
   // 提供访问器以便游戏主类可以访问输入控制器
   InputController? get inputController => _inputController;
-  
+
   // 设置输入控制器
   set inputController(InputController? controller) {
-    print('PlayerComponent $playerId: setting inputController, isMounted=$isMounted');
+    print(
+      'PlayerComponent $playerId: setting inputController, isMounted=$isMounted',
+    );
     // 移除旧的控制器
     _inputController?.removeFromParent();
     _inputController = controller;
     // 如果新控制器不为空且已加载，添加到组件树
     if (_inputController != null && isMounted) {
-      print('PlayerComponent $playerId: adding inputController to component tree');
+      print(
+        'PlayerComponent $playerId: adding inputController to component tree',
+      );
       add(_inputController!);
     } else if (_inputController != null) {
-      print('PlayerComponent $playerId: NOT adding inputController - not mounted yet');
+      print(
+        'PlayerComponent $playerId: NOT adding inputController - not mounted yet',
+      );
     }
   }
 
@@ -199,8 +205,8 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 添加圆形碰撞体作为主要碰撞检测
-    add(CircleHitbox(radius: radius));
+    // 添加矩形碰撞体作为主要碰撞检测（与边界/障碍物检测一致）
+    add(RectangleHitbox());
 
     // 设置玩家视觉效果
     _setupPlayerVisuals();
@@ -214,10 +220,12 @@ class PlayerComponent extends PositionComponent
 
     // 添加生命值显示
     _setupHealthDisplay();
-    
+
     // 如果有待添加的输入控制器，现在添加它
     if (_inputController != null && !_inputController!.isMounted) {
-      print('PlayerComponent $playerId: onLoad completed, adding pending inputController');
+      print(
+        'PlayerComponent $playerId: onLoad completed, adding pending inputController',
+      );
       add(_inputController!);
     }
   }
@@ -226,10 +234,12 @@ class PlayerComponent extends PositionComponent
   void onMount() {
     super.onMount();
     print('PlayerComponent $playerId: onMount, isMounted=$isMounted');
-    
+
     // 如果有待添加的输入控制器，现在添加它
     if (_inputController != null && !_inputController!.isMounted) {
-      print('PlayerComponent $playerId: onMount - adding pending inputController');
+      print(
+        'PlayerComponent $playerId: onMount - adding pending inputController',
+      );
       add(_inputController!);
     }
   }
@@ -359,10 +369,9 @@ class PlayerComponent extends PositionComponent
     // 更新投球冷却时间
     _lastThrowTime += dt;
 
-    // 更新玩家移动
-    if (controllerType == PlayerControllerType.human) {
-      _updateMovement(dt);
-    }
+    // 注意：人类玩家的移动由 MissionDodgeballGame._applyKeyboardMovement 处理
+    // 这里不再调用 _updateMovement，避免两套移动系统冲突
+    // AI 玩家的移动由 AIController 处理
 
     // 更新箭头方向 - 使用当前朝向方向
     if (_currentDirection.length > 0.1) {
@@ -419,9 +428,17 @@ class PlayerComponent extends PositionComponent
     final isRedTeam = team == Team.red;
 
     if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(newPosition, game.size, playerRadius: radius);
+      return FieldConfig.isInRedTeamArea(
+        newPosition,
+        game.size,
+        playerRadius: radius,
+      );
     } else {
-      return FieldConfig.isInBlueTeamArea(newPosition, game.size, playerRadius: radius);
+      return FieldConfig.isInBlueTeamArea(
+        newPosition,
+        game.size,
+        playerRadius: radius,
+      );
     }
   }
 
@@ -448,44 +465,39 @@ class PlayerComponent extends PositionComponent
     final game = findGame();
     if (game == null) return false;
 
+    // 玩家的矩形碰撞区域（以 newPosition 为中心）
+    final playerRect = Rect.fromCenter(
+      center: Offset(newPosition.x, newPosition.y),
+      width: size.x,
+      height: size.y,
+    );
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    return _checkObstacleCollisionRecursive(game, newPosition, radius);
+    return _checkObstacleCollisionRecursive(game, playerRect);
   }
 
-  /// 递归检查组件树中的障碍物碰撞
-  bool _checkObstacleCollisionRecursive(Component parent, Vector2 position, double radius) {
+  /// 递归检查组件树中的障碍物碰撞（矩形碰撞检测）
+  bool _checkObstacleCollisionRecursive(Component parent, Rect playerRect) {
     for (final child in parent.children) {
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
         final obstacleAbsPos = child.absolutePosition;
-        if (_circleCollidesWithRect(position, radius, obstacleAbsPos, child.size)) {
-          // 调试信息：检测到碰撞
-          print('玩家 $playerId 与障碍物碰撞：玩家位置=$position, 障碍物位置=$obstacleAbsPos, 障碍物大小=${child.size}');
+        final obstacleRect = Rect.fromLTWH(
+          obstacleAbsPos.x,
+          obstacleAbsPos.y,
+          child.size.x,
+          child.size.y,
+        );
+        if (playerRect.overlaps(obstacleRect)) {
           return true;
         }
       }
-      
+
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, position, radius)) {
+      if (_checkObstacleCollisionRecursive(child, playerRect)) {
         return true;
       }
     }
     return false;
-  }
-
-  // 检查圆形与矩形是否碰撞
-  bool _circleCollidesWithRect(Vector2 circleCenter, double circleRadius, Vector2 rectPos, Vector2 rectSize) {
-    // 找到矩形上离圆心最近的点
-    final closestX = circleCenter.x.clamp(rectPos.x, rectPos.x + rectSize.x);
-    final closestY = circleCenter.y.clamp(rectPos.y, rectPos.y + rectSize.y);
-
-    // 计算最近点到圆心的距离
-    final distanceX = circleCenter.x - closestX;
-    final distanceY = circleCenter.y - closestY;
-    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
-
-    // 如果距离小于圆的半径，则发生碰撞
-    return distanceSquared < (circleRadius * circleRadius);
   }
 
   void _handleMovementInput(Vector2 direction) {
