@@ -18,7 +18,7 @@ class PlayerComponent extends PositionComponent
   PlayerComponent({
     required this.team,
     required this.playerId,
-    required Vector2 position,
+    required Vector2 position, // 注意：这里的position参数表示玩家的中心位置
     this.controllerType = PlayerControllerType.human,
     this.radius = 16,
     this.aiIntelligenceLevel = 1.0,
@@ -29,9 +29,10 @@ class PlayerComponent extends PositionComponent
        _maxHealth = maxHealth,
        _currentHealth = maxHealth,
        super(
-         position: position,
+         // 将中心位置转换为topLeft位置（左上角 = 中心 - 半径）
+         position: position - Vector2.all(radius),
          size: Vector2.all(radius * 2),
-         anchor: Anchor.center,
+         anchor: Anchor.topLeft, // 统一使用topLeft，与障碍物保持一致
        ) {
     // 设置随机初始冷却时间（1-10秒）
     final random = math.Random();
@@ -47,6 +48,15 @@ class PlayerComponent extends PositionComponent
   final ui.Color _color;
   bool isEliminated = false;
   bool _pendingRemoval = false; // 新增：标记是否待移除
+
+  /// 获取玩家中心位置（因为anchor是topLeft，中心在position + radius）
+  /// 用于逻辑计算（距离、方向等），与absoluteCenter等效
+  Vector2 get center => position + Vector2.all(radius);
+
+  /// 设置玩家中心位置
+  set center(Vector2 centerPos) {
+    position = centerPos - Vector2.all(radius);
+  }
 
   // 新增：生命值系统
   int _maxHealth; // 最大生命值
@@ -206,7 +216,14 @@ class PlayerComponent extends PositionComponent
     await super.onLoad();
 
     // 添加圆形碰撞体作为主要碰撞检测
-    add(CircleHitbox());
+    // 父组件anchor是topLeft，所以碰撞体中心应该在(radius, radius)位置
+    add(
+      CircleHitbox(
+        radius: radius,
+        position: Vector2.all(radius), // 碰撞体中心在(radius, radius)，即正方形的中心
+        anchor: Anchor.center,
+      ),
+    );
 
     // 设置玩家视觉效果
     _setupPlayerVisuals();
@@ -379,19 +396,6 @@ class PlayerComponent extends PositionComponent
     }
   }
 
-  void _updateMovement(double dt) {
-    // 平滑移动到目标方向
-    _velocity = _velocity * 0.9 + _targetDirection * movementSpeed * 0.1;
-
-    if (_velocity.length > 1.0) {
-      // 更新当前朝向方向为移动方向
-      _currentDirection = _velocity.normalized();
-
-      // 使用多步物理更新提高精度
-      _updatePositionWithSubsteps(dt);
-    }
-  }
-
   /// 使用子步长进行位置更新，提高精度
   void _updatePositionWithSubsteps(double dt) {
     // 根据移动速度动态调整子步数
@@ -446,11 +450,11 @@ class PlayerComponent extends PositionComponent
     final game = findGame();
     if (game == null) return false;
 
-    // 检查与其他玩家的距离
+    // 检查与其他玩家的距离（newPosition是中心位置）
     for (final other in game.children.whereType<PlayerComponent>()) {
       if (other == this || other.isEliminated) continue;
 
-      final distance = newPosition.distanceTo(other.position);
+      final distance = newPosition.distanceTo(other.center);
       final minDistance = radius + other.radius + 2.0; // 额外2像素间隔
 
       if (distance < minDistance) {
@@ -471,10 +475,16 @@ class PlayerComponent extends PositionComponent
   }
 
   /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
-  bool _checkObstacleCollisionRecursive(Component parent, Vector2 circleCenter, double circleRadius) {
+  bool _checkObstacleCollisionRecursive(
+    Component parent,
+    Vector2 circleCenter,
+    double circleRadius,
+  ) {
     for (final child in parent.children) {
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
+        // 使用 absolutePosition 获取障碍物在世界坐标系中的位置
+        // 因为 ObstacleComponent 的 anchor 是 Anchor.topLeft，absolutePosition 就是左上角
         final obstacleAbsPos = child.absolutePosition;
         final obstacleRect = Rect.fromLTWH(
           obstacleAbsPos.x,
@@ -497,16 +507,20 @@ class PlayerComponent extends PositionComponent
   }
 
   /// 圆形与矩形碰撞检测
-  bool _circleRectCollision(Vector2 circleCenter, double circleRadius, Rect rect) {
+  bool _circleRectCollision(
+    Vector2 circleCenter,
+    double circleRadius,
+    Rect rect,
+  ) {
     // 找到矩形上离圆心最近的点
     final closestX = circleCenter.x.clamp(rect.left, rect.right);
     final closestY = circleCenter.y.clamp(rect.top, rect.bottom);
-    
+
     // 计算圆心到最近点的距离
     final distanceX = circleCenter.x - closestX;
     final distanceY = circleCenter.y - closestY;
     final distanceSquared = distanceX * distanceX + distanceY * distanceY;
-    
+
     // 如果距离小于半径，则发生碰撞
     return distanceSquared < circleRadius * circleRadius;
   }

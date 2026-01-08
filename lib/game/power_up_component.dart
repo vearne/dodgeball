@@ -16,9 +16,9 @@ class PowerUpComponent extends PositionComponent
     with CollisionCallbacks, HasGameReference {
   PowerUpComponent({required this.type, required Vector2 position})
     : super(
-        position: position,
+        position: position - Vector2.all(18), // 将中心位置转换为topLeft位置 (36/2)
         size: Vector2.all(36), // 36x36像素
-        anchor: Anchor.center,
+        anchor: Anchor.topLeft,
       );
 
   final PowerUpType type;
@@ -50,7 +50,11 @@ class PowerUpComponent extends PositionComponent
     }
 
     // 添加圆形碰撞箱
-    add(CircleHitbox(radius: 16));
+    add(CircleHitbox(
+      radius: 16,
+      position: Vector2(18, 18), // 居中: 36/2 = 18
+      anchor: Anchor.center,
+    ));
 
     // 添加上下浮动动画效果
     add(FloatingComponent(parent: this));

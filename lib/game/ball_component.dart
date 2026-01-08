@@ -18,15 +18,15 @@ class BallComponent extends SpriteComponent
     this.onHitPlayer,
   }) : ballRadius = radius,
        super(
-         position: position,
+         position: position - Vector2.all(radius), // 将中心位置转换为topLeft位置
          size: Vector2.all(radius * 2), // sprite需要size而不是radius
-         anchor: Anchor.center,
+         anchor: Anchor.topLeft,
        ) {
     velocity = initialVelocity;
     remainingLabel = TextComponent(
       text: '$bounceCount',
       anchor: Anchor.center,
-      position: Vector2(ballRadius * 0.8, ballRadius * 0.8),
+      position: Vector2(ballRadius, ballRadius), // 居中
       scale: Vector2.all(0.5), // 调小字体大小
       priority: 1,
     );
@@ -47,6 +47,9 @@ class BallComponent extends SpriteComponent
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
 
+  // 获取球的中心位置
+  Vector2 get center => position + Vector2.all(ballRadius);
+
   // 公共访问器：障碍物组件需要检查和设置此标记
   bool get hasHitObstacle => _hasHitObstacle;
   set hasHitObstacle(bool value) => _hasHitObstacle = value;
@@ -60,7 +63,12 @@ class BallComponent extends SpriteComponent
     sprite = await Sprite.load(spritePath);
 
     // 添加圆形碰撞箱，使用ballRadius
-    add(CircleHitbox(radius: ballRadius));
+    // 父组件anchor是topLeft，所以碰撞体中心应该在(ballRadius, ballRadius)位置
+    add(CircleHitbox(
+      radius: ballRadius,
+      position: Vector2.all(ballRadius),
+      anchor: Anchor.center,
+    ));
     add(remainingLabel);
   }
 
@@ -170,15 +178,16 @@ class BallComponent extends SpriteComponent
 
   /// 连续碰撞检测算法
   bool _checkContinuousPlayerCollision(PlayerComponent player, double dt) {
-    // 计算球在这一帧内的移动轨迹
-    final startPos = position - velocity * dt;
-    final endPos = position;
+    // 计算球在这一帧内的移动轨迹（使用球心）
+    final currentCenter = center;
+    final startPos = currentCenter - velocity * dt;
+    final endPos = currentCenter;
 
     // 如果球没有移动，使用静态碰撞检测
     final moveDistance = (endPos - startPos).length;
     if (moveDistance < 0.001) {
       // 静态碰撞检测：直接检查距离
-      final distance = position.distanceTo(player.position);
+      final distance = currentCenter.distanceTo(player.center);
       return distance <= (ballRadius + player.radius);
     }
 
@@ -186,12 +195,12 @@ class BallComponent extends SpriteComponent
     final closestPoint = _getClosestPointOnLineToCircle(
       startPos,
       endPos,
-      player.position,
+      player.center,
       player.radius,
     );
 
     // 计算轨迹上最近点到玩家圆心的距离
-    final distance = closestPoint.distanceTo(player.position);
+    final distance = closestPoint.distanceTo(player.center);
     // 如果距离小于球半径+玩家半径，说明发生了碰撞
     final collisionDistance = ballRadius + player.radius;
     return distance <= collisionDistance;
@@ -230,14 +239,15 @@ class BallComponent extends SpriteComponent
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.0;
 
-      canvas.drawCircle(ui.Offset.zero, ballRadius, paint);
+      // 调整圆心位置到组件中心
+      canvas.drawCircle(ui.Offset(ballRadius, ballRadius), ballRadius, paint);
     }
   }
 
   /// 验证与玩家的碰撞是否有效
   bool _isValidPlayerCollision(PlayerComponent player) {
     // 检查距离 - 使用标准碰撞距离（球半径 + 玩家半径）
-    final distance = position.distanceTo(player.position);
+    final distance = center.distanceTo(player.center);
     final collisionDistance = ballRadius + player.radius;
 
     if (distance > collisionDistance) {
@@ -246,7 +256,7 @@ class BallComponent extends SpriteComponent
 
     // 对于高速球，使用穿透检测防止误判
     if (velocity.length > 120) {
-      final toPlayer = (player.position - position).normalized();
+      final toPlayer = (player.center - center).normalized();
       final velocityDirection = velocity.normalized();
       final dotProduct = toPlayer.dot(velocityDirection);
 

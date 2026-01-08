@@ -96,7 +96,7 @@ class AIController extends Component {
       if (ball.team == player.team) continue; // 忽略己方球
 
       // 简单检测：球是否大致朝向玩家方向移动
-      final toBall = ball.position - player.position;
+      final toBall = ball.position - player.center;
       final ballVelocity = ball.velocity;
 
       // 如果球在朝玩家方向移动，且距离较近
@@ -116,7 +116,7 @@ class AIController extends Component {
     double minDistance = double.infinity;
 
     for (final ball in threats) {
-      final distance = (ball.position - player.position).length;
+      final distance = (ball.position - player.center).length;
       if (distance < minDistance) {
         minDistance = distance;
         mostDangerous = ball;
@@ -128,8 +128,8 @@ class AIController extends Component {
       const dodgeDistance = 80.0;
       final ballVelocity = mostDangerous.velocity.normalized();
       final perpendicular1 = Vector2(-ballVelocity.y, ballVelocity.x);
-      final target1 = player.position + perpendicular1 * dodgeDistance;
-      final target2 = player.position - perpendicular1 * dodgeDistance;
+      final target1 = player.center + perpendicular1 * dodgeDistance;
+      final target2 = player.center - perpendicular1 * dodgeDistance;
 
       final isTarget1Valid =
           _isValidPosition(target1) && !_wouldOverlapWithOtherPlayers(target1);
@@ -149,9 +149,9 @@ class AIController extends Component {
         _targetPosition = validTargets[_random.nextInt(validTargets.length)];
       } else {
         // 如果两侧都无法躲避，尝试后退
-        final awayDirection = (player.position - mostDangerous.position)
+        final awayDirection = (player.center - mostDangerous.position)
             .normalized();
-        _targetPosition = player.position + awayDirection * dodgeDistance;
+        _targetPosition = player.center + awayDirection * dodgeDistance;
       }
 
       _clampToValidPosition(); // 确保最终目标位置在有效区域内
@@ -178,7 +178,7 @@ class AIController extends Component {
       double minDistance = double.infinity;
 
       for (final enemy in enemies) {
-        final distance = (enemy.position - player.position).length;
+        final distance = (enemy.center - player.center).length;
         if (distance < minDistance) {
           minDistance = distance;
           target = enemy;
@@ -208,7 +208,7 @@ class AIController extends Component {
   void _executeMovement(double dt) {
     if (!_isMoving) return;
 
-    final distance = (_targetPosition - player.position).length;
+    final distance = (_targetPosition - player.center).length;
 
     if (distance < 10.0) {
       // 到达目标位置
@@ -217,16 +217,16 @@ class AIController extends Component {
     }
 
     // 朝目标移动
-    final direction = (_targetPosition - player.position).normalized();
+    final direction = (_targetPosition - player.center).normalized();
     final movement = direction * _movementSpeed * dt;
 
-    final newPosition = player.position + movement;
+    final newPosition = player.center + movement;
 
     // 确保不会移动出边界、不与其他玩家重叠、不与障碍物碰撞
     if (_isValidPosition(newPosition) &&
         !_wouldOverlapWithOtherPlayers(newPosition) &&
         !_isPositionOnObstacle(newPosition, player.size)) {
-      player.position = newPosition;
+      player.center = newPosition;
 
       // 更新玩家的朝向方向为移动方向
       player.setDirection(direction);
@@ -299,11 +299,11 @@ class AIController extends Component {
     final game = findGame();
     if (game == null) return false;
 
-    // 检查与其他玩家的距离
+    // 检查与其他玩家的距离（newPosition是中心位置）
     for (final other in game.children.whereType<PlayerComponent>()) {
       if (other == player || other.isEliminated) continue;
 
-      final distance = newPosition.distanceTo(other.position);
+      final distance = newPosition.distanceTo(other.center);
       final minDistance = player.radius + other.radius + 2.0; // 额外2像素间隔
 
       if (distance < minDistance) {
@@ -379,14 +379,14 @@ class AIController extends Component {
     final game = findGame();
     if (game != null && game is HasThrowRequest) {
       // 投掷方向应始终朝向目标
-      final throwDirection = (targetPosition - player.position).normalized();
+      final throwDirection = (targetPosition - player.center).normalized();
 
       // 更新玩家朝向以面对目标
       player.setDirection(throwDirection);
 
       final throwDistance = 200.0;
       final actualTargetPosition =
-          player.position + throwDirection * throwDistance;
+          player.center + throwDirection * throwDistance;
 
       (game as HasThrowRequest).requestThrowFromAI(
         player,
