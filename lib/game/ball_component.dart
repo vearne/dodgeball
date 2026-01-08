@@ -93,12 +93,12 @@ class BallComponent extends SpriteComponent
   void _updatePhysicsWithSubsteps(double dt) {
     // 根据球的速度动态调整子步数
     final speed = velocity.length;
-    int substeps = 1;
+    int substeps = 2;
 
     if (speed > 200) {
-      substeps = 3; // 高速球使用3个子步
+      substeps = 6; // 高速球使用3个子步
     } else if (speed > 100) {
-      substeps = 2; // 中速球使用2个子步
+      substeps = 4; // 中速球使用2个子步
     }
 
     final subDt = dt / substeps;
