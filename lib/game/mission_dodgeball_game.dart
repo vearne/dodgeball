@@ -380,23 +380,20 @@ class MissionDodgeballGame extends FlameGame
     return false; // 距离足够远
   }
 
-  /// 检查位置是否在障碍物上（使用矩形碰撞检测）
+  /// 检查位置是否在障碍物上（使用圆形碰撞检测）
   bool _isPositionOnObstacle(Vector2 position, Vector2 playerSize) {
-    // 玩家的矩形碰撞区域（以 position 为中心）
-    final playerRect = Rect.fromCenter(
-      center: Offset(position.x, position.y),
-      width: playerSize.x,
-      height: playerSize.y,
-    );
+    // playerSize 转换为半径（取较小的一边）
+    final radius = playerSize.x / 2;
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    return _checkObstacleCollisionRecursive(this, playerRect);
+    return _checkObstacleCollisionRecursive(this, position, radius);
   }
 
-  /// 递归检查组件树中的障碍物碰撞（矩形碰撞检测）
+  /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
   /// parentOffset: 累积的父组件偏移量，用于手动计算绝对位置
   bool _checkObstacleCollisionRecursive(
     Component parent,
-    Rect playerRect, [
+    Vector2 circleCenter,
+    double circleRadius, [
     Vector2? parentOffset,
   ]) {
     final offset = parentOffset ?? Vector2.zero();
@@ -410,24 +407,39 @@ class MissionDodgeballGame extends FlameGame
 
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
-        // 使用手动计算的绝对位置进行矩形碰撞检测
+        // 使用手动计算的绝对位置进行圆形与矩形碰撞检测
         final obstacleRect = Rect.fromLTWH(
           childOffset.x,
           childOffset.y,
           child.size.x,
           child.size.y,
         );
-        if (playerRect.overlaps(obstacleRect)) {
+        if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
           return true;
         }
       }
 
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, playerRect, childOffset)) {
+      if (_checkObstacleCollisionRecursive(child, circleCenter, circleRadius, childOffset)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// 圆形与矩形碰撞检测
+  bool _circleRectCollision(Vector2 circleCenter, double circleRadius, Rect rect) {
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(rect.left, rect.right);
+    final closestY = circleCenter.y.clamp(rect.top, rect.bottom);
+    
+    // 计算圆心到最近点的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+    
+    // 如果距离小于半径，则发生碰撞
+    return distanceSquared < circleRadius * circleRadius;
   }
 
   /// 在指定区域内生成敌人位置
@@ -588,14 +600,6 @@ class MissionDodgeballGame extends FlameGame
 
       // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
       final isRedTeam = player.team == Team.red;
-      final area = isRedTeam 
-          ? FieldConfig.getRedTeamArea(size) 
-          : FieldConfig.getBluTeamArea(size);
-      
-      // 调试：打印边界信息
-      print('📍 玩家位置=${player.position}, 目标=${newPosition}, 半径=${player.radius}');
-      print('   区域边界: left=${area.left}, right=${area.right}, top=${area.top}, bottom=${area.bottom}');
-      print('   有效范围: x=[${area.left + player.radius}, ${area.right - player.radius}], y=[${area.top + player.radius}, ${area.bottom - player.radius}]');
       
       final isInArea = isRedTeam
           ? FieldConfig.isInRedTeamArea(
@@ -609,42 +613,42 @@ class MissionDodgeballGame extends FlameGame
               playerRadius: player.radius,
             );
 
-      // 只有在区域内且不与障碍物碰撞时才移动（使用矩形碰撞检测）
+      // 只有在区域内且不与障碍物碰撞时才移动
       final obstacleCollision = _isPositionOnObstacle(newPosition, player.size);
-      
-      print('   isInArea=$isInArea, obstacleCollision=$obstacleCollision');
 
       if (isInArea && !obstacleCollision) {
         player.position = newPosition;
         // 更新玩家朝向
         player.setDirection(input.normalized());
       } else {
-        // 如果不在区域内或与障碍物碰撞，尝试限制到边界内
-        final clampedPosition = FieldConfig.clampToTeamArea(
-          newPosition,
-          isRedTeam,
-          size,
-          playerRadius: player.radius,
-        );
-        print('   clampedPosition=$clampedPosition');
-        // 只有当限制后的位置仍在区域内且不与障碍物碰撞时才更新
-        final clampedInArea = isRedTeam
-            ? FieldConfig.isInRedTeamArea(
-                clampedPosition,
-                size,
-                playerRadius: player.radius,
-              )
-            : FieldConfig.isInBlueTeamArea(
-                clampedPosition,
-                size,
-                playerRadius: player.radius,
-              );
-        if (clampedInArea &&
-            !_isPositionOnObstacle(clampedPosition, player.size)) {
-          player.position = clampedPosition;
-          // 更新玩家朝向
+        // 如果不在区域内或与障碍物碰撞，尝试分轴移动（沿墙滑动）
+        bool moved = false;
+        
+        // 先尝试只在 X 轴移动
+        final newPosX = Vector2(newPosition.x, player.position.y);
+        final isInAreaX = isRedTeam
+            ? FieldConfig.isInRedTeamArea(newPosX, size, playerRadius: player.radius)
+            : FieldConfig.isInBlueTeamArea(newPosX, size, playerRadius: player.radius);
+        
+        if (isInAreaX && !_isPositionOnObstacle(newPosX, player.size)) {
+          player.position = newPosX;
           player.setDirection(input.normalized());
+          moved = true;
         }
+        
+        // 如果 X 轴没移动，再尝试只在 Y 轴移动
+        if (!moved) {
+          final newPosY = Vector2(player.position.x, newPosition.y);
+          final isInAreaY = isRedTeam
+              ? FieldConfig.isInRedTeamArea(newPosY, size, playerRadius: player.radius)
+              : FieldConfig.isInBlueTeamArea(newPosY, size, playerRadius: player.radius);
+          
+          if (isInAreaY && !_isPositionOnObstacle(newPosY, player.size)) {
+            player.position = newPosY;
+            player.setDirection(input.normalized());
+          }
+        }
+        // 如果都不行，玩家保持原位
       }
     }
   }

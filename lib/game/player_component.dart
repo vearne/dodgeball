@@ -205,8 +205,8 @@ class PlayerComponent extends PositionComponent
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 添加矩形碰撞体作为主要碰撞检测（与边界/障碍物检测一致）
-    add(RectangleHitbox());
+    // 添加圆形碰撞体作为主要碰撞检测
+    add(CircleHitbox());
 
     // 设置玩家视觉效果
     _setupPlayerVisuals();
@@ -465,18 +465,13 @@ class PlayerComponent extends PositionComponent
     final game = findGame();
     if (game == null) return false;
 
-    // 玩家的矩形碰撞区域（以 newPosition 为中心）
-    final playerRect = Rect.fromCenter(
-      center: Offset(newPosition.x, newPosition.y),
-      width: size.x,
-      height: size.y,
-    );
+    // 使用圆形碰撞检测
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    return _checkObstacleCollisionRecursive(game, playerRect);
+    return _checkObstacleCollisionRecursive(game, newPosition, radius);
   }
 
-  /// 递归检查组件树中的障碍物碰撞（矩形碰撞检测）
-  bool _checkObstacleCollisionRecursive(Component parent, Rect playerRect) {
+  /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
+  bool _checkObstacleCollisionRecursive(Component parent, Vector2 circleCenter, double circleRadius) {
     for (final child in parent.children) {
       // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
       if (child is ObstacleComponent) {
@@ -487,17 +482,33 @@ class PlayerComponent extends PositionComponent
           child.size.x,
           child.size.y,
         );
-        if (playerRect.overlaps(obstacleRect)) {
+        // 圆形与矩形碰撞检测
+        if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
           return true;
         }
       }
 
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, playerRect)) {
+      if (_checkObstacleCollisionRecursive(child, circleCenter, circleRadius)) {
         return true;
       }
     }
     return false;
+  }
+
+  /// 圆形与矩形碰撞检测
+  bool _circleRectCollision(Vector2 circleCenter, double circleRadius, Rect rect) {
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(rect.left, rect.right);
+    final closestY = circleCenter.y.clamp(rect.top, rect.bottom);
+    
+    // 计算圆心到最近点的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+    
+    // 如果距离小于半径，则发生碰撞
+    return distanceSquared < circleRadius * circleRadius;
   }
 
   void _handleMovementInput(Vector2 direction) {
