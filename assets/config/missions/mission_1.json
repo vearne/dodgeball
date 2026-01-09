@@ -179,7 +179,8 @@
     "height": 30.0
   }],
   "allowedPowerUps": [
-    "health"
+    "health",
+    "coin"
   ],
   "maxPowerUps": 10,
   "powerUpSpawnInterval": 30.0

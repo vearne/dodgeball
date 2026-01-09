@@ -273,7 +273,7 @@ class RockComponent extends ObstacleComponent {
     });
 
     // 岩石反弹：计算反弹方向
-    final ballCenter = ball.position;
+    final ballCenter = ball.center;
     final obstacleRect = Rect.fromLTWH(position.x, position.y, size.x, size.y);
 
     // 计算球中心到障碍物各边的距离
