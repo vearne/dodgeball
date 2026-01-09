@@ -163,7 +163,6 @@ class MissionMapManager {
         allMaps.add(mission);
       } catch (e) {
         // 如果某个关卡文件不存在，跳过
-        print('加载内置关卡 $i 失败: $e');
       }
     }
 
@@ -180,15 +179,11 @@ class MissionMapManager {
               final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
               final mission = MissionMap.fromJson(jsonMap);
               allMaps.add(mission);
-            } catch (e) {
-              print('加载自定义关卡失败 ${file.path}: $e');
-            }
+            } catch (e) {}
           }
         }
       }
-    } catch (e) {
-      print('加载自定义地图目录失败: $e');
-    }
+    } catch (e) {}
 
     // 按ID排序（内置关卡按数字，自定义关卡在后面）
     allMaps.sort((a, b) {
@@ -223,15 +218,11 @@ class MissionMapManager {
               final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
               final mission = MissionMap.fromJson(jsonMap);
               customMaps.add(mission);
-            } catch (e) {
-              print('加载自定义关卡失败 ${file.path}: $e');
-            }
+            } catch (e) {}
           }
         }
       }
-    } catch (e) {
-      print('加载自定义地图失败: $e');
-    }
+    } catch (e) {}
     return customMaps;
   }
 
@@ -248,9 +239,7 @@ class MissionMapManager {
       final file = File(filePath);
       final jsonString = json.encode(map.copyWith(id: mapId).toJson());
       await file.writeAsString(jsonString);
-      print('成功保存地图到: $filePath');
     } catch (e) {
-      print('保存地图失败: $e');
       rethrow;
     }
   }
@@ -267,12 +256,8 @@ class MissionMapManager {
 
       if (await file.exists()) {
         await file.delete();
-        print('成功删除地图: $filePath');
-      } else {
-        print('地图文件不存在: $filePath');
-      }
+      } else {}
     } catch (e) {
-      print('删除地图失败: $e');
       rethrow;
     }
   }
@@ -283,9 +268,7 @@ class MissionMapManager {
       final file = File(filePath);
       final jsonString = json.encode(map.toJson());
       await file.writeAsString(jsonString);
-      print('成功导出地图到: $filePath');
     } catch (e) {
-      print('导出地图失败: $e');
       rethrow;
     }
   }
@@ -298,7 +281,6 @@ class MissionMapManager {
       final jsonMap = json.decode(jsonString) as Map<String, dynamic>;
       return MissionMap.fromJson(jsonMap);
     } catch (e) {
-      print('导入地图失败: $e');
       rethrow;
     }
   }

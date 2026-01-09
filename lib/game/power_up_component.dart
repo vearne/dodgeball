@@ -46,15 +46,16 @@ class PowerUpComponent extends PositionComponent
       _sprite = await Sprite.load(_imagePath);
     } catch (e) {
       // 如果图片加载失败，使用备用绘制
-      debugPrint('Failed to load power-up image: $_imagePath');
     }
 
     // 添加圆形碰撞箱
-    add(CircleHitbox(
-      radius: 16,
-      position: Vector2(18, 18), // 居中: 36/2 = 18
-      anchor: Anchor.center,
-    ));
+    add(
+      CircleHitbox(
+        radius: 16,
+        position: Vector2(18, 18), // 居中: 36/2 = 18
+        anchor: Anchor.center,
+      ),
+    );
 
     // 添加上下浮动动画效果
     add(FloatingComponent(parent: this));

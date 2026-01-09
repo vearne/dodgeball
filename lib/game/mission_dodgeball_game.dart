@@ -173,18 +173,12 @@ class MissionDodgeballGame extends FlameGame
 
   /// 加载地图障碍物
   Future<void> _loadMapObstacles() async {
-    print('📦 开始加载地图障碍物，共 ${missionMap.obstacles.length} 个');
     for (final obstacle in missionMap.obstacles) {
       final obstacleComponent = createObstacleFromData(obstacle);
-      print(
-        '  ➕ 添加障碍物：类型=${obstacle.type}, 位置=(${obstacle.x}, ${obstacle.y}), 大小=(${obstacle.width}, ${obstacle.height})',
-      );
       add(obstacleComponent);
       // 等待障碍物完全加载（确保 onLoad 完成，子组件创建完毕）
       await obstacleComponent.loaded;
-      print('  ✅ 障碍物加载完成：类型=${obstacle.type}');
     }
-    print('📦 所有障碍物加载完成');
   }
 
   /// 加载键盘配置
@@ -224,7 +218,6 @@ class MissionDodgeballGame extends FlameGame
 
     // 等待玩家组件完全加载
     await player1.loaded;
-    print('Player 1 loaded, isMounted=${player1.isMounted}');
 
     // 为玩家1创建输入控制器（替换默认的）
     final inputController1 = InputController(
@@ -232,7 +225,6 @@ class MissionDodgeballGame extends FlameGame
       keyboardConfig: _keyboardConfigs[0],
       onMove: (direction) {
         _keyboardMoveInputs[0] = direction;
-        // print('Player 0 move input: $direction');
       },
       onThrow: (direction) {
         if (player1.isEliminated || !player1.canThrow) return;
@@ -240,18 +232,11 @@ class MissionDodgeballGame extends FlameGame
         _throwFromPlayer(player1, throwTarget);
       },
     );
-    // 替换默认的输入控制器
-    print(
-      'Setting inputController for player 0, player1.isMounted=${player1.isMounted}',
-    );
     player1.inputController = inputController1;
     _inputControllers[0] = inputController1;
 
     // 为玩家1创建冷却时间通知器
     playerCooldownNotifiers[0] = ValueNotifier<double>(0);
-    print(
-      'Created cooldown notifier for player 0: ${playerCooldownNotifiers[0]}',
-    );
 
     // 为玩家1创建击杀数通知器
     playerKillNotifiers[0] = ValueNotifier<int>(0);
@@ -286,7 +271,6 @@ class MissionDodgeballGame extends FlameGame
 
       // 等待玩家组件完全加载
       await player2.loaded;
-      print('Player 2 loaded, isMounted=${player2.isMounted}');
 
       // 为玩家2创建输入控制器（替换默认的）
       final inputController2 = InputController(
@@ -342,8 +326,6 @@ class MissionDodgeballGame extends FlameGame
     const minDistanceBetweenPlayers = playerRadius * 2 + 4.0; // 玩家之间的最小距离
     final playerSize = Vector2.all(playerRadius * 2); // 玩家矩形碰撞区域大小
 
-    print('🔍 开始查找有效生成位置，首选位置: $preferredPosition');
-
     // 首先尝试首选位置
     final obstacleCheck = _isPositionOnObstacle(preferredPosition, playerSize);
     final playerCheck = _isPositionTooCloseToPlayers(
@@ -351,15 +333,11 @@ class MissionDodgeballGame extends FlameGame
       minDistanceBetweenPlayers,
     );
 
-    print('  首选位置检查：障碍物碰撞=$obstacleCheck, 玩家重叠=$playerCheck');
-
     if (!obstacleCheck && !playerCheck) {
-      print('  ✅ 首选位置可用');
       return preferredPosition;
     }
 
     // 如果首选位置被占用，随机尝试其他位置
-    print('  ⚠️ 首选位置不可用，开始随机尝试...');
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       final randomX = area.left + _random.nextDouble() * area.width;
       final randomY = area.top + _random.nextDouble() * area.height;
@@ -370,13 +348,11 @@ class MissionDodgeballGame extends FlameGame
             testPosition,
             minDistanceBetweenPlayers,
           )) {
-        print('  ✅ 找到有效位置：$testPosition (尝试次数: ${attempt + 1})');
         return testPosition;
       }
     }
 
     // 如果实在找不到，返回首选位置（容错）
-    print('  ❌ 警告：尝试 $maxAttempts 次后仍未找到有效位置，使用首选位置（可能会碰撞）');
     return preferredPosition;
   }
 
@@ -420,13 +396,6 @@ class MissionDodgeballGame extends FlameGame
           child.size.y,
         );
         if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
-          print('💥 检测到碰撞！');
-          print(
-            '   圆心: (${circleCenter.x.toStringAsFixed(1)}, ${circleCenter.y.toStringAsFixed(1)}), 半径: ${circleRadius.toStringAsFixed(1)}',
-          );
-          print(
-            '   障碍物矩形: left=${obstacleRect.left.toStringAsFixed(1)}, top=${obstacleRect.top.toStringAsFixed(1)}, right=${obstacleRect.right.toStringAsFixed(1)}, bottom=${obstacleRect.bottom.toStringAsFixed(1)}',
-          );
           return true;
         }
       }
@@ -445,18 +414,6 @@ class MissionDodgeballGame extends FlameGame
     double circleRadius,
     Rect rect,
   ) {
-    // 调试信息（第一次碰撞时打印）
-    int _debugCount = 0;
-    if (_debugCount < 3) {
-      _debugCount++;
-      print(
-        '🔍 碰撞检测: 圆心=(${circleCenter.x}, ${circleCenter.y}), 半径=$circleRadius',
-      );
-      print(
-        '  矩形: left=${rect.left}, top=${rect.top}, right=${rect.right}, bottom=${rect.bottom}',
-      );
-    }
-
     // 找到矩形上离圆心最近的点
     final closestX = circleCenter.x.clamp(rect.left, rect.right);
     final closestY = circleCenter.y.clamp(rect.top, rect.bottom);
@@ -631,17 +588,6 @@ class MissionDodgeballGame extends FlameGame
 
       // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
       final isRedTeam = player.team == Team.red;
-
-      // 调试信息（每60帧打印一次，即每秒一次）
-      int _frameCount = 0;
-      _frameCount++;
-      if (_frameCount == 60) {
-        _frameCount = 0;
-        print(
-          '🎮 玩家移动: 当前中心位置=(${player.center.x.toStringAsFixed(1)}, ${player.center.y.toStringAsFixed(1)}), 新中心位置=(${newPosition.x.toStringAsFixed(1)}, ${newPosition.y.toStringAsFixed(1)}), 半径=${player.radius}',
-        );
-      }
-
       final isInArea = isRedTeam
           ? FieldConfig.isInRedTeamArea(
               newPosition,
@@ -894,12 +840,6 @@ class MissionDodgeballGame extends FlameGame
   ) {
     // 调用父类方法
     super.onKeyEvent(event, keysPressed);
-
-    // 调试：打印按键事件
-    if (keysPressed.isNotEmpty) {
-      print('Keys pressed: ${keysPressed.map((k) => k.debugName).join(", ")}');
-      print('Input controllers: ${_inputControllers.length}');
-    }
 
     if (gameState != GameState.playing) {
       return KeyEventResult.handled;

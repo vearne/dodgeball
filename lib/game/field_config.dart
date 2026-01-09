@@ -76,16 +76,9 @@ class FieldConfig {
     double playerRadius = 0.0,
   }) {
     final area = getRedTeamArea(gameSize);
-    // 调试信息：打印区域边界（首次调用时打印）
-     bool _debugPrinted = false;
-    if (!_debugPrinted) {
-      _debugPrinted = true;
-      print('🎯 红队区域边界: left=${area.left}, top=${area.top}, right=${area.right}, bottom=${area.bottom}');
-      print('  游戏尺寸: width=${gameSize.x}, height=${gameSize.y}');
-    }
-    
     // 考虑玩家半径，确保玩家完全在区域内
-    final result = position.x >= area.left + playerRadius &&
+    final result =
+        position.x >= area.left + playerRadius &&
         position.x <= area.right - playerRadius &&
         position.y >= area.top + playerRadius &&
         position.y <= area.bottom - playerRadius;

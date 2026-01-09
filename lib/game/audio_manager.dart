@@ -13,7 +13,7 @@ class AudioManager {
   bool _isSoundEnabled = true;
   double _musicVolume = 0.5;
   double _soundVolume = 0.7;
-  
+
   // 初始化标志，防止重复初始化
   bool _isInitialized = false;
 
@@ -33,7 +33,7 @@ class AudioManager {
     if (_isInitialized) {
       return;
     }
-    
+
     await _loadSettings();
     await _preloadAudio();
     _isInitialized = true;
@@ -65,9 +65,7 @@ class AudioManager {
       await FlameAudio.audioCache.load(_hitSoundPath);
       await FlameAudio.audioCache.load(_throwSoundPath);
       await FlameAudio.audioCache.load(_victorySoundPath);
-    } catch (e) {
-      print('音频预加载失败: $e');
-    }
+    } catch (e) {}
   }
 
   /// 播放背景音乐
@@ -82,9 +80,7 @@ class AudioManager {
 
       // 不要 await，避免重复响应问题
       FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
-    } catch (e) {
-      print('播放背景音乐失败: $e');
-    }
+    } catch (e) {}
   }
 
   /// 停止背景音乐
@@ -92,9 +88,7 @@ class AudioManager {
     try {
       // 不要 await，避免重复响应问题
       FlameAudio.bgm.stop();
-    } catch (e) {
-      print('停止背景音乐失败: $e');
-    }
+    } catch (e) {}
   }
 
   /// 播放击中音效
@@ -105,14 +99,13 @@ class AudioManager {
       _isPlayingHitSound = true;
       // 不要 await 音效播放，避免重复响应问题
       FlameAudio.play(_hitSoundPath, volume: _soundVolume);
-      
+
       // 100ms 后重置标志，防止音效播放太频繁
       Future.delayed(const Duration(milliseconds: 100), () {
         _isPlayingHitSound = false;
       });
     } catch (e) {
       _isPlayingHitSound = false;
-      print('播放击中音效失败: $e');
     }
   }
 
@@ -124,14 +117,13 @@ class AudioManager {
       _isPlayingThrowSound = true;
       // 不要 await 音效播放，避免重复响应问题
       FlameAudio.play(_throwSoundPath, volume: _soundVolume);
-      
+
       // 100ms 后重置标志，防止音效播放太频繁
       Future.delayed(const Duration(milliseconds: 100), () {
         _isPlayingThrowSound = false;
       });
     } catch (e) {
       _isPlayingThrowSound = false;
-      print('播放投掷音效失败: $e');
     }
   }
 
@@ -142,9 +134,7 @@ class AudioManager {
     try {
       // 不要 await 音效播放，避免重复响应问题
       FlameAudio.play(_victorySoundPath, volume: _soundVolume);
-    } catch (e) {
-      print('播放胜利音效失败: $e');
-    }
+    } catch (e) {}
   }
 
   /// 设置音乐开关

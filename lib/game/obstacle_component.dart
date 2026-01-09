@@ -31,9 +31,7 @@ class AtomicBrickComponent extends ObstacleComponent {
     // 加载砖块图片
     try {
       _brickSprite = await Sprite.load('wall_30_30.png');
-    } catch (e) {
-      print('警告：无法加载砖块图片，将使用默认绘制: $e');
-    }
+    } catch (e) {}
 
     // 添加矩形碰撞箱
     add(RectangleHitbox());
@@ -127,10 +125,6 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
     final numColumns = (size.x / AtomicBrickComponent.atomicSize).ceil();
     final numRows = (size.y / AtomicBrickComponent.atomicSize).ceil();
 
-    print(
-      '🧱 BrickWallComponent onLoad: 位置=$position (绝对位置=$absolutePosition), 大小=$size, 将创建 ${numColumns}x${numRows} 个原子砖块',
-    );
-
     // 创建原子砖块网格
     for (int row = 0; row < numRows; row++) {
       for (int col = 0; col < numColumns; col++) {
@@ -148,8 +142,6 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
         }
       }
     }
-
-    print('  ✅ 创建完成，实际创建了 ${_atomicBricks.length} 个原子砖块');
   }
 
   @override
@@ -189,9 +181,7 @@ class RockComponent extends ObstacleComponent {
     // 加载岩石图片
     try {
       _rockSprite = await Sprite.load('stone_30_30.png');
-    } catch (e) {
-      print('警告：无法加载岩石图片，将使用默认绘制: $e');
-    }
+    } catch (e) {}
 
     // 添加矩形碰撞箱
     add(RectangleHitbox());
