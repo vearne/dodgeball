@@ -484,7 +484,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     ValueNotifier<double> maxNotifier,
     String playerLabel,
     Color? progressColor,
-  ]) {
+  ) {
     final l10n = AppLocalizations.of(context)!;
     final displayLabel = playerLabel == '玩家1' ? l10n.player1 : l10n.player2;
     return ValueListenableBuilder<double>(
