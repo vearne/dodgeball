@@ -43,5 +43,6 @@
   "allowedPowerUps": [
     "health"
   ],
+  "maxPowerUps": 10,
   "powerUpSpawnInterval": 30.0
 }

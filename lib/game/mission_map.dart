@@ -49,6 +49,28 @@ class Obstacle {
   );
 }
 
+/// 玩家初始位置配置
+class PlayerInitialPosition {
+  final double x;
+  final double y;
+  final int playerId; // 玩家ID（0或1）
+
+  const PlayerInitialPosition({
+    required this.x,
+    required this.y,
+    required this.playerId,
+  });
+
+  Map<String, dynamic> toJson() => {'x': x, 'y': y, 'playerId': playerId};
+
+  factory PlayerInitialPosition.fromJson(Map<String, dynamic> json) =>
+      PlayerInitialPosition(
+        x: (json['x'] as num).toDouble(),
+        y: (json['y'] as num).toDouble(),
+        playerId: json['playerId'] as int,
+      );
+}
+
 /// Mission关卡地图数据
 class MissionMap {
   final String id;
@@ -58,6 +80,8 @@ class MissionMap {
   final List<Obstacle> obstacles; // 障碍物列表
   final List<PowerUpType> allowedPowerUps; // 允许出现的道具类型
   final double powerUpSpawnInterval; // 道具生成间隔（秒）
+  final List<PlayerInitialPosition>? playerInitialPositions; // 玩家初始位置（可选）
+  final int? maxPowerUps; // 道具投放的最大数量（可选，null表示无限制）
 
   const MissionMap({
     required this.id,
@@ -67,6 +91,8 @@ class MissionMap {
     this.obstacles = const [],
     this.allowedPowerUps = const [], // 默认为空，表示不生成道具
     this.powerUpSpawnInterval = 30.0, // 默认30秒生成一次
+    this.playerInitialPositions, // 可选
+    this.maxPowerUps, // 可选
   });
 
   Map<String, dynamic> toJson() => {
@@ -77,6 +103,10 @@ class MissionMap {
     'obstacles': obstacles.map((o) => o.toJson()).toList(),
     'allowedPowerUps': allowedPowerUps.map((p) => p.name).toList(),
     'powerUpSpawnInterval': powerUpSpawnInterval,
+    'playerInitialPositions': playerInitialPositions
+        ?.map((p) => p.toJson())
+        .toList(),
+    'maxPowerUps': maxPowerUps,
   };
 
   factory MissionMap.fromJson(Map<String, dynamic> json) {
@@ -95,6 +125,14 @@ class MissionMap {
             .toList() ??
         [];
 
+    // 解析玩家初始位置列表
+    final playerInitialPositionsList =
+        (json['playerInitialPositions'] as List<dynamic>?)
+            ?.map(
+              (p) => PlayerInitialPosition.fromJson(p as Map<String, dynamic>),
+            )
+            .toList();
+
     return MissionMap(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -108,6 +146,8 @@ class MissionMap {
       allowedPowerUps: allowedPowerUpsList,
       powerUpSpawnInterval:
           (json['powerUpSpawnInterval'] as num?)?.toDouble() ?? 30.0,
+      playerInitialPositions: playerInitialPositionsList,
+      maxPowerUps: json['maxPowerUps'] as int?,
     );
   }
 
@@ -120,6 +160,8 @@ class MissionMap {
     List<Obstacle>? obstacles,
     List<PowerUpType>? allowedPowerUps,
     double? powerUpSpawnInterval,
+    List<PlayerInitialPosition>? playerInitialPositions,
+    int? maxPowerUps,
   }) {
     return MissionMap(
       id: id ?? this.id,
@@ -129,6 +171,9 @@ class MissionMap {
       obstacles: obstacles ?? this.obstacles,
       allowedPowerUps: allowedPowerUps ?? this.allowedPowerUps,
       powerUpSpawnInterval: powerUpSpawnInterval ?? this.powerUpSpawnInterval,
+      playerInitialPositions:
+          playerInitialPositions ?? this.playerInitialPositions,
+      maxPowerUps: maxPowerUps ?? this.maxPowerUps,
     );
   }
 }

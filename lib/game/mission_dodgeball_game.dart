@@ -115,6 +115,9 @@ class MissionDodgeballGame extends FlameGame
   // 道具掉落定时器
   TimerComponent? _powerUpDropTimer;
 
+  // 当前存在的道具数量
+  int _currentPowerUpCount = 0;
+
   // 键盘输入状态（每个玩家）
   final Map<int, Vector2> _keyboardMoveInputs = {};
 
@@ -195,13 +198,34 @@ class MissionDodgeballGame extends FlameGame
     final playerArea = FieldConfig.getRedTeamArea(size);
 
     // 生成玩家1
-    final player1Position = _findValidSpawnPosition(
-      playerArea,
-      Vector2(
-        playerArea.left + playerArea.width / 3,
-        playerArea.top + playerArea.height / 2,
-      ),
-    );
+    Vector2 player1Position;
+    // 检查是否配置了玩家1的初始位置
+    PlayerInitialPosition? player1InitialConfig;
+    if (missionMap.playerInitialPositions != null) {
+      try {
+        player1InitialConfig = missionMap.playerInitialPositions!.firstWhere(
+          (p) => p.playerId == 0,
+        );
+      } catch (e) {
+        player1InitialConfig = null;
+      }
+    }
+    if (player1InitialConfig != null) {
+      // 使用配置的初始位置
+      player1Position = _findValidSpawnPosition(
+        playerArea,
+        Vector2(player1InitialConfig.x, player1InitialConfig.y),
+      );
+    } else {
+      // 使用默认位置
+      player1Position = _findValidSpawnPosition(
+        playerArea,
+        Vector2(
+          playerArea.left + playerArea.width / 3,
+          playerArea.top + playerArea.height / 2,
+        ),
+      );
+    }
 
     final player1 = PlayerComponent(
       team: Team.red,
@@ -248,13 +272,34 @@ class MissionDodgeballGame extends FlameGame
 
     // 如果支持2人游戏，生成玩家2
     if (playerCount >= 2) {
-      final player2Position = _findValidSpawnPosition(
-        playerArea,
-        Vector2(
-          playerArea.left + playerArea.width * 2 / 3,
-          playerArea.top + playerArea.height / 2,
-        ),
-      );
+      Vector2 player2Position;
+      // 检查是否配置了玩家2的初始位置
+      PlayerInitialPosition? player2InitialConfig;
+      if (missionMap.playerInitialPositions != null) {
+        try {
+          player2InitialConfig = missionMap.playerInitialPositions!.firstWhere(
+            (p) => p.playerId == 1,
+          );
+        } catch (e) {
+          player2InitialConfig = null;
+        }
+      }
+      if (player2InitialConfig != null) {
+        // 使用配置的初始位置
+        player2Position = _findValidSpawnPosition(
+          playerArea,
+          Vector2(player2InitialConfig.x, player2InitialConfig.y),
+        );
+      } else {
+        // 使用默认位置
+        player2Position = _findValidSpawnPosition(
+          playerArea,
+          Vector2(
+            playerArea.left + playerArea.width * 2 / 3,
+            playerArea.top + playerArea.height / 2,
+          ),
+        );
+      }
 
       final player2 = PlayerComponent(
         team: Team.red,
@@ -924,13 +969,27 @@ class MissionDodgeballGame extends FlameGame
       return;
     }
 
+    // 检查是否达到最大数量限制
+    if (missionMap.maxPowerUps != null &&
+        _currentPowerUpCount >= missionMap.maxPowerUps!) {
+      return;
+    }
+
     // 从地图允许的道具中随机选择
     final powerUpType = missionMap
         .allowedPowerUps[_random.nextInt(missionMap.allowedPowerUps.length)];
 
-    final powerUp = PowerUpComponent(type: powerUpType, position: position);
+    final powerUp = PowerUpComponent(
+      type: powerUpType,
+      position: position,
+      onCollected: () {
+        // 道具被拾取时减少计数器
+        _currentPowerUpCount--;
+      },
+    );
 
     add(powerUp);
+    _currentPowerUpCount++;
   }
 
   /// 启动道具掉落定时器

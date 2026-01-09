@@ -41,9 +41,9 @@
     }
   ],
   "allowedPowerUps": [
-    "health",
     "speedBoost",
     "attackSpeed"
   ],
+  "maxPowerUps": 10,
   "powerUpSpawnInterval": 19.0
 }

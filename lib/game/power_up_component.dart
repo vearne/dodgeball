@@ -14,14 +14,18 @@ enum PowerUpType {
 /// 道具组件
 class PowerUpComponent extends PositionComponent
     with CollisionCallbacks, HasGameReference {
-  PowerUpComponent({required this.type, required Vector2 position})
-    : super(
-        position: position - Vector2.all(18), // 将中心位置转换为topLeft位置 (36/2)
-        size: Vector2.all(36), // 36x36像素
-        anchor: Anchor.topLeft,
-      );
+  PowerUpComponent({
+    required this.type,
+    required Vector2 position,
+    this.onCollected,
+  }) : super(
+         position: position - Vector2.all(18), // 将中心位置转换为topLeft位置 (36/2)
+         size: Vector2.all(36), // 36x36像素
+         anchor: Anchor.topLeft,
+       );
 
   final PowerUpType type;
+  final VoidCallback? onCollected; // 道具被拾取时的回调
   bool _collected = false;
   Sprite? _sprite;
 
@@ -121,6 +125,8 @@ class PowerUpComponent extends PositionComponent
       _applyPowerUp(other);
       _collected = true;
       removeFromParent();
+      // 调用回调
+      onCollected?.call();
     }
   }
 

@@ -30,5 +30,6 @@
     "health",
     "speedBoost"
   ],
+  "maxPowerUps": 10,
   "powerUpSpawnInterval": 25.0
 }
