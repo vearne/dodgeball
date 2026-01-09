@@ -88,10 +88,10 @@ class AtomicBrickComponent extends ObstacleComponent {
     if (ball.hasHitObstacle) {
       return;
     }
-    
+
     // 标记球已经击中障碍物
     ball.hasHitObstacle = true;
-    
+
     // 球体消失
     ball.removeFromParent();
     // 原子砖块消失
@@ -127,7 +127,9 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
     final numColumns = (size.x / AtomicBrickComponent.atomicSize).ceil();
     final numRows = (size.y / AtomicBrickComponent.atomicSize).ceil();
 
-    print('🧱 BrickWallComponent onLoad: 位置=$position (绝对位置=$absolutePosition), 大小=$size, 将创建 ${numColumns}x${numRows} 个原子砖块');
+    print(
+      '🧱 BrickWallComponent onLoad: 位置=$position (绝对位置=$absolutePosition), 大小=$size, 将创建 ${numColumns}x${numRows} 个原子砖块',
+    );
 
     // 创建原子砖块网格
     for (int row = 0; row < numRows; row++) {
@@ -146,7 +148,7 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
         }
       }
     }
-    
+
     print('  ✅ 创建完成，实际创建了 ${_atomicBricks.length} 个原子砖块');
   }
 
@@ -175,6 +177,7 @@ class WoodWallComponent extends BrickWallComponent {
 /// 岩石组件：被球击中后反弹，不消失
 class RockComponent extends ObstacleComponent {
   Sprite? _rockSprite; // 岩石图片精灵
+  Set<int> _collidedBallIds = {}; // 记录已碰撞的球ID，防止重复处理
 
   RockComponent({required Vector2 position, required Vector2 size})
     : super(position: position, size: size);
@@ -210,8 +213,12 @@ class RockComponent extends ObstacleComponent {
           final offsetY = row * tileSize;
 
           // 计算需要绘制的部分大小
-          final drawWidth = (offsetX + tileSize > size.x) ? size.x - offsetX : tileSize;
-          final drawHeight = (offsetY + tileSize > size.y) ? size.y - offsetY : tileSize;
+          final drawWidth = (offsetX + tileSize > size.x)
+              ? size.x - offsetX
+              : tileSize;
+          final drawHeight = (offsetY + tileSize > size.y)
+              ? size.y - offsetY
+              : tileSize;
 
           canvas.save();
           canvas.translate(offsetX, offsetY);
@@ -259,6 +266,22 @@ class RockComponent extends ObstacleComponent {
 
   @override
   void handleBallCollision(BallComponent ball) {
+    // 使用球的hashCode作为唯一标识，防止同一球在短时间内重复碰撞
+    final ballId = ball.hashCode;
+
+    // 如果这个球在最近已经与这个岩石碰撞过，跳过
+    if (_collidedBallIds.contains(ballId)) {
+      return;
+    }
+
+    // 记录已碰撞的球
+    _collidedBallIds.add(ballId);
+
+    // 延迟清除碰撞标记（0.2秒后）
+    Future.delayed(const Duration(milliseconds: 200), () {
+      _collidedBallIds.remove(ballId);
+    });
+
     // 岩石反弹：计算反弹方向
     final ballCenter = ball.position;
     final obstacleRect = Rect.fromLTWH(position.x, position.y, size.x, size.y);

@@ -232,6 +232,27 @@
   "@statusCarryOver": {
     "description": "状态保留提示"
   },
+  "levelTime": "⏱️ 关卡用时: {time}",
+  "@levelTime": {
+    "description": "关卡完成时间显示",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "playerKills": "⚔️ {player} 击杀数: {kills}",
+  "@playerKills": {
+    "description": "玩家击杀统计",
+    "placeholders": {
+      "player": {
+        "type": "String"
+      },
+      "kills": {
+        "type": "int"
+      }
+    }
+  },
   "backToSelection": "返回选关",
   "@backToSelection": {
     "description": "返回选关按钮"

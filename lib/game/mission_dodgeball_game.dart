@@ -48,6 +48,9 @@ class MissionDodgeballGame extends FlameGame
   final int playerCount; // 玩家数量
   final Random _random = Random();
 
+  // 关卡时间跟踪
+  double _elapsedTime = 0.0;
+
   // 道具效果计时器
   TimerComponent? _speedBoostTimer;
   TimerComponent? _attackSpeedBoostTimer;
@@ -98,8 +101,8 @@ class MissionDodgeballGame extends FlameGame
 
   // 人类玩家冷却时间监听（秒）- 每个玩家独立
   final Map<int, ValueNotifier<double>> playerCooldownNotifiers = {};
-  // 击杀数
-  final ValueNotifier<int> killCountNotifier = ValueNotifier<int>(0);
+  // 每个玩家的击杀数统计
+  final Map<int, ValueNotifier<int>> playerKillNotifiers = {};
   // 玩家当前生命值
   final ValueNotifier<int> playerHealthNotifier = ValueNotifier<int>(0);
 
@@ -124,6 +127,9 @@ class MissionDodgeballGame extends FlameGame
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // 初始化关卡计时器
+    _elapsedTime = 0.0;
 
     // 初始化音频管理器
     await _audioManager.initialize();
@@ -247,6 +253,9 @@ class MissionDodgeballGame extends FlameGame
       'Created cooldown notifier for player 0: ${playerCooldownNotifiers[0]}',
     );
 
+    // 为玩家1创建击杀数通知器
+    playerKillNotifiers[0] = ValueNotifier<int>(0);
+
     // 如果有保存的玩家状态，应用它（只应用到玩家1）
     if (playerState != null) {
       _applyPlayerState(player1, playerState!);
@@ -298,6 +307,9 @@ class MissionDodgeballGame extends FlameGame
 
       // 为玩家2创建冷却时间通知器
       playerCooldownNotifiers[1] = ValueNotifier<double>(0);
+
+      // 为玩家2创建击杀数通知器
+      playerKillNotifiers[1] = ValueNotifier<int>(0);
     }
 
     // 敌人在右侧（蓝队区域）随机生成
@@ -582,6 +594,9 @@ class MissionDodgeballGame extends FlameGame
 
     if (gameState != GameState.playing) return;
 
+    // 跟踪游戏进行时间
+    _elapsedTime += dt;
+
     // 应用键盘输入移动玩家
     _applyKeyboardMovement(dt);
 
@@ -740,6 +755,24 @@ class MissionDodgeballGame extends FlameGame
       return ValueNotifier<double>(0);
     }
     return playerCooldownNotifiers.values.first;
+  }
+
+  /// 获取总击杀数（用于向后兼容）
+  ValueNotifier<int> get killCountNotifier {
+    int total = 0;
+    for (final notifier in playerKillNotifiers.values) {
+      total += notifier.value;
+    }
+    return ValueNotifier<int>(total);
+  }
+
+  /// 获取每个玩家的击杀数（用于关卡完成统计）
+  Map<int, int> get playerKillCounts {
+    final Map<int, int> counts = {};
+    for (final entry in playerKillNotifiers.entries) {
+      counts[entry.key] = entry.value.value;
+    }
+    return counts;
   }
 
   void _updatePlayerHealthNotifier() {
@@ -927,7 +960,11 @@ class MissionDodgeballGame extends FlameGame
 
     // 如果敌人被淘汰
     if (hitPlayer.isEliminated) {
-      killCountNotifier.value = killCountNotifier.value + 1;
+      // 增加击杀者的击杀数
+      final killerId = ball.ownerPlayerId;
+      if (playerKillNotifiers.containsKey(killerId)) {
+        playerKillNotifiers[killerId]!.value++;
+      }
 
       // 播放击中音效
       _audioManager.playHitSound();
@@ -1104,6 +1141,9 @@ class MissionDodgeballGame extends FlameGame
       attackSpeedBoostRemainingTime: attackSpeedBoostRemaining,
     );
   }
+
+  /// 获取关卡经过时间（秒）
+  double get elapsedTimeInSeconds => _elapsedTime;
 
   @override
   void onRemove() {

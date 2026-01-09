@@ -5,6 +5,7 @@ import '../game/mission_dodgeball_game.dart';
 import '../game/mission_map.dart';
 import '../game/player_state.dart';
 import '../game/audio_manager.dart';
+import '../game/level_completion_stats.dart';
 
 /// Mission模式游戏界面
 class MissionGameScreen extends StatefulWidget {
@@ -53,14 +54,20 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     // 获取当前玩家状态
     final currentPlayerState = game.getCurrentPlayerState();
 
+    // 创建关卡完成统计数据
+    final levelStats = LevelCompletionStats(
+      elapsedTimeInSeconds: game.elapsedTimeInSeconds,
+      playerKillCounts: game.playerKillCounts,
+    );
+
     // 检查是否还有下一关
     final nextIndex = widget.currentMapIndex + 1;
     if (nextIndex < widget.allMaps.length) {
       // 有下一关，自动进入
-      _showNextLevelDialog(nextIndex, currentPlayerState);
+      _showNextLevelDialog(nextIndex, currentPlayerState, levelStats);
     } else {
       // 没有下一关，显示全部通关
-      _showAllLevelsCompleteDialog();
+      _showAllLevelsCompleteDialog(levelStats);
     }
   }
 
@@ -73,7 +80,11 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   }
 
   /// 显示进入下一关对话框（带自动跳转）
-  void _showNextLevelDialog(int nextIndex, PlayerState? playerState) {
+  void _showNextLevelDialog(
+    int nextIndex,
+    PlayerState? playerState,
+    LevelCompletionStats levelStats,
+  ) {
     final nextMap = widget.allMaps[nextIndex];
     final l10n = AppLocalizations.of(context)!;
 
@@ -102,6 +113,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         currentMapName: widget.missionMap.name,
         nextMap: nextMap,
         playerStatusInfo: playerStatusInfo,
+        levelStats: levelStats,
         onContinue: () {
           Navigator.of(context).pop(); // 关闭对话框
           _enterNextLevel(nextIndex, playerState, nextMap);
@@ -148,7 +160,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   }
 
   /// 显示全部关卡完成对话框
-  void _showAllLevelsCompleteDialog() {
+  void _showAllLevelsCompleteDialog(LevelCompletionStats levelStats) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -512,6 +524,7 @@ class _NextLevelDialog extends StatefulWidget {
   final String currentMapName;
   final MissionMap nextMap;
   final String playerStatusInfo;
+  final LevelCompletionStats levelStats;
   final VoidCallback onContinue;
   final VoidCallback onBackToSelection;
 
@@ -519,6 +532,7 @@ class _NextLevelDialog extends StatefulWidget {
     required this.currentMapName,
     required this.nextMap,
     required this.playerStatusInfo,
+    required this.levelStats,
     required this.onContinue,
     required this.onBackToSelection,
   });
@@ -552,6 +566,14 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // 构建击杀统计信息
+    String killStatsInfo = '';
+    for (final entry in widget.levelStats.playerKillCounts.entries) {
+      final playerLabel = entry.key == 0 ? l10n.player1 : l10n.player2;
+      killStatsInfo += '${l10n.playerKills(playerLabel, entry.value)}\n';
+    }
+
     return AlertDialog(
       title: Text(l10n.levelComplete),
       content: Column(
@@ -560,6 +582,17 @@ class _NextLevelDialogState extends State<_NextLevelDialog> {
         children: [
           Text(l10n.levelCompleteMessage(widget.currentMapName)),
           const SizedBox(height: 16),
+          // 显示关卡用时
+          Text(l10n.levelTime(widget.levelStats.formattedTime)),
+          const SizedBox(height: 8),
+          // 显示击杀统计
+          if (killStatsInfo.isNotEmpty) ...[
+            Text(
+              killStatsInfo.trim(),
+              style: const TextStyle(fontSize: 14, color: Colors.orange),
+            ),
+            const SizedBox(height: 12),
+          ],
           Row(
             children: [
               Text(l10n.preparingNextLevel(widget.nextMap.name)),

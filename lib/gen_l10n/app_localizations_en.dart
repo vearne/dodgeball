@@ -159,6 +159,16 @@ class AppLocalizationsEn extends AppLocalizations {
       '💡 Your health and power-up effects will carry over to the next level!';
 
   @override
+  String levelTime(String time) {
+    return '⏱️ Level Time: $time';
+  }
+
+  @override
+  String playerKills(String player, int kills) {
+    return '⚔️ $player Kills: $kills';
+  }
+
+  @override
   String get backToSelection => 'Back to Selection';
 
   @override

@@ -344,6 +344,18 @@ abstract class AppLocalizations {
   /// **'💡 Your health and power-up effects will carry over to the next level!'**
   String get statusCarryOver;
 
+  /// No description provided for @levelTime.
+  ///
+  /// In en, this message translates to:
+  /// **'⏱️ Level Time: {time}'**
+  String levelTime(String time);
+
+  /// No description provided for @playerKills.
+  ///
+  /// In en, this message translates to:
+  /// **'⚔️ {player} Kills: {kills}'**
+  String playerKills(String player, int kills);
+
   /// No description provided for @backToSelection.
   ///
   /// In en, this message translates to:
