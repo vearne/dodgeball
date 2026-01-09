@@ -7,10 +7,8 @@ import 'package:flutter/material.dart';
 
 import 'ai_controller.dart';
 import 'arrow_component.dart';
-import 'field_config.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
-import 'obstacle_component.dart';
 import 'team.dart';
 
 class PlayerComponent extends PositionComponent
@@ -80,7 +78,8 @@ class PlayerComponent extends PositionComponent
   // 设置当前生命值（用于关卡间传递）
   void setCurrentHealth(int health) {
     // 允许生命值超过初始最大值（吃血瓶可以加血超过3），但不能低于0
-    _currentHealth = health < 0 ? 0 : health;
+    // 绝对最大值限制为5
+    _currentHealth = (health < 0 ? 0 : health).clamp(0, 5);
     // 更新生命值显示（显示当前值/初始最大值）
     _healthText?.text = '$_currentHealth/$_maxHealth';
 
@@ -140,18 +139,41 @@ class PlayerComponent extends PositionComponent
 
   // 移动相关
   double movementSpeed = 120.0;
-  Vector2 _velocity = Vector2.zero();
   Vector2 _targetDirection = Vector2.zero();
   Vector2 _currentDirection = Vector2(1, 0); // 当前朝向方向，默认为向右
 
   // 投球冷却
   double _lastThrowTime = 0.0;
-  static const double throwCooldown = 10.0; // 10秒冷却时间
+  static const double throwCooldown = 10.0; // 10秒基础冷却时间
   bool _attackSpeedBoost = false; // 攻速提升标记
+  double _gameTimeInSeconds = 0.0; // 当前游戏时间（秒）
+
+  // 更新游戏时间
+  void updateGameTime(double gameTime) {
+    _gameTimeInSeconds = gameTime;
+  }
 
   // 冷却时间访问器
-  double get effectiveThrowCooldown =>
-      _attackSpeedBoost ? throwCooldown * 0.5 : throwCooldown; // 攻速提升时冷却时间减半
+  double get effectiveThrowCooldown {
+    // 根据游戏时间动态调整冷却时间
+    double baseCooldown = throwCooldown;
+
+    // 根据时间档位调整冷却时间
+    if (_gameTimeInSeconds > 360) {
+      // 超过6分钟：3秒（减少70%）
+      baseCooldown = 3.0;
+    } else if (_gameTimeInSeconds > 240) {
+      // 超过4分钟：5秒（减少50%）
+      baseCooldown = 5.0;
+    } else if (_gameTimeInSeconds > 120) {
+      // 超过2分钟：7秒（减少30%）
+      baseCooldown = 7.0;
+    }
+
+    // 攻速提升时冷却时间减半
+    return _attackSpeedBoost ? baseCooldown * 0.5 : baseCooldown;
+  }
+
   bool get canThrow => _lastThrowTime >= effectiveThrowCooldown;
   double get throwCooldownRemaining => (effectiveThrowCooldown - _lastThrowTime)
       .clamp(0.0, effectiveThrowCooldown);
@@ -377,135 +399,6 @@ class PlayerComponent extends PositionComponent
     if (_currentDirection.length > 0.1) {
       _arrowIcon?.updateDirection(_currentDirection);
     }
-  }
-
-  /// 使用子步长进行位置更新，提高精度
-  void _updatePositionWithSubsteps(double dt) {
-    // 根据移动速度动态调整子步数
-    final speed = _velocity.length;
-    int substeps = 1;
-
-    if (speed > 80) {
-      substeps = 2; // 快速移动使用2个子步
-    }
-
-    final subDt = dt / substeps;
-    final subVelocity = _velocity * subDt;
-
-    for (int i = 0; i < substeps; i++) {
-      final newPosition = position + subVelocity;
-
-      // 边界检查、玩家重叠检查和障碍物碰撞检查
-      if (_isValidPlayerPosition(newPosition) &&
-          !_wouldOverlapWithOtherPlayers(newPosition) &&
-          !_wouldCollideWithObstacles(newPosition)) {
-        position = newPosition;
-      } else {
-        // 如果碰撞，停止移动
-        break;
-      }
-    }
-  }
-
-  bool _isValidPlayerPosition(Vector2 newPosition) {
-    final game = findGame();
-    if (game == null) return false;
-
-    // 检查是否在对应的队伍区域内（考虑玩家半径）
-    final isRedTeam = team == Team.red;
-
-    if (isRedTeam) {
-      return FieldConfig.isInRedTeamArea(
-        newPosition,
-        game.size,
-        playerRadius: radius,
-      );
-    } else {
-      return FieldConfig.isInBlueTeamArea(
-        newPosition,
-        game.size,
-        playerRadius: radius,
-      );
-    }
-  }
-
-  bool _wouldOverlapWithOtherPlayers(Vector2 newPosition) {
-    final game = findGame();
-    if (game == null) return false;
-
-    // 检查与其他玩家的距离（newPosition是中心位置）
-    for (final other in game.children.whereType<PlayerComponent>()) {
-      if (other == this || other.isEliminated) continue;
-
-      final distance = newPosition.distanceTo(other.center);
-      final minDistance = radius + other.radius + 2.0; // 额外2像素间隔
-
-      if (distance < minDistance) {
-        return true; // 会重叠
-      }
-    }
-
-    return false; // 不会重叠
-  }
-
-  bool _wouldCollideWithObstacles(Vector2 newPosition) {
-    final game = findGame();
-    if (game == null) return false;
-
-    // 使用圆形碰撞检测
-    // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
-    return _checkObstacleCollisionRecursive(game, newPosition, radius);
-  }
-
-  /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
-  bool _checkObstacleCollisionRecursive(
-    Component parent,
-    Vector2 circleCenter,
-    double circleRadius,
-  ) {
-    for (final child in parent.children) {
-      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
-      if (child is ObstacleComponent) {
-        // 使用 absolutePosition 获取障碍物在世界坐标系中的位置
-        // 因为 ObstacleComponent 的 anchor 是 Anchor.topLeft，absolutePosition 就是左上角
-        final obstacleAbsPos = child.absolutePosition;
-        final obstacleRect = Rect.fromLTWH(
-          obstacleAbsPos.x,
-          obstacleAbsPos.y,
-          child.size.x,
-          child.size.y,
-        );
-        // 圆形与矩形碰撞检测
-        if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
-          return true;
-        }
-      }
-
-      // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, circleCenter, circleRadius)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /// 圆形与矩形碰撞检测
-  bool _circleRectCollision(
-    Vector2 circleCenter,
-    double circleRadius,
-    Rect rect,
-  ) {
-    // 找到矩形上离圆心最近的点
-    final closestX = circleCenter.x.clamp(rect.left, rect.right);
-    final closestY = circleCenter.y.clamp(rect.top, rect.bottom);
-
-    // 计算圆心到最近点的距离
-    final distanceX = circleCenter.x - closestX;
-    final distanceY = circleCenter.y - closestY;
-    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
-
-    // 如果距离小于半径，则发生碰撞
-    return distanceSquared < circleRadius * circleRadius;
   }
 
   void _handleMovementInput(Vector2 direction) {

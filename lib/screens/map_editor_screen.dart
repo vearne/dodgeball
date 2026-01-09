@@ -589,6 +589,30 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
           },
           activeColor: Colors.orange,
         ),
+        CheckboxListTile(
+          title: const Row(
+            children: [
+              Icon(Icons.monetization_on, color: Colors.yellow),
+              SizedBox(width: 8),
+              Flexible(child: Text('金币')),
+            ],
+          ),
+          subtitle: const Padding(
+            padding: EdgeInsets.only(left: 32),
+            child: Text('增加1个金币', style: TextStyle(fontSize: 12)),
+          ),
+          value: _selectedPowerUps.contains(PowerUpType.coin),
+          onChanged: (value) {
+            setState(() {
+              if (value == true) {
+                _selectedPowerUps.add(PowerUpType.coin);
+              } else {
+                _selectedPowerUps.remove(PowerUpType.coin);
+              }
+            });
+          },
+          activeColor: Colors.yellow,
+        ),
       ],
     );
   }

@@ -9,6 +9,7 @@ enum PowerUpType {
   speedBoost, // 速度靴子：移动速度增加20%，持续10秒
   attackSpeed, // 攻速球：投掷冷却时间缩短（保留原有功能）
   health, // 血瓶：增加1条生命
+  coin, // 金币：增加1个金币
 }
 
 /// 道具组件
@@ -38,6 +39,8 @@ class PowerUpComponent extends PositionComponent
         return 'boot_36_36.png';
       case PowerUpType.attackSpeed:
         return 'speed_ball_36_36.png';
+      case PowerUpType.coin:
+        return 'coin_36_36.png';
     }
   }
 
@@ -101,6 +104,9 @@ class PowerUpComponent extends PositionComponent
       case PowerUpType.attackSpeed:
         paint.color = const ui.Color(0xFFFF8C00); // 橙色
         break;
+      case PowerUpType.coin:
+        paint.color = const ui.Color(0xFFFFD700); // 金色
+        break;
     }
 
     final center = ui.Offset(size.x / 2, size.y / 2);
@@ -140,6 +146,9 @@ class PowerUpComponent extends PositionComponent
         break;
       case PowerUpType.health:
         _applyHealth(player);
+        break;
+      case PowerUpType.coin:
+        _applyCoin(player);
         break;
     }
   }
@@ -182,6 +191,19 @@ class PowerUpComponent extends PositionComponent
   void _applyHealth(PlayerComponent player) {
     // 增加1条生命值（可以超过初始最大生命值）
     player.setCurrentHealth(player.currentHealth + 1);
+  }
+
+  /// 应用金币效果：增加1个金币
+  void _applyCoin(PlayerComponent player) {
+    final game = findGame();
+    if (game != null &&
+        game.runtimeType.toString().contains('MissionDodgeballGame')) {
+      try {
+        (game as dynamic).addCoin(1);
+      } catch (e) {
+        // 失败时忽略
+      }
+    }
   }
 
   /// 应用攻速球效果：投掷冷却时间缩短

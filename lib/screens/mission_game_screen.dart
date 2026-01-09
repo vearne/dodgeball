@@ -6,6 +6,7 @@ import '../game/mission_map.dart';
 import '../game/player_state.dart';
 import '../game/audio_manager.dart';
 import '../game/level_completion_stats.dart';
+import '../game/game_mode.dart';
 
 /// Mission模式游戏界面
 class MissionGameScreen extends StatefulWidget {
@@ -322,6 +323,80 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                   );
                 },
               ),
+
+              const SizedBox(width: 16),
+
+              // 游戏时间
+              ValueListenableBuilder<double>(
+                valueListenable: game.gameTimeNotifier,
+                builder: (context, elapsedTime, child) {
+                  final minutes = (elapsedTime / 60).floor();
+                  final seconds = (elapsedTime % 60).floor();
+                  final formattedTime =
+                      '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+                  return Text(
+                    formattedTime,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(width: 16),
+
+              // 金币数量
+              ValueListenableBuilder<int>(
+                valueListenable: game.coinsNotifier,
+                builder: (context, coins, child) {
+                  return Row(
+                    children: [
+                      const Icon(
+                        Icons.monetization_on,
+                        color: Colors.yellow,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$coins',
+                        style: const TextStyle(
+                          color: Colors.yellow,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () {
+                          _showCoinExchangeDialog();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.yellow.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.yellow, width: 1),
+                          ),
+                          child: const Text(
+                            '兑换',
+                            style: TextStyle(
+                              color: Colors.yellow,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
 
@@ -349,6 +424,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
   Widget _buildCooldownBars() {
     // 获取所有玩家的冷却时间通知器
     final cooldownNotifiers = game.playerCooldownNotifiers;
+    final cooldownMaxNotifiers = game.playerCooldownMax;
 
     if (cooldownNotifiers.isEmpty) {
       // 如果没有通知器，返回一个占位符而不是空widget
@@ -375,7 +451,8 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     // 如果是单人游戏，显示单个进度条
     if (cooldownNotifiers.length == 1) {
       final notifier = cooldownNotifiers.values.first;
-      return _buildSingleCooldownBar(notifier, l10n.player1);
+      final maxNotifier = cooldownMaxNotifiers.values.first;
+      return _buildSingleCooldownBar(notifier, maxNotifier, l10n.player1, null);
     }
 
     // 如果是双人游戏，显示两个进度条
@@ -385,6 +462,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         if (cooldownNotifiers.containsKey(0))
           _buildSingleCooldownBar(
             cooldownNotifiers[0]!,
+            cooldownMaxNotifiers[0]!,
             l10n.player1,
             Colors.red.shade300,
           ),
@@ -393,6 +471,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         if (cooldownNotifiers.containsKey(1))
           _buildSingleCooldownBar(
             cooldownNotifiers[1]!,
+            cooldownMaxNotifiers[1]!,
             l10n.player2,
             Colors.blue.shade300,
           ),
@@ -402,7 +481,8 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
 
   Widget _buildSingleCooldownBar(
     ValueNotifier<double> notifier,
-    String playerLabel, [
+    ValueNotifier<double> maxNotifier,
+    String playerLabel,
     Color? progressColor,
   ]) {
     final l10n = AppLocalizations.of(context)!;
@@ -410,7 +490,8 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
     return ValueListenableBuilder<double>(
       valueListenable: notifier,
       builder: (context, cooldown, child) {
-        final progress = cooldown > 0 ? cooldown / 10.0 : 0.0;
+        final maxCooldown = maxNotifier.value;
+        final progress = maxCooldown > 0 ? cooldown / maxCooldown : 0.0;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -504,6 +585,105 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
               },
               child: Text(l10n.exitGame),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCoinExchangeDialog() {
+    // 暂停游戏引擎
+    game.pauseEngine();
+
+    final coins = game.coinsNotifier.value;
+    final canExchange = coins >= 100;
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        final l10n = AppLocalizations.of(context)!;
+        return AlertDialog(
+          title: const Text('金币兑换'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('当前金币：$coins'),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: canExchange
+                      ? Colors.green.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: canExchange ? Colors.green : Colors.grey,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '100',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: canExchange ? Colors.yellow : Colors.grey,
+                          ),
+                        ),
+                        const Icon(
+                          Icons.monetization_on,
+                          color: Colors.yellow,
+                          size: 30,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('兑换1条生命值', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+              if (!canExchange) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  '金币不足，需要100个金币才能兑换',
+                  style: TextStyle(color: Colors.red, fontSize: 12),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                game.resumeEngine();
+                Navigator.of(context).pop();
+              },
+              child: const Text('关闭'),
+            ),
+            if (canExchange)
+              ElevatedButton(
+                onPressed: () {
+                  // 执行兑换：减少100金币，增加1生命
+                  game.coinsNotifier.value -= 100;
+
+                  // 为所有玩家增加生命值
+                  for (final player in game.playerTeam) {
+                    if (player.controllerType == PlayerControllerType.human &&
+                        !player.isEliminated) {
+                      player.setCurrentHealth(player.currentHealth + 1);
+                    }
+                  }
+
+                  game.resumeEngine();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('兑换'),
+              ),
           ],
         );
       },

@@ -92,6 +92,11 @@ class MissionDodgeballGame extends FlameGame
     add(_attackSpeedBoostTimer!);
   }
 
+  /// 增加金币（由PowerUpComponent调用）
+  void addCoin(int amount) {
+    coinsNotifier.value += amount;
+  }
+
   // 玩家和敌人列表
   final List<PlayerComponent> playerTeam = []; // 玩家队伍（红队）
   final List<PlayerComponent> enemyTeam = []; // 敌人队伍（蓝队）
@@ -101,10 +106,15 @@ class MissionDodgeballGame extends FlameGame
 
   // 人类玩家冷却时间监听（秒）- 每个玩家独立
   final Map<int, ValueNotifier<double>> playerCooldownNotifiers = {};
+  final Map<int, ValueNotifier<double>> playerCooldownMax = {}; // 存储每个玩家的总冷却时间
   // 每个玩家的击杀数统计
   final Map<int, ValueNotifier<int>> playerKillNotifiers = {};
   // 玩家当前生命值
   final ValueNotifier<int> playerHealthNotifier = ValueNotifier<int>(0);
+  // 游戏时间（秒）
+  final ValueNotifier<double> gameTimeNotifier = ValueNotifier<double>(0);
+  // 金币数量
+  final ValueNotifier<int> coinsNotifier = ValueNotifier<int>(0);
 
   // 音频管理器
   final AudioManager _audioManager = AudioManager.instance;
@@ -598,6 +608,15 @@ class MissionDodgeballGame extends FlameGame
 
     // 跟踪游戏进行时间
     _elapsedTime += dt;
+    // 更新游戏时间通知器
+    if (gameTimeNotifier.value != _elapsedTime) {
+      gameTimeNotifier.value = _elapsedTime;
+    }
+
+    // 更新所有玩家的游戏时间（用于动态调整投球冷却）
+    for (final player in [...playerTeam, ...enemyTeam]) {
+      player.updateGameTime(_elapsedTime);
+    }
 
     // 应用键盘输入移动玩家
     _applyKeyboardMovement(dt);
@@ -717,10 +736,20 @@ class MissionDodgeballGame extends FlameGame
         if (notifier.value != remaining) {
           notifier.value = remaining;
         }
+        // 更新总冷却时间
+        final maxCooldown = player.effectiveThrowCooldown;
+        if (playerCooldownMax[playerId]?.value != maxCooldown) {
+          playerCooldownMax[playerId] ??= ValueNotifier<double>(maxCooldown);
+          playerCooldownMax[playerId]!.value = maxCooldown;
+        }
       } else {
         // 如果通知器不存在，创建一个
         playerCooldownNotifiers[playerId] = ValueNotifier<double>(
           player.throwCooldownRemaining,
+        );
+        // 同时创建总冷却时间通知器
+        playerCooldownMax[playerId] = ValueNotifier<double>(
+          player.effectiveThrowCooldown,
         );
       }
     }
@@ -735,6 +764,9 @@ class MissionDodgeballGame extends FlameGame
         .toSet();
 
     playerCooldownNotifiers.removeWhere(
+      (playerId, _) => !activePlayerIds.contains(playerId),
+    );
+    playerCooldownMax.removeWhere(
       (playerId, _) => !activePlayerIds.contains(playerId),
     );
   }
@@ -858,6 +890,12 @@ class MissionDodgeballGame extends FlameGame
         _audioManager.stopBackgroundMusic();
         _audioManager.playVictorySound();
 
+        // 计算金币奖励：3分钟以内获得10-20个金币
+        if (_elapsedTime < 180) {
+          final reward = 10 + _random.nextInt(11); // 10-20
+          addCoin(reward);
+        }
+
         // 延迟2.5秒后调用，让玩家看到胜利文字和听到胜利音效
         Future.delayed(const Duration(milliseconds: 2500), () {
           onMissionComplete!();
@@ -940,8 +978,8 @@ class MissionDodgeballGame extends FlameGame
     // 只处理击中敌人的情况
     if (hitPlayer.team != Team.blue) return;
 
-    // 敌人受到伤害
-    hitPlayer.takeDamage();
+    // 注意：伤害已经在 ball_component.dart 的 _handlePlayerCollision() 中处理了
+    // 这里不需要再次调用 takeDamage()
 
     // 如果敌人被淘汰
     if (hitPlayer.isEliminated) {
@@ -1138,6 +1176,7 @@ class MissionDodgeballGame extends FlameGame
       hasAttackSpeedBoost: player.hasAttackSpeedBoost,
       speedBoostRemainingTime: speedBoostRemaining,
       attackSpeedBoostRemainingTime: attackSpeedBoostRemaining,
+      coins: coinsNotifier.value,
     );
   }
 
