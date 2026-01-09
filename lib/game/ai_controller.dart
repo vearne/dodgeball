@@ -5,6 +5,7 @@ import 'ball_component.dart';
 import 'field_config.dart';
 import 'obstacle_component.dart';
 import 'player_component.dart';
+import 'power_up_component.dart';
 import 'team.dart';
 
 /// AI控制器，管理AI玩家的行为
@@ -31,6 +32,8 @@ class AIController extends Component {
   // 行为状态
   bool _isMoving = false;
   double _aggressiveness = 0.7; // 攻击性
+  double _powerUpSeekingProbability = 0.4; // 寻找道具的概率
+  double _powerUpDetectionRange = 200.0; // 道具检测范围
 
   @override
   void onMount() {
@@ -77,11 +80,33 @@ class AIController extends Component {
       // 有威胁时，优先躲避
       _planEvasiveAction(incomingBalls);
     } else {
-      // 安全时，考虑攻击或移动到更好的位置
-      if (_random.nextDouble() < _aggressiveness) {
-        _planAttackAction();
+      // 安全时，先检查是否有道具可以收集
+      final nearbyPowerUps = _getNearbyPowerUps();
+
+      if (nearbyPowerUps.isNotEmpty &&
+          _random.nextDouble() < _powerUpSeekingProbability) {
+        // 有道具且概率命中，去收集最近的道具
+        PowerUpComponent? closestPowerUp;
+        double minDistance = double.infinity;
+
+        for (final powerUp in nearbyPowerUps) {
+          final distance = (powerUp.position - player.center).length;
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestPowerUp = powerUp;
+          }
+        }
+
+        if (closestPowerUp != null) {
+          _planPowerUpCollection(closestPowerUp);
+        }
       } else {
-        _planPositionalMovement();
+        // 没有道具或不想收集，考虑攻击或移动到更好的位置
+        if (_random.nextDouble() < _aggressiveness) {
+          _planAttackAction();
+        } else {
+          _planPositionalMovement();
+        }
       }
     }
   }
@@ -107,6 +132,25 @@ class AIController extends Component {
     }
 
     return balls;
+  }
+
+  /// 获取附近的道具
+  List<PowerUpComponent> _getNearbyPowerUps() {
+    final powerUps = <PowerUpComponent>[];
+    final game = findGame();
+    if (game == null) return powerUps;
+
+    for (final powerUp in game.children.whereType<PowerUpComponent>()) {
+      final distance = (powerUp.position - player.center).length;
+
+      // 只考虑在检测范围内且在自己队伍区域的道具
+      if (distance <= _powerUpDetectionRange &&
+          _isValidPosition(powerUp.position)) {
+        powerUps.add(powerUp);
+      }
+    }
+
+    return powerUps;
   }
 
   /// 计划躲避动作
@@ -201,6 +245,13 @@ class AIController extends Component {
   void _planPositionalMovement() {
     // 移动到团队区域内的随机位置
     _targetPosition = _generateRandomPositionInTeamZone();
+    _isMoving = true;
+  }
+
+  /// 计划收集道具
+  void _planPowerUpCollection(PowerUpComponent powerUp) {
+    // 设置目标位置为道具位置（转换为玩家中心点）
+    _targetPosition = powerUp.position + Vector2.all(18); // 道具大小的一半
     _isMoving = true;
   }
 

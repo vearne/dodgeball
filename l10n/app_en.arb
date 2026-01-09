@@ -135,6 +135,25 @@
     }
   },
   "statusCarryOver": "💡 Your health and power-up effects will carry over to the next level!",
+  "levelTime": "⏱️ Level Time: {time}",
+  "@levelTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "playerKills": "⚔️ {player} Kills: {kills}",
+  "@playerKills": {
+    "placeholders": {
+      "player": {
+        "type": "String"
+      },
+      "kills": {
+        "type": "int"
+      }
+    }
+  },
   "backToSelection": "Back to Selection",
   "continueNow": "Continue Now",
   "allLevelsComplete": "🏆 All Levels Complete!",

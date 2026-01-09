@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
 import 'package:flame/collisions.dart';
 import 'package:flame/components.dart';
+import 'package:flutter/material.dart';
 
 import 'arrow_component.dart';
+import 'obstacle_component.dart';
 import 'player_component.dart';
 import 'team.dart';
 
@@ -42,17 +44,16 @@ class BallComponent extends SpriteComponent
   onHitPlayer;
   final double ballRadius; // 球的半径，用于碰撞检测
   bool _hasHitPlayer = false; // 防止重复扣血：记录是否已经击中玩家
-  bool _hasHitObstacle = false; // 防止重复摧毁：记录是否已经击中障碍物
 
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
 
   // 获取球的中心位置
+  @override
   Vector2 get center => position + Vector2.all(ballRadius);
 
   // 公共访问器：障碍物组件需要检查和设置此标记
-  bool get hasHitObstacle => _hasHitObstacle;
-  set hasHitObstacle(bool value) => _hasHitObstacle = value;
+  bool hasHitObstacle = false;
 
   @override
   Future<void> onLoad() async {
@@ -64,11 +65,13 @@ class BallComponent extends SpriteComponent
 
     // 添加圆形碰撞箱，使用ballRadius
     // 父组件anchor是topLeft，所以碰撞体中心应该在(ballRadius, ballRadius)位置
-    add(CircleHitbox(
-      radius: ballRadius,
-      position: Vector2.all(ballRadius),
-      anchor: Anchor.center,
-    ));
+    add(
+      CircleHitbox(
+        radius: ballRadius,
+        position: Vector2.all(ballRadius),
+        anchor: Anchor.center,
+      ),
+    );
     add(remainingLabel);
   }
 
@@ -93,12 +96,16 @@ class BallComponent extends SpriteComponent
   void _updatePhysicsWithSubsteps(double dt) {
     // 根据球的速度动态调整子步数
     final speed = velocity.length;
-    int substeps = 2;
+    int substeps = 10;
 
-    if (speed > 200) {
-      substeps = 6; // 高速球使用3个子步
+    if (speed > 400) {
+      substeps = 50; // 极高速球使用50个子步
+    } else if (speed > 300) {
+      substeps = 20; // 高速球使用20个子步
+    } else if (speed > 200) {
+      substeps = 15; // 中速球使用15个子步
     } else if (speed > 100) {
-      substeps = 4; // 中速球使用2个子步
+      substeps = 10; // 低中速球使用10个子步
     }
 
     final subDt = dt / substeps;
@@ -164,6 +171,14 @@ class BallComponent extends SpriteComponent
     final game = findGame();
     if (game == null) return;
 
+    // 优先检查障碍物碰撞（因为障碍物会反弹球，玩家会消除球）
+    for (final obstacle in game.children.whereType<ObstacleComponent>()) {
+      if (_checkContinuousObstacleCollision(obstacle, dt)) {
+        obstacle.handleBallCollision(this);
+        return; // 只处理第一个碰撞
+      }
+    }
+
     // 检查所有玩家
     for (final player in game.children.whereType<PlayerComponent>()) {
       if (player.isEliminated || player.team == team) continue;
@@ -226,6 +241,111 @@ class BallComponent extends SpriteComponent
     final clampedProjection = projection.clamp(0.0, lineLength);
 
     return lineStart + normalizedLine * clampedProjection;
+  }
+
+  /// 连续碰撞检测算法：球与障碍物
+  bool _checkContinuousObstacleCollision(
+    ObstacleComponent obstacle,
+    double dt,
+  ) {
+    // 计算球在这一帧内的移动轨迹（使用球心）
+    final currentCenter = center;
+    final startPos = currentCenter - velocity * dt;
+    final endPos = currentCenter;
+
+    // 如果球没有移动，使用静态碰撞检测
+    final moveDistance = (endPos - startPos).length;
+    if (moveDistance < 0.001) {
+      // 静态碰撞检测：检查球心到障碍物矩形的距离
+      return _checkCircleRectCollision(currentCenter, obstacle);
+    }
+
+    // 创建扩展后的障碍物矩形（考虑球的半径）
+    final obstacleRect = Rect.fromLTWH(
+      obstacle.position.x - ballRadius,
+      obstacle.position.y - ballRadius,
+      obstacle.size.x + ballRadius * 2,
+      obstacle.size.y + ballRadius * 2,
+    );
+
+    // 检查线段与扩展矩形是否相交
+    return _lineSegmentRectIntersection(startPos, endPos, obstacleRect);
+  }
+
+  /// 检查圆与矩形的碰撞
+  bool _checkCircleRectCollision(
+    Vector2 circleCenter,
+    ObstacleComponent obstacle,
+  ) {
+    final obstacleRect = Rect.fromLTWH(
+      obstacle.position.x,
+      obstacle.position.y,
+      obstacle.size.x,
+      obstacle.size.y,
+    );
+
+    // 找到矩形上离圆心最近的点
+    final closestX = circleCenter.x.clamp(
+      obstacleRect.left,
+      obstacleRect.right,
+    );
+    final closestY = circleCenter.y.clamp(
+      obstacleRect.top,
+      obstacleRect.bottom,
+    );
+
+    // 计算最近点到圆心的距离
+    final distanceX = circleCenter.x - closestX;
+    final distanceY = circleCenter.y - closestY;
+    final distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+    // 如果距离小于半径的平方，则发生碰撞
+    return distanceSquared < ballRadius * ballRadius;
+  }
+
+  /// 检查线段与矩形是否相交
+  bool _lineSegmentRectIntersection(Vector2 start, Vector2 end, Rect rect) {
+    // 检查任意端点是否在矩形内
+    if (rect.contains(Offset(start.x, start.y)) ||
+        rect.contains(Offset(end.x, end.y))) {
+      return true;
+    }
+
+    // 检查线段与矩形四条边的交点
+    final edges = [
+      [rect.topLeft, rect.topRight], // 上边
+      [rect.topRight, rect.bottomRight], // 右边
+      [rect.bottomRight, rect.bottomLeft], // 下边
+      [rect.bottomLeft, rect.topLeft], // 左边
+    ];
+
+    for (final edge in edges) {
+      final edgeStart = Vector2(edge[0].dx, edge[0].dy);
+      final edgeEnd = Vector2(edge[1].dx, edge[1].dy);
+      if (_lineIntersection(start, end, edgeStart, edgeEnd) != null) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// 计算两条线段的交点
+  Vector2? _lineIntersection(Vector2 p1, Vector2 p2, Vector2 p3, Vector2 p4) {
+    final denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+    if (denom.abs() < 0.0001) return null; // 平行或重合
+
+    final ua =
+        ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+    final ub =
+        ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
+
+    // 检查交点是否在两条线段上
+    if (ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0) {
+      return Vector2(p1.x + ua * (p2.x - p1.x), p1.y + ua * (p2.y - p1.y));
+    }
+
+    return null;
   }
 
   @override

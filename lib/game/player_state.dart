@@ -6,6 +6,7 @@ class PlayerState {
   final bool hasAttackSpeedBoost; // 是否有攻速提升
   final double speedBoostRemainingTime; // 速度提升剩余时间（秒）
   final double attackSpeedBoostRemainingTime; // 攻速提升剩余时间（秒）
+  final int coins; // 金币数量
 
   const PlayerState({
     required this.currentHealth,
@@ -13,11 +14,12 @@ class PlayerState {
     this.hasAttackSpeedBoost = false,
     this.speedBoostRemainingTime = 0,
     this.attackSpeedBoostRemainingTime = 0,
+    this.coins = 0,
   });
 
   /// 创建初始状态
   factory PlayerState.initial(int maxHealth) {
-    return PlayerState(currentHealth: maxHealth);
+    return PlayerState(currentHealth: maxHealth, coins: 0);
   }
 
   /// 复制并修改某些字段
@@ -27,6 +29,7 @@ class PlayerState {
     bool? hasAttackSpeedBoost,
     double? speedBoostRemainingTime,
     double? attackSpeedBoostRemainingTime,
+    int? coins,
   }) {
     return PlayerState(
       currentHealth: currentHealth ?? this.currentHealth,
@@ -36,6 +39,7 @@ class PlayerState {
           speedBoostRemainingTime ?? this.speedBoostRemainingTime,
       attackSpeedBoostRemainingTime:
           attackSpeedBoostRemainingTime ?? this.attackSpeedBoostRemainingTime,
+      coins: coins ?? this.coins,
     );
   }
 
@@ -43,6 +47,7 @@ class PlayerState {
   String toString() {
     return 'PlayerState(health: $currentHealth, '
         'speedBoost: $hasSpeedBoost(${speedBoostRemainingTime.toStringAsFixed(1)}s), '
-        'attackSpeedBoost: $hasAttackSpeedBoost(${attackSpeedBoostRemainingTime.toStringAsFixed(1)}s))';
+        'attackSpeedBoost: $hasAttackSpeedBoost(${attackSpeedBoostRemainingTime.toStringAsFixed(1)}s), '
+        'coins: $coins)';
   }
 }

@@ -59,5 +59,6 @@
     "speedBoost",
     "attackSpeed"
   ],
+  "maxPowerUps": 10,
   "powerUpSpawnInterval": 12.0
 }

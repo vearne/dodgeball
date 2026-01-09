@@ -11,8 +11,8 @@ class InputController extends Component {
     this.playerId = 0,
     KeyboardConfig? keyboardConfig,
     GamepadConfig? gamepadConfig,
-  })  : _keyboardConfig = keyboardConfig ?? KeyboardConfig.getDefault(playerId),
-        _gamepadConfig = gamepadConfig ?? GamepadConfig(playerId: playerId);
+  }) : _keyboardConfig = keyboardConfig ?? KeyboardConfig.getDefault(playerId),
+       _gamepadConfig = gamepadConfig ?? GamepadConfig(playerId: playerId);
 
   final Function(Vector2 direction) onMove;
   final Function(Vector2 direction) onThrow;
@@ -36,14 +36,12 @@ class InputController extends Component {
   @override
   Future<void> onLoad() async {
     super.onLoad();
-    print('InputController onLoad for player $playerId');
     _inputUpdateTimer = TimerComponent(
       period: 0.016, // ~60fps
       repeat: true,
       onTick: _updateInput,
     );
     add(_inputUpdateTimer!);
-    print('InputController timer added for player $playerId');
   }
 
   @override
@@ -57,9 +55,6 @@ class InputController extends Component {
     // 更新按键状态
     _pressedKeys.clear();
     _pressedKeys.addAll(keysPressed);
-    if (keysPressed.isNotEmpty) {
-      print('InputController $playerId: handleKeyEvent ${keysPressed.map((k) => k.debugName).join(", ")}');
-    }
   }
 
   /// 设置键盘配置
@@ -150,7 +145,9 @@ class InputController extends Component {
     }
 
     // 同时处理手柄按键映射（通过键盘事件）
-    final (gamepadDirection, gamepadThrow) = _gamepadConfig.handleGamepadInput(_pressedKeys);
+    final (gamepadDirection, gamepadThrow) = _gamepadConfig.handleGamepadInput(
+      _pressedKeys,
+    );
     if (gamepadDirection.length > 0.1) {
       _movementInput = gamepadDirection;
     }
@@ -170,7 +167,6 @@ class InputController extends Component {
 
     if (_movementInput.length > deadZone) {
       final normalizedInput = _movementInput.normalized();
-      print('InputController: calling onMove with $normalizedInput');
       onMove(normalizedInput);
     } else {
       // 没有输入时，发送零向量

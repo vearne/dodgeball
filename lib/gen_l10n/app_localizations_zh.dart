@@ -158,6 +158,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get statusCarryOver => '💡 你的生命值和道具效果将保留到下一关！';
 
   @override
+  String levelTime(String time) {
+    return '⏱️ 关卡用时: $time';
+  }
+
+  @override
+  String playerKills(String player, int kills) {
+    return '⚔️ $player 击杀数: $kills';
+  }
+
+  @override
   String get backToSelection => '返回选关';
 
   @override
