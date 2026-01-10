@@ -284,10 +284,11 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
           powerUp.markAsCollected();
         }
       }
-      // 处理与障碍物的碰撞
-      else if (other is ObstacleComponent) {
-        // 物理引擎会自动处理碰撞和位置修正
-        // 这里可以添加额外的游戏逻辑，例如音效或视觉反馈
+      // 处理与障碍物的碰撞（包括 ObstacleComponent 和 AtomicBrickComponent）
+      else if (other is ObstacleComponent || other is AtomicBrickComponent) {
+        // 当与障碍物碰撞时，停止玩家的移动速度，防止穿过障碍物
+        // Forge2D 会自动处理位置修正，但我们也要确保速度被清零
+        body.linearVelocity = Vector2.zero();
       }
     };
 

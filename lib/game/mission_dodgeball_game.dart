@@ -185,34 +185,37 @@ class MissionDodgeballGame extends Forge2DGame
     final left = _createWall(
       start: Vector2(wallThickness, wallThickness),
       end: Vector2(wallThickness, size.y - wallThickness),
+      isVertical: true,
     );
     final right = _createWall(
       start: Vector2(size.x - wallThickness, wallThickness),
       end: Vector2(size.x - wallThickness, size.y - wallThickness),
+      isVertical: true,
     );
     final top = _createWall(
       start: Vector2(wallThickness, wallThickness),
       end: Vector2(size.x - wallThickness, wallThickness),
+      isVertical: false,
     );
     final bottom = _createWall(
       start: Vector2(wallThickness, size.y - wallThickness),
       end: Vector2(size.x - wallThickness, size.y - wallThickness),
+      isVertical: false,
     );
 
     addAll([left, right, top, bottom]);
   }
 
   /// 创建边界墙壁
-  BodyComponent _createWall({required Vector2 start, required Vector2 end}) {
-    return BodyComponent(
-      bodyDef: BodyDef(position: Vector2.zero(), type: BodyType.static),
-      fixtureDefs: [
-        FixtureDef(
-          EdgeShape()..set(start, end),
-          friction: 0.0,
-          restitution: 0.8,
-        ),
-      ],
+  BodyComponent _createWall({
+    required Vector2 start,
+    required Vector2 end,
+    required bool isVertical,
+  }) {
+    return _WallComponent(
+      start: start,
+      end: end,
+      isVertical: isVertical,
     );
   }
 
@@ -495,6 +498,15 @@ class MissionDodgeballGame extends Forge2DGame
     return _checkObstacleCollisionRecursive(this, position, radius);
   }
 
+  /// 检查位置是否与障碍物碰撞（简化版本，不需要 area 参数）
+  bool _checkPositionCollisionWithObstaclesSimple(
+    Vector2 position,
+    double playerRadius,
+  ) {
+    // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
+    return _checkObstacleCollisionRecursive(this, position, playerRadius);
+  }
+
   /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
   bool _checkObstacleCollisionRecursive(
     Component parent,
@@ -502,7 +514,7 @@ class MissionDodgeballGame extends Forge2DGame
     double circleRadius,
   ) {
     for (final child in parent.children) {
-      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
+      // 检查 ObstacleComponent（RockComponent 等）
       if (child is ObstacleComponent) {
         // 使用 absolutePosition 获取障碍物在世界坐标系中的位置
         // ObstacleComponent 的 anchor 是 Anchor.topLeft
@@ -518,6 +530,26 @@ class MissionDodgeballGame extends Forge2DGame
           circleCenter,
           circleRadius,
           obstacleRect,
+        )) {
+          return true;
+        }
+      }
+      // 检查 AtomicBrickComponent（砖墙的原子砖块）
+      else if (child is AtomicBrickComponent) {
+        // AtomicBrickComponent 的 body.position 是中心位置
+        final brickCenter = child.body.position;
+        final brickSize = AtomicBrickComponent.atomicSize;
+        // 计算砖块的矩形（左上角坐标）
+        final brickRect = Rect.fromLTWH(
+          brickCenter.x - brickSize / 2,
+          brickCenter.y - brickSize / 2,
+          brickSize,
+          brickSize,
+        );
+        if (_checkCircleRectCollision(
+          circleCenter,
+          circleRadius,
+          brickRect,
         )) {
           return true;
         }
@@ -708,7 +740,11 @@ class MissionDodgeballGame extends Forge2DGame
       }
 
       final input = _keyboardMoveInputs[player.playerId];
-      if (input == null || input.length < 0.01) continue;
+      if (input == null || input.length < 0.01) {
+        // 没有输入，停止移动
+        player.body.linearVelocity = Vector2.zero();
+        continue;
+      }
 
       // 检查 body 是否已初始化（组件是否已加载完成）
       try {
@@ -721,32 +757,57 @@ class MissionDodgeballGame extends Forge2DGame
         final newPos = currentPos + velocity * dt; // 像素坐标
 
         // 检查新位置是否在红队区域内
-        if (FieldConfig.isInRedTeamArea(
+        final isInTeamArea = FieldConfig.isInRedTeamArea(
           newPos,
           size,
           playerRadius: player.radius,
-        )) {
+        );
+
+        // 检查新位置是否与障碍物碰撞
+        final wouldCollideWithObstacle = _checkPositionCollisionWithObstaclesSimple(
+          newPos,
+          player.radius,
+        );
+
+        if (isInTeamArea && !wouldCollideWithObstacle) {
+          // 位置有效，允许移动
           player.body.linearVelocity = velocity; // 设置物理体的速度
           // 更新玩家朝向
           player.setDirection(input.normalized());
         } else {
-          // 如果会越界，限制速度方向，使其不越界
-          final clampedPos = FieldConfig.clampToTeamArea(
-            newPos,
-            true, // 红队
-            size,
-            playerRadius: player.radius,
-          );
-          // 如果新位置被限制，说明会越界，停止移动
-          if ((clampedPos - currentPos).length < 0.1) {
+          // 如果会越界或碰撞障碍物，尝试调整移动方向
+          if (wouldCollideWithObstacle) {
+            // 与障碍物碰撞，停止移动
             player.body.linearVelocity = Vector2.zero();
           } else {
-            // 允许移动到限制位置
-            final limitedVelocity = (clampedPos - currentPos) / dt;
-            final clampedVelocity = limitedVelocity.clone();
-            clampedVelocity.clampLength(0, speed);
-            player.body.linearVelocity = clampedVelocity;
-            player.setDirection(input.normalized());
+            // 只是越界，限制速度方向，使其不越界
+            final clampedPos = FieldConfig.clampToTeamArea(
+              newPos,
+              true, // 红队
+              size,
+              playerRadius: player.radius,
+            );
+            // 如果新位置被限制，说明会越界，停止移动
+            if ((clampedPos - currentPos).length < 0.1) {
+              player.body.linearVelocity = Vector2.zero();
+            } else {
+              // 检查限制后的位置是否与障碍物碰撞
+              final wouldCollideAtClamped = _checkPositionCollisionWithObstaclesSimple(
+                clampedPos,
+                player.radius,
+              );
+              if (!wouldCollideAtClamped) {
+                // 允许移动到限制位置
+                final limitedVelocity = (clampedPos - currentPos) / dt;
+                final clampedVelocity = limitedVelocity.clone();
+                clampedVelocity.clampLength(0, speed);
+                player.body.linearVelocity = clampedVelocity;
+                player.setDirection(input.normalized());
+              } else {
+                // 限制位置也会碰撞，停止移动
+                player.body.linearVelocity = Vector2.zero();
+              }
+            }
           }
         }
       } catch (e) {
@@ -1251,5 +1312,48 @@ class MissionDodgeballGame extends Forge2DGame
     // 不在这里停止背景音乐，因为在关卡切换时会导致音乐中断
     // 背景音乐会在真正退出游戏或新关卡开始时自动处理
     super.onRemove();
+  }
+}
+
+/// 边界墙壁组件，用于检测与球的碰撞
+class _WallComponent extends BodyComponent with ContactCallbacks {
+  final bool isVertical;
+
+  _WallComponent({
+    required Vector2 start,
+    required Vector2 end,
+    required this.isVertical,
+  }) : super(
+          bodyDef: BodyDef(position: Vector2.zero(), type: BodyType.static),
+          fixtureDefs: [
+            FixtureDef(
+              EdgeShape()..set(start, end),
+              friction: 0.0,
+              restitution: 0.8,
+            ),
+          ],
+        );
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
+    body.userData = this;
+    _setupCollisionCallbacks();
+  }
+
+  void _setupCollisionCallbacks() {
+    onBeginContact = (other, contact) {
+      // 处理与球的碰撞
+      if (other is BallComponent) {
+        if (isVertical) {
+          // 垂直墙壁（左右）
+          other.reflectOnVerticalWall();
+        } else {
+          // 水平墙壁（上下）
+          other.reflectOnHorizontalWall();
+        }
+      }
+    };
   }
 }

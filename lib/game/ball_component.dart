@@ -4,6 +4,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
 import 'arrow_component.dart';
+import 'field_config.dart';
 import 'obstacle_component.dart';
 import 'player_component.dart';
 import 'team.dart';
@@ -52,6 +53,8 @@ class BallComponent extends BodyComponent with ContactCallbacks {
   onHitPlayer;
   final double ballRadius; // 球的半径，用于碰撞检测
   bool _hasHitPlayer = false; // 防止重复扣血：记录是否已经击中玩家
+  Vector2? _lastPosition; // 上一次的位置，用于检测墙壁碰撞
+  bool _hasHitWallThisFrame = false; // 防止同一帧重复触发墙壁碰撞
 
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
@@ -118,6 +121,9 @@ class BallComponent extends BodyComponent with ContactCallbacks {
   void update(double dt) {
     super.update(dt);
 
+    // 重置墙壁碰撞标记
+    _hasHitWallThisFrame = false;
+
     // 同步 sprite 位置和旋转到物理体
     _spriteComponent.position = Vector2.zero();
     _spriteComponent.angle = body.angle;
@@ -131,10 +137,16 @@ class BallComponent extends BodyComponent with ContactCallbacks {
       }
     }
 
+    // 检测墙壁碰撞
+    _checkWallCollision();
+
     // 检查碰撞次数
     if (bounceCount <= 0) {
       removeFromParent();
     }
+
+    // 更新上一次的位置
+    _lastPosition = body.position.clone();
   }
 
   static String _getSpritePathForTeam(Team team) {
@@ -191,6 +203,67 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     remainingLabel.text = '$bounceCount';
     if (bounceCount <= 0) {
       removeFromParent();
+    }
+  }
+
+  /// 检测墙壁碰撞
+  void _checkWallCollision() {
+    // 如果已经在这一帧处理过墙壁碰撞，跳过
+    if (_hasHitWallThisFrame) return;
+
+    final game = findGame();
+    if (game == null) return;
+
+    final gameSize = game.size;
+    final wallThickness = FieldConfig.wallThickness;
+    final currentPos = body.position;
+    final velocity = body.linearVelocity;
+
+    // 如果速度太小，不检测碰撞
+    if (velocity.length < 0.01) return;
+
+    // 检测左边界（垂直墙壁）
+    // 球已经越过或接触到左边界，且速度向左
+    if (currentPos.x - ballRadius <= wallThickness && velocity.x < 0) {
+      // 检查上一次是否在边界外（避免重复触发）
+      if (_lastPosition == null || _lastPosition!.x - ballRadius > wallThickness - 5) {
+        reflectOnVerticalWall();
+        _hasHitWallThisFrame = true;
+        return;
+      }
+    }
+
+    // 检测右边界（垂直墙壁）
+    // 球已经越过或接触到右边界，且速度向右
+    if (currentPos.x + ballRadius >= gameSize.x - wallThickness && velocity.x > 0) {
+      // 检查上一次是否在边界内（避免重复触发）
+      if (_lastPosition == null || _lastPosition!.x + ballRadius < gameSize.x - wallThickness + 5) {
+        reflectOnVerticalWall();
+        _hasHitWallThisFrame = true;
+        return;
+      }
+    }
+
+    // 检测上边界（水平墙壁）
+    // 球已经越过或接触到上边界，且速度向上
+    if (currentPos.y - ballRadius <= wallThickness && velocity.y < 0) {
+      // 检查上一次是否在边界外（避免重复触发）
+      if (_lastPosition == null || _lastPosition!.y - ballRadius > wallThickness - 5) {
+        reflectOnHorizontalWall();
+        _hasHitWallThisFrame = true;
+        return;
+      }
+    }
+
+    // 检测下边界（水平墙壁）
+    // 球已经越过或接触到下边界，且速度向下
+    if (currentPos.y + ballRadius >= gameSize.y - wallThickness && velocity.y > 0) {
+      // 检查上一次是否在边界内（避免重复触发）
+      if (_lastPosition == null || _lastPosition!.y + ballRadius < gameSize.y - wallThickness + 5) {
+        reflectOnHorizontalWall();
+        _hasHitWallThisFrame = true;
+        return;
+      }
     }
   }
 
