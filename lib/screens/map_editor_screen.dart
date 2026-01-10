@@ -757,7 +757,8 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                               child: NotificationListener<ScrollNotification>(
                                 onNotification: (notification) {
                                   // 监听水平滚动通知，触发重建以更新底部滚动条
-                                  if (notification is ScrollUpdateNotification) {
+                                  if (notification
+                                      is ScrollUpdateNotification) {
                                     setState(() {});
                                   }
                                   return false;
@@ -771,13 +772,21 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                                       width: mapWidth,
                                       height: mapHeight,
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.black, width: 2),
+                                        border: Border.all(
+                                          color: Colors.black,
+                                          width: 2,
+                                        ),
                                       ),
                                       child: GestureDetector(
                                         onTapDown: (details) {
-                                          final localPosition = details.localPosition;
-                                          final col = (localPosition.dx / gridSize).floor();
-                                          final row = (localPosition.dy / gridSize).floor();
+                                          final localPosition =
+                                              details.localPosition;
+                                          final col =
+                                              (localPosition.dx / gridSize)
+                                                  .floor();
+                                          final row =
+                                              (localPosition.dy / gridSize)
+                                                  .floor();
 
                                           if (col >= 0 &&
                                               col < gridCols &&
@@ -795,7 +804,10 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                                               gridCols: gridCols,
                                               gridRows: gridRows,
                                             ),
-                                            size: const Size(mapWidth, mapHeight),
+                                            size: const Size(
+                                              mapWidth,
+                                              mapHeight,
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -820,22 +832,22 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                       if (!_horizontalScrollController.hasClients) {
                         return const SizedBox.shrink();
                       }
-                      
+
                       // 使用 positions 列表来安全访问
                       final positions = _horizontalScrollController.positions;
                       if (positions.isEmpty) {
                         return const SizedBox.shrink();
                       }
-                      
+
                       // 使用第一个位置（应该只有一个）
                       final position = positions.first;
-                      
+
                       // 安全地访问滚动位置属性，使用 try-catch 防止空值错误
                       double viewportDimension;
                       double maxScrollExtent;
                       double minScrollExtent;
                       double scrollOffset;
-                      
+
                       try {
                         viewportDimension = position.viewportDimension;
                         maxScrollExtent = position.maxScrollExtent;
@@ -845,7 +857,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                         // 如果滚动位置尚未完全初始化，返回空 widget
                         return const SizedBox.shrink();
                       }
-                      
+
                       // 检查 viewportDimension 是否有效
                       if (viewportDimension <= 0) {
                         return const SizedBox.shrink();
@@ -856,25 +868,49 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
                       }
 
                       final trackWidth = constraints.maxWidth;
-                      final thumbWidth = (trackWidth * viewportDimension / (maxScrollExtent + viewportDimension)).clamp(20.0, trackWidth);
+                      final thumbWidth =
+                          (trackWidth *
+                                  viewportDimension /
+                                  (maxScrollExtent + viewportDimension))
+                              .clamp(20.0, trackWidth);
                       final thumbLeft = maxScrollExtent > 0
-                          ? ((trackWidth - thumbWidth) * (scrollOffset - minScrollExtent) / (maxScrollExtent - minScrollExtent)).clamp(0.0, trackWidth - thumbWidth)
+                          ? ((trackWidth - thumbWidth) *
+                                    (scrollOffset - minScrollExtent) /
+                                    (maxScrollExtent - minScrollExtent))
+                                .clamp(0.0, trackWidth - thumbWidth)
                           : 0.0;
 
                       return GestureDetector(
                         onPanUpdate: (details) {
-                          if (maxScrollExtent > 0 && _horizontalScrollController.hasClients && _horizontalScrollController.positions.isNotEmpty) {
+                          if (maxScrollExtent > 0 &&
+                              _horizontalScrollController.hasClients &&
+                              _horizontalScrollController
+                                  .positions
+                                  .isNotEmpty) {
                             final delta = details.delta.dx;
-                            final scrollDelta = delta * (maxScrollExtent + viewportDimension) / trackWidth;
-                            final newOffset = (scrollOffset + scrollDelta).clamp(minScrollExtent, maxScrollExtent);
+                            final scrollDelta =
+                                delta *
+                                (maxScrollExtent + viewportDimension) /
+                                trackWidth;
+                            final newOffset = (scrollOffset + scrollDelta)
+                                .clamp(minScrollExtent, maxScrollExtent);
                             _horizontalScrollController.jumpTo(newOffset);
                           }
                         },
                         onTapDown: (details) {
-                          if (maxScrollExtent > 0 && _horizontalScrollController.hasClients && _horizontalScrollController.positions.isNotEmpty) {
+                          if (maxScrollExtent > 0 &&
+                              _horizontalScrollController.hasClients &&
+                              _horizontalScrollController
+                                  .positions
+                                  .isNotEmpty) {
                             final tapX = details.localPosition.dx;
-                            final scrollTo = (tapX / trackWidth) * (maxScrollExtent + viewportDimension) - viewportDimension / 2;
-                            _horizontalScrollController.jumpTo(scrollTo.clamp(minScrollExtent, maxScrollExtent));
+                            final scrollTo =
+                                (tapX / trackWidth) *
+                                    (maxScrollExtent + viewportDimension) -
+                                viewportDimension / 2;
+                            _horizontalScrollController.jumpTo(
+                              scrollTo.clamp(minScrollExtent, maxScrollExtent),
+                            );
                           }
                         },
                         child: Stack(

@@ -159,9 +159,11 @@ class _BrickRenderComponent extends PositionComponent {
 class BrickWallComponent extends BodyComponent {
   final List<AtomicBrickComponent> _atomicBricks = [];
   final Vector2 _size; // 像素尺寸
+  final Vector2 _centerPosition; // 保存中心点位置，避免在 onMount 时 body.position 可能未初始化
 
   BrickWallComponent({required Vector2 position, required Vector2 size})
     : _size = size,
+      _centerPosition = position,
       super(
         bodyDef: BodyDef(position: position, type: BodyType.static),
       );
@@ -176,9 +178,12 @@ class BrickWallComponent extends BodyComponent {
   void onMount() {
     super.onMount();
 
-    // 计算砖墙的左上角（地图坐标是中心点，需要转换为左上角）
-    final topLeftX = absolutePosition.x - _size.x / 2;
-    final topLeftY = absolutePosition.y - _size.y / 2;
+    // 计算砖墙的左上角（_centerPosition 是中心点，需要转换为左上角）
+    // 使用保存的中心点位置，确保在 onMount 时能正确获取
+    final centerX = _centerPosition.x;
+    final centerY = _centerPosition.y;
+    final topLeftX = centerX - _size.x / 2;
+    final topLeftY = centerY - _size.y / 2;
 
     // 计算需要多少个原子砖块来填充这个区域
     final numColumns = (_size.x / AtomicBrickComponent.atomicSize).ceil();
@@ -227,13 +232,6 @@ class BrickWallComponent extends BodyComponent {
   }
 }
 
-/// 木墙组件（已废弃，保留以兼容旧地图）
-/// 现在与砖墙行为完全一致
-@Deprecated('使用 BrickWallComponent 代替')
-class WoodWallComponent extends BrickWallComponent {
-  WoodWallComponent({required Vector2 position, required Vector2 size})
-    : super(position: position, size: size);
-}
 
 /// 岩石组件：被球击中后反弹，不消失
 class RockComponent extends ObstacleComponent with ContactCallbacks {
@@ -390,15 +388,17 @@ class _RockRenderComponent extends PositionComponent {
 
 /// 从障碍物数据创建障碍物组件
 BodyComponent createObstacleFromData(Obstacle obstacle) {
-  final position = Vector2(obstacle.x, obstacle.y);
+  // 障碍物数据中的 x, y 是左上角坐标，需要转换为中心点坐标（Forge2D使用中心点）
   final size = Vector2(obstacle.width, obstacle.height);
+  final centerPosition = Vector2(
+    obstacle.x + size.x / 2, // 左上角x + 宽度的一半 = 中心点x
+    obstacle.y + size.y / 2, // 左上角y + 高度的一半 = 中心点y
+  );
 
   switch (obstacle.type) {
     case ObstacleType.brickWall:
-      return BrickWallComponent(position: position, size: size);
-    case ObstacleType.woodWall: // 兼容旧地图
-      return BrickWallComponent(position: position, size: size);
+      return BrickWallComponent(position: centerPosition, size: size);
     case ObstacleType.rock:
-      return RockComponent(position: position, size: size);
+      return RockComponent(position: centerPosition, size: size);
   }
 }

@@ -8,9 +8,6 @@ import 'power_up_component.dart';
 enum ObstacleType {
   brickWall, // 砖墙：被球击中后逐渐损坏，最终消失（耐久度3）
   rock, // 岩石：被球击中后反弹，不消失
-  // 保留旧的类型以兼容旧地图
-  @Deprecated('使用 brickWall 代替')
-  woodWall, // 木墙（已废弃）
 }
 
 /// 障碍物数据
@@ -40,7 +37,7 @@ class Obstacle {
   factory Obstacle.fromJson(Map<String, dynamic> json) => Obstacle(
     type: ObstacleType.values.firstWhere(
       (e) => e.name == json['type'],
-      orElse: () => ObstacleType.woodWall,
+      orElse: () => ObstacleType.brickWall,
     ),
     x: (json['x'] as num).toDouble(),
     y: (json['y'] as num).toDouble(),
