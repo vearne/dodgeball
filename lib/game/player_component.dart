@@ -358,6 +358,14 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
   void _setupPlayerVisuals() {
     // 添加箭头图标
     _arrowIcon = ArrowComponent(sideLength: radius * 2, color: _color);
+
+    // ArrowComponent的anchor是topLeft，所以我们需要设置它的位置
+    // 使其中心点与PlayerComponent的中心对齐
+    // PlayerComponent的位置是由BodyDef.position定义的（玩家中心）
+    // 由于PlayerComponent的size是(radius*2, radius*2)，中心在(radius, radius)
+    // 所以ArrowComponent的位置应该是(-radius, -radius)，这样它的中心会在(0,0)
+    _arrowIcon!.position = Vector2(-radius, -radius);
+
     add(_arrowIcon!);
 
     if (controllerType == PlayerControllerType.human) {
