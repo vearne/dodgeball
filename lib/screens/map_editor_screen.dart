@@ -19,6 +19,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
   late TextEditingController _descriptionController;
   late TextEditingController _enemyCountController;
   late TextEditingController _powerUpIntervalController;
+  late TextEditingController _maxPowerUpsController;
 
   // 使用Map来存储网格位置的障碍物，key是"row_col"
   final Map<String, ObstacleType> _gridObstacles = {};
@@ -66,6 +67,9 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
       _powerUpIntervalController = TextEditingController(
         text: widget.existingMap!.powerUpSpawnInterval.toString(),
       );
+      _maxPowerUpsController = TextEditingController(
+        text: widget.existingMap!.maxPowerUps?.toString() ?? '20',
+      );
 
       // 将现有障碍物转换为网格格式
       _loadObstaclesFromMap(widget.existingMap!);
@@ -78,6 +82,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
       _descriptionController = TextEditingController();
       _enemyCountController = TextEditingController(text: '3');
       _powerUpIntervalController = TextEditingController(text: '30');
+      _maxPowerUpsController = TextEditingController(text: '20');
     }
   }
 
@@ -174,6 +179,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
     _descriptionController.dispose();
     _enemyCountController.dispose();
     _powerUpIntervalController.dispose();
+    _maxPowerUpsController.dispose();
     _horizontalScrollController.dispose();
     _verticalScrollController.dispose();
     super.dispose();
@@ -204,6 +210,14 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
       return;
     }
 
+    final maxPowerUps = int.tryParse(_maxPowerUpsController.text);
+    if (maxPowerUps == null || maxPowerUps < 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('最大道具数量必须是非负整数')));
+      return;
+    }
+
     // 生成地图ID（如果是新地图）
     final mapId =
         widget.existingMap?.id ??
@@ -220,6 +234,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
       obstacles: obstacles,
       allowedPowerUps: _selectedPowerUps.toList(),
       powerUpSpawnInterval: powerUpInterval,
+      maxPowerUps: maxPowerUps > 0 ? maxPowerUps : null,
     );
 
     try {
@@ -426,6 +441,19 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
               controller: _powerUpIntervalController,
               decoration: const InputDecoration(
                 labelText: '道具生成间隔 (秒, 10-300)',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+              keyboardType: TextInputType.number,
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _maxPowerUpsController,
+              decoration: const InputDecoration(
+                labelText: '最大道具数量 (0表示无限制)',
                 border: OutlineInputBorder(),
                 filled: true,
                 fillColor: Colors.white,

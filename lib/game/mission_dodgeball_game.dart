@@ -218,11 +218,29 @@ class MissionDodgeballGame extends Forge2DGame
 
   /// 加载地图障碍物
   Future<void> _loadMapObstacles() async {
+    // 调试：打印游戏世界信息
+    print('=== 游戏世界信息 ===');
+    print('游戏大小: (${size.x}, ${size.y})');
+    print('相机位置: ${camera.viewfinder.position}');
+    print('相机缩放: ${camera.viewfinder.zoom}');
+    print('==================');
+    
     for (final obstacle in missionMap.obstacles) {
       final obstacleComponent = createObstacleFromData(obstacle);
       add(obstacleComponent);
       // 等待障碍物完全加载（确保 onLoad 完成，子组件创建完毕）
       await obstacleComponent.loaded;
+      
+      // 调试：打印障碍物添加到游戏后的信息
+      print('=== 障碍物添加到游戏后 ===');
+      print('障碍物类型: ${obstacle.type}');
+      print('body.position: ${obstacleComponent.body.position}');
+      if (obstacleComponent is ObstacleComponent) {
+        print('absolutePosition: ${(obstacleComponent as ObstacleComponent).absolutePosition}');
+      }
+      print('障碍物在游戏中的位置: ${obstacleComponent.position}');
+      print('父组件: ${obstacleComponent.parent?.runtimeType}');
+      print('========================');
     }
   }
 

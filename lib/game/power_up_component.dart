@@ -65,8 +65,7 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
     // 动态创建带偏移的碰撞体
     // 使用 CircleShape 的 position 属性来设置偏移（相对于 body 中心）
     final shape = CircleShape()
-      ..radius = 16.0
-      ..position.setValues(-18.0, -18.0); // 碰撞体相对于body中心偏移 -18px, -18px
+      ..radius = 16.0;
     final fixtureDef = FixtureDef(
       shape,
       isSensor: true, // 设置为传感器，不会对玩家产生物理碰撞
@@ -137,6 +136,7 @@ class _PowerUpRenderComponent extends PositionComponent {
       final paint = ui.Paint()
         ..isAntiAlias = true
         ..filterQuality = ui.FilterQuality.high;
+
 
       // 渲染道具图片（支持透明PNG）
       final srcRect = sprite!.src;

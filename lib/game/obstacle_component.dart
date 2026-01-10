@@ -31,9 +31,11 @@ abstract class ObstacleComponent extends BodyComponent {
 class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
   static const double atomicSize = 30.0; // 原子砖块大小
   Sprite? _brickSprite; // 砖块图片精灵
+  final Vector2 _initialPosition; // 保存初始位置用于调试
 
   AtomicBrickComponent({required Vector2 position})
-    : super(
+    : _initialPosition = position,
+      super(
         bodyDef: BodyDef(position: position, type: BodyType.static),
         fixtureDefs: [
           FixtureDef(
@@ -59,12 +61,27 @@ class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
       _brickSprite = await Sprite.load('wall_30_30.png');
     } catch (e) {}
 
-    // 添加渲染组件
+    // 添加渲染组件（位置设置为 Vector2.zero() 以确保在 body 中心）
     final renderComponent = _BrickRenderComponent(
       size: Vector2.all(atomicSize),
       sprite: _brickSprite,
-    );
+    )..position = Vector2.zero();
     add(renderComponent);
+    
+    // 调试：打印原子砖块的详细信息
+    print('=== 原子砖块调试信息 ===');
+    print('构造函数传入的 position: $_initialPosition');
+    print('body.position (onLoad后): ${body.position}');
+    print('renderComponent.position: ${renderComponent.position}');
+    print('parent: ${parent?.runtimeType}');
+    if (parent is PositionComponent) {
+      print('parent.position: ${(parent as PositionComponent).position}');
+    }
+    if (parent is BodyComponent) {
+      print('parent.body.position: ${(parent as BodyComponent).body.position}');
+    }
+    print('body.position (绝对位置): ${body.position}');
+    print('======================');
   }
 
   /// 设置碰撞回调
@@ -100,17 +117,65 @@ class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
 /// 砖块的渲染组件
 class _BrickRenderComponent extends PositionComponent {
   final Sprite? sprite;
+  bool _debugPrinted = false; // 调试标志，避免重复打印
 
   _BrickRenderComponent({required Vector2 size, this.sprite})
     : super(size: size, anchor: Anchor.center);
 
   @override
   void render(ui.Canvas canvas) {
+    // 调试：打印渲染信息（只打印一次，避免刷屏）
+    if (!_debugPrinted) {
+      print('=== _BrickRenderComponent 渲染 ===');
+      print('组件 position: $position');
+      print('组件 size: $size');
+      print('组件 anchor: $anchor');
+      print('父组件: ${parent?.runtimeType}');
+      if (parent is BodyComponent) {
+        final bodyParent = parent as BodyComponent;
+        print('父组件 body.position: ${bodyParent.body.position}');
+        // 计算渲染矩形的实际位置
+        final renderLeft = bodyParent.body.position.x - size.x / 2;
+        final renderTop = bodyParent.body.position.y - size.y / 2;
+        final renderRight = bodyParent.body.position.x + size.x / 2;
+        final renderBottom = bodyParent.body.position.y + size.y / 2;
+        print('渲染矩形左上角: ($renderLeft, $renderTop)');
+        print('渲染矩形右下角: ($renderRight, $renderBottom)');
+        print('渲染矩形中心: (${bodyParent.body.position.x}, ${bodyParent.body.position.y})');
+      }
+      print('canvas 原点应该在组件中心（因为 anchor 是 center）');
+      print('dstRect 应该是: (-${size.x/2}, -${size.y/2}, ${size.x}, ${size.y})');
+      _debugPrinted = true;
+    }
+    
     if (sprite != null) {
       // 使用图片渲染
-      sprite!.render(canvas, size: size, anchor: Anchor.center);
+      // canvas 的原点在组件中心（因为 anchor 是 center）
+      // 需要添加 (width/2, height/2) 的偏移来对齐碰撞体
+      final offsetX = size.x / 2;
+      final offsetY = size.y / 2;
+      
+      final paint = ui.Paint()
+        ..isAntiAlias = true
+        ..filterQuality = ui.FilterQuality.high;
+      
+      final srcRect = sprite!.src;
+      final dstRect = ui.Rect.fromLTWH(
+        -size.x / 2 + offsetX,
+        -size.y / 2 + offsetY,
+        size.x,
+        size.y,
+      );
+      
+      canvas.drawImageRect(sprite!.image, srcRect, dstRect, paint);
     } else {
       // 降级方案：使用代码绘制
+      // canvas 的原点在组件中心（因为 anchor 是 center）
+      // 需要添加 (width/2, height/2) 的偏移来对齐碰撞体
+      final halfSize = size / 2;
+      final offsetX = size.x / 2;
+      final offsetY = size.y / 2;
+      
       // 砖块颜色
       final brickPaint = ui.Paint()
         ..color =
@@ -125,15 +190,14 @@ class _BrickRenderComponent extends PositionComponent {
         ..strokeWidth = 2.0;
 
       // 绘制砖块本体
-      final halfSize = size / 2;
       canvas.drawRect(
-        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, size.x, size.y),
+        ui.Rect.fromLTWH(-halfSize.x + offsetX, -halfSize.y + offsetY, size.x, size.y),
         brickPaint,
       );
 
       // 绘制砖块边框（砖缝）
       canvas.drawRect(
-        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, size.x, size.y),
+        ui.Rect.fromLTWH(-halfSize.x + offsetX, -halfSize.y + offsetY, size.x, size.y),
         mortarPaint,
       );
 
@@ -145,8 +209,8 @@ class _BrickRenderComponent extends PositionComponent {
         ..strokeWidth = 1.0;
 
       canvas.drawLine(
-        ui.Offset(-halfSize.x, 0),
-        ui.Offset(halfSize.x, 0),
+        ui.Offset(-halfSize.x + offsetX, offsetY),
+        ui.Offset(halfSize.x + offsetX, offsetY),
         texturePaint,
       );
     }
@@ -176,12 +240,24 @@ class BrickWallComponent extends BodyComponent {
   void onMount() {
     super.onMount();
 
-    // 计算砖墙的左上角（_centerPosition 是中心点，需要转换为左上角）
-    // 使用保存的中心点位置，确保在 onMount 时能正确获取
-    final centerX = _centerPosition.x;
-    final centerY = _centerPosition.y;
-    final topLeftX = centerX - _size.x / 2;
-    final topLeftY = centerY - _size.y / 2;
+    // 由于 body 中心位置是 (x, y)（左上角），而渲染偏移是 (width/2, height/2)，
+    // 原子砖块的左上角应该从 (x, y) 开始
+    // 使用保存的中心点位置（实际上是左上角），确保在 onMount 时能正确获取
+    // 计算左上角坐标（中心坐标减去一半的尺寸）
+    final topLeftX = _centerPosition.x - _size.x / 2;
+    final topLeftY = _centerPosition.y - _size.y / 2;
+    
+    // 调试：打印砖墙组件信息
+    print('=== 砖墙组件 onMount ===');
+    print('_centerPosition: (${_centerPosition.x}, ${_centerPosition.y})');
+    print('body.position: ${body.position}');
+    print('topLeft: ($topLeftX, $topLeftY)');
+    print('_size: (${_size.x}, ${_size.y})');
+    print('parent: ${parent?.runtimeType}');
+    if (parent is PositionComponent) {
+      print('parent.position: ${(parent as PositionComponent).position}');
+    }
+    print('========================');
 
     // 计算需要多少个原子砖块来填充这个区域
     final numColumns = (_size.x / AtomicBrickComponent.atomicSize).ceil();
@@ -203,8 +279,37 @@ class BrickWallComponent extends BodyComponent {
           final atomicBrick = AtomicBrickComponent(
             position: Vector2(brickCenterX, brickCenterY),
           );
+          
+          // 调试：打印砖块位置
+          print('=== 创建原子砖块 ===');
+          print('计算的中心位置: ($brickCenterX, $brickCenterY)');
+          print('topLeft: ($topLeftX, $topLeftY)');
+          print('brickX: $brickX, brickY: $brickY');
+          print('砖墙中心(_centerPosition): (${_centerPosition.x}, ${_centerPosition.y})');
+          print('砖墙大小: (${_size.x}, ${_size.y})');
+          print('body.position (创建时): ${body.position}');
+          
           _atomicBricks.add(atomicBrick);
-          add(atomicBrick);
+          // 将原子砖块直接添加到游戏世界，而不是作为 BrickWallComponent 的子组件
+          // 这样可以避免可能的坐标转换问题
+          if (parent != null) {
+            parent!.add(atomicBrick);
+          } else {
+            add(atomicBrick);
+          }
+          
+          // 等待原子砖块加载完成后打印实际位置
+          atomicBrick.loaded.then((_) {
+            print('=== 原子砖块加载完成后的位置 ===');
+            print('body.position: ${atomicBrick.body.position}');
+            print('渲染组件数量: ${atomicBrick.children.length}');
+            for (final child in atomicBrick.children) {
+              if (child is PositionComponent) {
+                print('  子组件 ${child.runtimeType}: position=${child.position}, size=${child.size}');
+              }
+            }
+            print('================================');
+          });
         }
       }
     }
@@ -255,24 +360,16 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
     // 添加矩形碰撞体
     final shape = PolygonShape();
 
-    // 设置碰撞体偏移（相对于 body 中心）
-    // 注意：centroid 是自动计算的，不能直接设置
-    // 但可以通过调整顶点位置来间接控制 centroid 的位置
-    const offsetX = -30.0; // X 方向偏移（像素）
-    const offsetY = -30.0; // Y 方向偏移（像素）
-
-    // 计算矩形的半宽半高（注意：Forge2D 使用物理单位，需要除以像素到物理单位的转换比例）
-    // 如果使用像素直接作为物理单位，则不需要除以 100.0
-    final halfWidth = _size.x / 2;
-    final halfHeight = _size.y / 2;
-
-    // 通过设置顶点位置来偏移碰撞体（从而间接控制 centroid）
+    // 由于 body 中心位置是 (x, y)（左上角），而渲染偏移是 (width/2, height/2)，
+    // 我们需要调整碰撞体的位置，使其左上角在 (x, y)
+    // 如果 body 中心是 (x, y)（左上角），那么要得到左上角在 (x, y) 的碰撞体，
+    // 碰撞体的顶点应该是相对于 body 中心的，也就是从 (0, 0) 开始
     // 顶点顺序：左上、右上、右下、左下（逆时针）
     shape.set([
-      Vector2(-halfWidth + offsetX, -halfHeight + offsetY), // 左上
-      Vector2(halfWidth + offsetX, -halfHeight + offsetY), // 右上
-      Vector2(halfWidth + offsetX, halfHeight + offsetY), // 右下
-      Vector2(-halfWidth + offsetX, halfHeight + offsetY), // 左下
+      Vector2(0, 0), // 左上：在 body 中心位置（也就是左上角位置）
+      Vector2(_size.x, 0), // 右上
+      Vector2(_size.x, _size.y), // 右下
+      Vector2(0, _size.y), // 左下
     ]);
 
     final fixtureDef = FixtureDef(
@@ -282,11 +379,11 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
     );
     body.createFixture(fixtureDef);
 
-    // 添加渲染组件
+    // 添加渲染组件（位置设置为 Vector2.zero() 以确保在 body 中心）
     final renderComponent = _RockRenderComponent(
       size: _size,
       sprite: _rockSprite,
-    );
+    )..position = Vector2.zero();
     add(renderComponent);
   }
 
@@ -315,6 +412,7 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
 class _RockRenderComponent extends PositionComponent {
   final Sprite? sprite;
   final Vector2 _size;
+  bool _debugPrinted = false; // 调试标志，避免重复打印
 
   _RockRenderComponent({required Vector2 size, this.sprite})
     : _size = size,
@@ -322,47 +420,90 @@ class _RockRenderComponent extends PositionComponent {
 
   @override
   void render(ui.Canvas canvas) {
+    // 调试：打印渲染信息（只打印一次，避免刷屏）
+    if (!_debugPrinted) {
+      print('=== _RockRenderComponent 渲染 ===');
+      print('组件 position: $position');
+      print('组件 size: $_size');
+      print('组件 anchor: $anchor');
+      print('父组件: ${parent?.runtimeType}');
+      if (parent is BodyComponent) {
+        final bodyParent = parent as BodyComponent;
+        print('父组件 body.position: ${bodyParent.body.position}');
+      }
+      print('canvas 原点应该在组件中心（因为 anchor 是 center）');
+      _debugPrinted = true;
+    }
+    
     if (sprite != null) {
       // 使用图片渲染（平铺方式填充整个区域）
+      // 注意：canvas 的原点在组件中心（因为 anchor 是 center）
       final tileSize = 30.0;
       final tilesX = (_size.x / tileSize).ceil();
       final tilesY = (_size.y / tileSize).ceil();
 
       final halfSize = _size / 2;
-      canvas.save();
-      canvas.translate(-halfSize.x, -halfSize.y);
+
+      // 使用高质量渲染设置
+      final paint = ui.Paint()
+        ..isAntiAlias = true
+        ..filterQuality = ui.FilterQuality.high;
 
       for (int row = 0; row < tilesY; row++) {
         for (int col = 0; col < tilesX; col++) {
-          final offsetX = col * tileSize - halfSize.x;
-          final offsetY = row * tileSize - halfSize.y;
-
-          // 计算需要绘制的部分大小
-          final drawWidth = (offsetX + tileSize > halfSize.x)
-              ? halfSize.x - offsetX
-              : tileSize;
-          final drawHeight = (offsetY + tileSize > halfSize.y)
-              ? halfSize.y - offsetY
-              : tileSize;
-
-          canvas.save();
-          canvas.translate(offsetX, offsetY);
-
-          // 裁剪以防止超出边界
-          canvas.clipRect(ui.Rect.fromLTWH(0, 0, drawWidth, drawHeight));
-
-          sprite!.render(
-            canvas,
-            size: Vector2(tileSize, tileSize),
-            anchor: Anchor.topLeft,
-          );
-
-          canvas.restore();
+          // 计算每个 tile 的左上角位置（相对于组件中心，因为 anchor 是 center）
+          final tileLeft = -halfSize.x + col * tileSize;
+          final tileTop = -halfSize.y + row * tileSize;
+          final tileRight = tileLeft + tileSize;
+          final tileBottom = tileTop + tileSize;
+          
+          // 只绘制在组件边界内的 tile
+          if (tileRight > -halfSize.x && tileLeft < halfSize.x &&
+              tileBottom > -halfSize.y && tileTop < halfSize.y) {
+            // 计算需要绘制的部分（裁剪到组件边界）
+            final drawLeft = tileLeft.clamp(-halfSize.x, halfSize.x);
+            final drawTop = tileTop.clamp(-halfSize.y, halfSize.y);
+            final drawRight = tileRight.clamp(-halfSize.x, halfSize.x);
+            final drawBottom = tileBottom.clamp(-halfSize.y, halfSize.y);
+            
+            final drawWidth = drawRight - drawLeft;
+            final drawHeight = drawBottom - drawTop;
+            
+            if (drawWidth > 0 && drawHeight > 0) {
+              // 计算源矩形（如果 tile 被裁剪，需要相应裁剪源矩形）
+              final srcWidth = sprite!.src.width;
+              final srcHeight = sprite!.src.height;
+              
+              // 计算裁剪的偏移量（相对于 tile 的左上角）
+              final clipOffsetX = drawLeft - tileLeft;
+              final clipOffsetY = drawTop - tileTop;
+              
+              // 计算源矩形的裁剪部分
+              final srcX = sprite!.src.left + (clipOffsetX / tileSize) * srcWidth;
+              final srcY = sprite!.src.top + (clipOffsetY / tileSize) * srcHeight;
+              final srcW = (drawWidth / tileSize) * srcWidth;
+              final srcH = (drawHeight / tileSize) * srcHeight;
+              
+              final srcRect = ui.Rect.fromLTWH(srcX, srcY, srcW, srcH);
+              
+              // 目标矩形是相对于组件中心的（因为 anchor 是 center）
+              // drawLeft 和 drawTop 已经是相对于组件中心的正确坐标
+              final dstRect = ui.Rect.fromLTWH(
+                drawLeft,
+                drawTop,
+                drawWidth,
+                drawHeight,
+              );
+              
+              canvas.drawImageRect(sprite!.image, srcRect, dstRect, paint);
+            }
+          }
         }
       }
-      canvas.restore();
     } else {
       // 降级方案：使用代码绘制
+      // canvas 的原点在组件中心（因为 anchor 是 center）
+      // 所以岩石的左上角应该在 (-_size.x/2, -_size.y/2)
       final halfSize = _size / 2;
 
       // 绘制岩石：灰色矩形
@@ -407,10 +548,21 @@ class _RockRenderComponent extends PositionComponent {
 BodyComponent createObstacleFromData(Obstacle obstacle) {
   // 障碍物数据中的 x, y 是左上角坐标，需要转换为中心点坐标（Forge2D使用中心点）
   final size = Vector2(obstacle.width, obstacle.height);
+  
+  // 将左上角坐标转换为中心坐标
+  // 地图编辑器中的 (x, y) 是左上角，Forge2D 需要中心坐标
   final centerPosition = Vector2(
-    obstacle.x + size.x / 2, // 左上角x + 宽度的一半 = 中心点x
-    obstacle.y + size.y / 2, // 左上角y + 高度的一半 = 中心点y
+    obstacle.x + size.x / 2, // 中心 x = 左上角 x + 宽度的一半
+    obstacle.y + size.y / 2, // 中心 y = 左上角 y + 高度的一半
   );
+  
+  // 调试：打印障碍物创建信息
+  print('=== 创建障碍物组件 ===');
+  print('障碍物类型: ${obstacle.type}');
+  print('地图编辑器坐标 (左上角): (${obstacle.x}, ${obstacle.y})');
+  print('大小: (${size.x}, ${size.y})');
+  print('计算的中心位置: (${centerPosition.x}, ${centerPosition.y})');
+  print('====================');
 
   switch (obstacle.type) {
     case ObstacleType.brickWall:
