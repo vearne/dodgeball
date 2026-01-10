@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
-import 'player_component.dart';
 
 /// 道具类型
 enum PowerUpType {
@@ -23,12 +22,7 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
            position: position,
            type: BodyType.static, // 道具是静态的
          ),
-         fixtureDefs: [
-           FixtureDef(
-             CircleShape()..radius = 16.0,
-             isSensor: true, // 设置为传感器，不会对玩家产生物理碰撞
-           ),
-         ],
+         // 不在构造函数中创建 fixture，而是在 onLoad 中动态创建以支持偏移
        );
 
   final PowerUpType type;
@@ -68,6 +62,17 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
     // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
     body.userData = this;
 
+    // 动态创建带偏移的碰撞体
+    // 使用 CircleShape 的 position 属性来设置偏移（相对于 body 中心）
+    final shape = CircleShape()
+      ..radius = 16.0
+      ..position.setValues(-18.0, -18.0); // 碰撞体相对于body中心偏移 -18px, -18px
+    final fixtureDef = FixtureDef(
+      shape,
+      isSensor: true, // 设置为传感器，不会对玩家产生物理碰撞
+    );
+    body.createFixture(fixtureDef);
+
     // 设置碰撞回调
     _setupCollisionCallbacks();
 
@@ -85,7 +90,6 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
       type: type,
     );
     add(renderComponent);
-
   }
 
   /// 设置碰撞回调
@@ -94,6 +98,24 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
     // PowerUpComponent 作为传感器，被玩家触发碰撞时调用 PlayerComponent 的方法
     onBeginContact = (other, contact) {};
     onEndContact = (other, contact) {};
+  }
+
+  @override
+  void render(ui.Canvas canvas) {
+    // 不调用 super.render(canvas)，避免 BodyComponent 的默认调试渲染显示白色碰撞体
+    // 如果需要显示碰撞体，可以取消下面的注释并调整颜色
+    /*
+    super.render(canvas);
+    
+    // 可选：自定义调试渲染碰撞体
+    final paint = ui.Paint()
+      ..color = const ui.Color.fromARGB(100, 255, 255, 255) // 半透明白色
+      ..style = ui.PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    
+    // 在偏移位置绘制碰撞体圆（因为 BodyComponent 的渲染已经处理了位置转换）
+    canvas.drawCircle(const ui.Offset(-18.0, -18.0), 16.0, paint);
+    */
   }
 }
 
