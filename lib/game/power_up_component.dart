@@ -86,8 +86,6 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
     );
     add(renderComponent);
 
-    // 添加上下浮动动画效果
-    add(FloatingComponent(parent: this));
   }
 
   /// 设置碰撞回调
