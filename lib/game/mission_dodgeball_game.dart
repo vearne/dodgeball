@@ -143,6 +143,43 @@ class MissionDodgeballGame extends Forge2DGame
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 配置 Forge2D 物理世界的最大移动距离
+    // Forge2D 默认 maxTranslation 是 2.0 米，这限制了每步最大移动距离
+    // 我们需要提高这个限制以支持高速球（300 像素/秒）
+    // 在 60fps 下，300 像素/秒 = 5.0 像素/帧
+    // 由于我们使用像素作为单位（1 像素 = 1 米），所以设置为 10.0 应该足够
+    // 设置为 20.0 可以提供额外的安全余量
+    try {
+      // 访问 Forge2D 的物理世界
+      // Forge2DGame 应该有一个 world 属性
+      final world = (this as dynamic).world;
+      if (world != null) {
+        // 尝试设置 maxTranslation（每步最大移动距离）
+        // 这是 Forge2D World 类的属性
+        try {
+          (world as dynamic).maxTranslation = 20.0;
+          // 同时设置 maxTranslationSquared（位移平方的上限）
+          (world as dynamic).maxTranslationSquared = 400.0; // 20.0²
+          print('成功设置 maxTranslation = 20.0, maxTranslationSquared = 400.0');
+        } catch (e) {
+          print('无法设置 maxTranslation 属性: $e');
+          // 尝试通过其他方式设置
+          try {
+            // 可能是一个方法
+            (world as dynamic).setMaxTranslation(20.0);
+            print('通过 setMaxTranslation 方法设置成功');
+          } catch (e2) {
+            print('无法通过方法设置 maxTranslation: $e2');
+          }
+        }
+      } else {
+        print('无法访问物理世界对象');
+      }
+    } catch (e) {
+      print('无法设置 maxTranslation: $e');
+      // 如果无法设置，手动位置调整的代码会在 BallComponent.update() 中处理
+    }
+
     // 初始化关卡计时器
     _elapsedTime = 0.0;
 
@@ -212,11 +249,7 @@ class MissionDodgeballGame extends Forge2DGame
     required Vector2 end,
     required bool isVertical,
   }) {
-    return _WallComponent(
-      start: start,
-      end: end,
-      isVertical: isVertical,
-    );
+    return _WallComponent(start: start, end: end, isVertical: isVertical);
   }
 
   /// 加载地图障碍物
@@ -227,19 +260,21 @@ class MissionDodgeballGame extends Forge2DGame
     print('相机位置: ${camera.viewfinder.position}');
     print('相机缩放: ${camera.viewfinder.zoom}');
     print('==================');
-    
+
     for (final obstacle in missionMap.obstacles) {
       final obstacleComponent = createObstacleFromData(obstacle);
       add(obstacleComponent);
       // 等待障碍物完全加载（确保 onLoad 完成，子组件创建完毕）
       await obstacleComponent.loaded;
-      
+
       // 调试：打印障碍物添加到游戏后的信息
       print('=== 障碍物添加到游戏后 ===');
       print('障碍物类型: ${obstacle.type}');
       print('body.position: ${obstacleComponent.body.position}');
       if (obstacleComponent is ObstacleComponent) {
-        print('absolutePosition: ${(obstacleComponent as ObstacleComponent).absolutePosition}');
+        print(
+          'absolutePosition: ${(obstacleComponent as ObstacleComponent).absolutePosition}',
+        );
       }
       print('障碍物在游戏中的位置: ${obstacleComponent.position}');
       print('父组件: ${obstacleComponent.parent?.runtimeType}');
@@ -546,11 +581,7 @@ class MissionDodgeballGame extends Forge2DGame
           brickSize,
           brickSize,
         );
-        if (_checkCircleRectCollision(
-          circleCenter,
-          circleRadius,
-          brickRect,
-        )) {
+        if (_checkCircleRectCollision(circleCenter, circleRadius, brickRect)) {
           return true;
         }
       }
@@ -764,10 +795,8 @@ class MissionDodgeballGame extends Forge2DGame
         );
 
         // 检查新位置是否与障碍物碰撞
-        final wouldCollideWithObstacle = _checkPositionCollisionWithObstaclesSimple(
-          newPos,
-          player.radius,
-        );
+        final wouldCollideWithObstacle =
+            _checkPositionCollisionWithObstaclesSimple(newPos, player.radius);
 
         if (isInTeamArea && !wouldCollideWithObstacle) {
           // 位置有效，允许移动
@@ -792,10 +821,11 @@ class MissionDodgeballGame extends Forge2DGame
               player.body.linearVelocity = Vector2.zero();
             } else {
               // 检查限制后的位置是否与障碍物碰撞
-              final wouldCollideAtClamped = _checkPositionCollisionWithObstaclesSimple(
-                clampedPos,
-                player.radius,
-              );
+              final wouldCollideAtClamped =
+                  _checkPositionCollisionWithObstaclesSimple(
+                    clampedPos,
+                    player.radius,
+                  );
               if (!wouldCollideAtClamped) {
                 // 允许移动到限制位置
                 final limitedVelocity = (clampedPos - currentPos) / dt;
@@ -1077,8 +1107,18 @@ class MissionDodgeballGame extends Forge2DGame
         ? player.currentDirection.normalized()
         : (target - player.center).normalized(); // 回退：如果没有方向，使用目标方向
 
-    final speed = 400.0; // 投掷速度
+    final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
+
+    // 调试信息：打印投掷参数
+    print('=== 投掷球调试信息 ===');
+    print('玩家位置: ${player.center}');
+    print('目标位置: $target');
+    print('玩家当前方向: ${player.currentDirection}');
+    print('归一化方向: $direction');
+    print('设置的速度标量: $speed');
+    print('计算的速度向量: $velocity');
+    print('速度向量长度: ${velocity.length}');
 
     final ball = BallComponent(
       team: player.team,
@@ -1090,6 +1130,15 @@ class MissionDodgeballGame extends Forge2DGame
     );
 
     add(ball);
+
+    // 等待球加载完成后打印实际速度
+    ball.loaded.then((_) {
+      print('球加载后的实际位置: ${ball.body.position}');
+      print('球加载后的实际速度: ${ball.body.linearVelocity}');
+      print('球加载后的速度长度: ${ball.body.linearVelocity.length}');
+      print('==================');
+    });
+
     player.onThrow();
   }
 
@@ -1324,15 +1373,15 @@ class _WallComponent extends BodyComponent with ContactCallbacks {
     required Vector2 end,
     required this.isVertical,
   }) : super(
-          bodyDef: BodyDef(position: Vector2.zero(), type: BodyType.static),
-          fixtureDefs: [
-            FixtureDef(
-              EdgeShape()..set(start, end),
-              friction: 0.0,
-              restitution: 0.8,
-            ),
-          ],
-        );
+         bodyDef: BodyDef(position: Vector2.zero(), type: BodyType.static),
+         fixtureDefs: [
+           FixtureDef(
+             EdgeShape()..set(start, end),
+             friction: 0.0,
+             restitution: 0.8,
+           ),
+         ],
+       );
 
   @override
   Future<void> onLoad() async {
