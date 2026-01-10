@@ -358,18 +358,17 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
     } catch (e) {}
 
     // 添加矩形碰撞体
+    // body.position 是中心坐标，碰撞体应该相对于中心定义
     final shape = PolygonShape();
-
-    // 由于 body 中心位置是 (x, y)（左上角），而渲染偏移是 (width/2, height/2)，
-    // 我们需要调整碰撞体的位置，使其左上角在 (x, y)
-    // 如果 body 中心是 (x, y)（左上角），那么要得到左上角在 (x, y) 的碰撞体，
-    // 碰撞体的顶点应该是相对于 body 中心的，也就是从 (0, 0) 开始
-    // 顶点顺序：左上、右上、右下、左下（逆时针）
+    final halfWidth = _size.x / 2;
+    final halfHeight = _size.y / 2;
+    
+    // 顶点顺序：左上、右上、右下、左下（逆时针，相对于 body 中心）
     shape.set([
-      Vector2(0, 0), // 左上：在 body 中心位置（也就是左上角位置）
-      Vector2(_size.x, 0), // 右上
-      Vector2(_size.x, _size.y), // 右下
-      Vector2(0, _size.y), // 左下
+      Vector2(-halfWidth, -halfHeight), // 左上
+      Vector2(halfWidth, -halfHeight), // 右上
+      Vector2(halfWidth, halfHeight), // 右下
+      Vector2(-halfWidth, halfHeight), // 左下
     ]);
 
     final fixtureDef = FixtureDef(
@@ -438,11 +437,14 @@ class _RockRenderComponent extends PositionComponent {
     if (sprite != null) {
       // 使用图片渲染（平铺方式填充整个区域）
       // 注意：canvas 的原点在组件中心（因为 anchor 是 center）
+      // 需要添加 (width/2, height/2) 的偏移来对齐碰撞体
       final tileSize = 30.0;
       final tilesX = (_size.x / tileSize).ceil();
       final tilesY = (_size.y / tileSize).ceil();
 
       final halfSize = _size / 2;
+      final offsetX = _size.x / 2;
+      final offsetY = _size.y / 2;
 
       // 使用高质量渲染设置
       final paint = ui.Paint()
@@ -487,10 +489,10 @@ class _RockRenderComponent extends PositionComponent {
               final srcRect = ui.Rect.fromLTWH(srcX, srcY, srcW, srcH);
               
               // 目标矩形是相对于组件中心的（因为 anchor 是 center）
-              // drawLeft 和 drawTop 已经是相对于组件中心的正确坐标
+              // 需要添加 (width/2, height/2) 的偏移来对齐碰撞体
               final dstRect = ui.Rect.fromLTWH(
-                drawLeft,
-                drawTop,
+                drawLeft + offsetX,
+                drawTop + offsetY,
                 drawWidth,
                 drawHeight,
               );
@@ -503,8 +505,10 @@ class _RockRenderComponent extends PositionComponent {
     } else {
       // 降级方案：使用代码绘制
       // canvas 的原点在组件中心（因为 anchor 是 center）
-      // 所以岩石的左上角应该在 (-_size.x/2, -_size.y/2)
+      // 需要添加 (width/2, height/2) 的偏移来对齐碰撞体
       final halfSize = _size / 2;
+      final offsetX = _size.x / 2;
+      final offsetY = _size.y / 2;
 
       // 绘制岩石：灰色矩形
       final paint = ui.Paint()
@@ -513,7 +517,7 @@ class _RockRenderComponent extends PositionComponent {
         ..style = ui.PaintingStyle.fill;
 
       canvas.drawRect(
-        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, _size.x, _size.y),
+        ui.Rect.fromLTWH(-halfSize.x + offsetX, -halfSize.y + offsetY, _size.x, _size.y),
         paint,
       );
 
@@ -525,7 +529,7 @@ class _RockRenderComponent extends PositionComponent {
         ..strokeWidth = 2.0;
 
       canvas.drawRect(
-        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, _size.x, _size.y),
+        ui.Rect.fromLTWH(-halfSize.x + offsetX, -halfSize.y + offsetY, _size.x, _size.y),
         borderPaint,
       );
 
@@ -536,8 +540,8 @@ class _RockRenderComponent extends PositionComponent {
 
       // 简单的点状纹理
       for (int i = 0; i < 10; i++) {
-        final x = (i * _size.x / 10 - halfSize.x) % _size.x;
-        final y = (i * _size.y / 10 - halfSize.y) % _size.y;
+        final x = (i * _size.x / 10 - halfSize.x) % _size.x + offsetX;
+        final y = (i * _size.y / 10 - halfSize.y) % _size.y + offsetY;
         canvas.drawCircle(ui.Offset(x, y), 2.0, texturePaint);
       }
     }
