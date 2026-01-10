@@ -208,13 +208,13 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
           child: FittedBox(
             fit: BoxFit.contain,
             child: SizedBox(
-              width: 1280,
+              width: 1380,
               height: 720,
               child: Stack(
                 children: [
                   // 游戏主体
                   Container(
-                    width: 1280,
+                    width: 1380,
                     height: 720,
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.black, width: 2),
@@ -223,12 +223,7 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                   ),
 
                   // 顶部信息栏（现在在FittedBox内部）
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: _buildTopBar(),
-                  ),
+                  Positioned(top: 0, left: 0, right: 0, child: _buildTopBar()),
 
                   // 冷却时间进度条（支持多个玩家）
                   Positioned(
@@ -238,7 +233,9 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
                     child: Container(
                       constraints: const BoxConstraints(maxHeight: 100),
                       child: StreamBuilder(
-                        stream: Stream.periodic(const Duration(milliseconds: 100)),
+                        stream: Stream.periodic(
+                          const Duration(milliseconds: 100),
+                        ),
                         builder: (context, snapshot) => _buildCooldownBars(),
                       ),
                     ),

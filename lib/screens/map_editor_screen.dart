@@ -34,13 +34,13 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
   // 控制左侧面板的展开/收起
   bool _isPanelExpanded = true;
 
-  // 地图尺寸（与游戏实际尺寸一致：1280x720）
-  static const double mapWidth = 1280.0;
+  // 地图尺寸（与游戏实际尺寸一致：1380x720）
+  static const double mapWidth = 1380.0;
   static const double mapHeight = 720.0;
   static const double gridSize = 30.0; // 网格大小（原子障碍物大小：30px*30px）
 
-  // 计算网格行列数（1280 / 30 = 42.67，向下取整为42；720 / 30 = 24）
-  static const int gridCols = 42;
+  // 计算网格行列数（1380 / 30 = 46；720 / 30 = 24）
+  static const int gridCols = 46;
   static const int gridRows = 24;
 
   @override
@@ -735,7 +735,7 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
             ),
           ),
 
-          // 地图画布（可滚动，保持实际游戏尺寸1280x720）
+          // 地图画布（可滚动，保持实际游戏尺寸1380x720）
           Expanded(
             child: Column(
               children: [

@@ -3,7 +3,6 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'mission_map.dart';
 import 'ball_component.dart';
-import 'package:flutter/material.dart';
 
 /// 障碍物组件基类
 abstract class ObstacleComponent extends BodyComponent {
@@ -73,7 +72,7 @@ class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
     onBeginContact = (other, contact) {
       // 处理与球的碰撞
       if (other is BallComponent) {
-        handleBallCollision(other as BallComponent);
+        handleBallCollision(other);
       }
     };
 
@@ -82,7 +81,6 @@ class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
     };
   }
 
-  @override
   void handleBallCollision(BallComponent ball) {
     // 标记球已经击中障碍物，防止一个球摧毁多个原子单位
     if (ball.hasHitObstacle) {
@@ -232,7 +230,6 @@ class BrickWallComponent extends BodyComponent {
   }
 }
 
-
 /// 岩石组件：被球击中后反弹，不消失
 class RockComponent extends ObstacleComponent with ContactCallbacks {
   Sprite? _rockSprite; // 岩石图片精灵
@@ -257,7 +254,27 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
 
     // 添加矩形碰撞体
     final shape = PolygonShape();
-    shape.setAsBoxXY(_size.x / 100.0, _size.y / 100.0); // 转换为物理世界的单位
+
+    // 设置碰撞体偏移（相对于 body 中心）
+    // 注意：centroid 是自动计算的，不能直接设置
+    // 但可以通过调整顶点位置来间接控制 centroid 的位置
+    const offsetX = -30.0; // X 方向偏移（像素）
+    const offsetY = -30.0; // Y 方向偏移（像素）
+
+    // 计算矩形的半宽半高（注意：Forge2D 使用物理单位，需要除以像素到物理单位的转换比例）
+    // 如果使用像素直接作为物理单位，则不需要除以 100.0
+    final halfWidth = _size.x / 2;
+    final halfHeight = _size.y / 2;
+
+    // 通过设置顶点位置来偏移碰撞体（从而间接控制 centroid）
+    // 顶点顺序：左上、右上、右下、左下（逆时针）
+    shape.set([
+      Vector2(-halfWidth + offsetX, -halfHeight + offsetY), // 左上
+      Vector2(halfWidth + offsetX, -halfHeight + offsetY), // 右上
+      Vector2(halfWidth + offsetX, halfHeight + offsetY), // 右下
+      Vector2(-halfWidth + offsetX, halfHeight + offsetY), // 左下
+    ]);
+
     final fixtureDef = FixtureDef(
       shape,
       friction: 0.5,
@@ -278,7 +295,7 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
     onBeginContact = (other, contact) {
       // 处理与球的碰撞
       if (other is BallComponent) {
-        handleBallCollision(other as BallComponent);
+        handleBallCollision(other);
       }
     };
 

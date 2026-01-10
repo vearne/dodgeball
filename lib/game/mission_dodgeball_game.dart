@@ -38,7 +38,7 @@ class MissionDodgeballGame extends Forge2DGame
     this.playerCount = 1, // 玩家数量（1或2）
   }) : super(
          gravity: Vector2.zero(), // 俯视视角游戏，无重力
-         camera: CameraComponent.withFixedResolution(width: 1280, height: 720),
+         camera: CameraComponent.withFixedResolution(width: 1380, height: 720),
        );
 
   final MissionMap missionMap;
