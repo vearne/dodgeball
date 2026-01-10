@@ -128,7 +128,7 @@ class PowerUpComponent extends PositionComponent
     super.onCollisionStart(intersectionPoints, other);
 
     if (other is PlayerComponent && !_collected) {
-      _applyPowerUp(other);
+      _applyPowerUp(other as PlayerComponent);
       _collected = true;
       removeFromParent();
       // 调用回调

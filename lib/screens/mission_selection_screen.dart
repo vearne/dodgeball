@@ -281,8 +281,8 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
                     tooltip: AppLocalizations.of(context)!.delete,
                   ),
                 const SizedBox(width: 8),
-                // 开始按钮 - 只允许从第1关开始
-                if (_isFirstMission(map))
+                // 开始按钮 - 允许从第1关开始，或者玩家创建的关卡
+                if (_isFirstMission(map) || _isCustomMission(map))
                   ElevatedButton(
                     onPressed: () => _startMission(map),
                     style: ElevatedButton.styleFrom(
@@ -377,9 +377,14 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
     return index == 0 || map.id == '1';
   }
 
+  /// 判断是否是玩家创建的关卡
+  bool _isCustomMission(MissionMap map) {
+    return map.id.startsWith('custom_');
+  }
+
   void _startMission(MissionMap map) {
-    // 只允许从第1关开始
-    if (!_isFirstMission(map)) {
+    // 允许从第1关开始，或者玩家创建的关卡
+    if (!_isFirstMission(map) && !_isCustomMission(map)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppLocalizations.of(context)!.missionOnlyFromFirst),
@@ -392,14 +397,18 @@ class _MissionSelectionScreenState extends State<MissionSelectionScreen> {
     // 找到当前关卡的索引
     final currentIndex = _maps.indexOf(map);
 
+    // 如果是玩家创建的关卡，只传递当前关卡，不传递 allMaps（因为自定义关卡不参与连续关卡）
+    // 如果是内置关卡，传递所有关卡以支持连续关卡
+    final allMaps = _isCustomMission(map) ? [map] : _maps;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => MissionGameScreen(
           missionMap: map,
           aiIntelligenceLevel: widget.aiIntelligenceLevel,
           maxHealth: widget.maxHealth,
-          allMaps: _maps,
-          currentMapIndex: currentIndex,
+          allMaps: allMaps,
+          currentMapIndex: _isCustomMission(map) ? 0 : currentIndex,
           playerCount: _playerCount,
         ),
       ),

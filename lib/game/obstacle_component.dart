@@ -1,28 +1,49 @@
 import 'dart:ui' as ui;
-import 'package:flame/collisions.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'mission_map.dart';
 import 'ball_component.dart';
 import 'package:flutter/material.dart';
 
 /// 障碍物组件基类
-abstract class ObstacleComponent extends PositionComponent
-    with CollisionCallbacks, HasGameReference {
+abstract class ObstacleComponent extends BodyComponent {
+  final Vector2 _size; // 像素尺寸
+
   ObstacleComponent({required Vector2 position, required Vector2 size})
-    : super(position: position, size: size, anchor: Anchor.topLeft);
+    : _size = size,
+      super(
+        bodyDef: BodyDef(
+          position: position, // 直接使用像素坐标
+          type: BodyType.static, // 障碍物是静态的
+        ),
+      );
+
+  /// 兼容：获取大小（像素坐标）
+  Vector2 get size => _size;
+
+  /// 兼容：获取绝对位置（像素坐标）
+  Vector2 get absolutePosition => body.position;
 
   /// 处理球与障碍物的碰撞
   void handleBallCollision(BallComponent ball);
 }
 
 /// 原子砖块组件：30px*30px 的基本砖块单元
-/// 继承 ObstacleComponent 以便与现有的碰撞检测系统兼容
-class AtomicBrickComponent extends ObstacleComponent {
+class AtomicBrickComponent extends BodyComponent {
   static const double atomicSize = 30.0; // 原子砖块大小
   Sprite? _brickSprite; // 砖块图片精灵
 
   AtomicBrickComponent({required Vector2 position})
-    : super(position: position, size: Vector2.all(atomicSize));
+    : super(
+        bodyDef: BodyDef(position: position, type: BodyType.static),
+        fixtureDefs: [
+          FixtureDef(
+            PolygonShape()..setAsBoxXY(atomicSize / 2, atomicSize / 2),
+            friction: 0.5,
+            restitution: 0.0,
+          ),
+        ],
+      );
 
   @override
   Future<void> onLoad() async {
@@ -33,17 +54,43 @@ class AtomicBrickComponent extends ObstacleComponent {
       _brickSprite = await Sprite.load('wall_30_30.png');
     } catch (e) {}
 
-    // 添加矩形碰撞箱
-    add(RectangleHitbox());
+    // 添加渲染组件
+    final renderComponent = _BrickRenderComponent(
+      size: Vector2.all(atomicSize),
+      sprite: _brickSprite,
+    );
+    add(renderComponent);
   }
 
   @override
-  void render(ui.Canvas canvas) {
-    super.render(canvas);
+  void handleBallCollision(BallComponent ball) {
+    // 标记球已经击中障碍物，防止一个球摧毁多个原子单位
+    if (ball.hasHitObstacle) {
+      return;
+    }
 
-    if (_brickSprite != null) {
+    // 标记球已经击中障碍物
+    ball.hasHitObstacle = true;
+
+    // 球体消失
+    ball.removeFromParent();
+    // 原子砖块消失
+    removeFromParent();
+  }
+}
+
+/// 砖块的渲染组件
+class _BrickRenderComponent extends PositionComponent {
+  final Sprite? sprite;
+
+  _BrickRenderComponent({required Vector2 size, this.sprite})
+    : super(size: size, anchor: Anchor.center);
+
+  @override
+  void render(ui.Canvas canvas) {
+    if (sprite != null) {
       // 使用图片渲染
-      _brickSprite!.render(canvas, size: size);
+      sprite!.render(canvas, size: size, anchor: Anchor.center);
     } else {
       // 降级方案：使用代码绘制
       // 砖块颜色
@@ -60,10 +107,17 @@ class AtomicBrickComponent extends ObstacleComponent {
         ..strokeWidth = 2.0;
 
       // 绘制砖块本体
-      canvas.drawRect(ui.Rect.fromLTWH(0, 0, size.x, size.y), brickPaint);
+      final halfSize = size / 2;
+      canvas.drawRect(
+        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, size.x, size.y),
+        brickPaint,
+      );
 
       // 绘制砖块边框（砖缝）
-      canvas.drawRect(ui.Rect.fromLTWH(0, 0, size.x, size.y), mortarPaint);
+      canvas.drawRect(
+        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, size.x, size.y),
+        mortarPaint,
+      );
 
       // 绘制砖块纹理（横向分割线）
       final texturePaint = ui.Paint()
@@ -73,57 +127,42 @@ class AtomicBrickComponent extends ObstacleComponent {
         ..strokeWidth = 1.0;
 
       canvas.drawLine(
-        ui.Offset(0, size.y / 2),
-        ui.Offset(size.x, size.y / 2),
+        ui.Offset(-halfSize.x, 0),
+        ui.Offset(halfSize.x, 0),
         texturePaint,
       );
-    }
-  }
-
-  @override
-  void handleBallCollision(BallComponent ball) {
-    // 检查球是否已经击中过障碍物，防止一个球摧毁多个原子单位
-    if (ball.hasHitObstacle) {
-      return;
-    }
-
-    // 标记球已经击中障碍物
-    ball.hasHitObstacle = true;
-
-    // 球体消失
-    ball.removeFromParent();
-    // 原子砖块消失
-    removeFromParent();
-  }
-
-  @override
-  void onCollisionStart(
-    Set<Vector2> intersectionPoints,
-    PositionComponent other,
-  ) {
-    super.onCollisionStart(intersectionPoints, other);
-
-    // 如果是球体碰撞
-    if (other is BallComponent) {
-      handleBallCollision(other);
     }
   }
 }
 
 /// 砖墙组件：由多个原子砖块组成的复合障碍物
-class BrickWallComponent extends PositionComponent with HasGameReference {
+class BrickWallComponent extends BodyComponent {
   final List<AtomicBrickComponent> _atomicBricks = [];
+  final Vector2 _size; // 像素尺寸
 
   BrickWallComponent({required Vector2 position, required Vector2 size})
-    : super(position: position, size: size, anchor: Anchor.topLeft);
+    : _size = size,
+      super(
+        bodyDef: BodyDef(position: position, type: BodyType.static),
+      );
+
+  /// 兼容：获取大小
+  Vector2 get size => _size;
+
+  /// 兼容：获取绝对位置
+  Vector2 get absolutePosition => body.position * 50.0;
 
   @override
-  Future<void> onLoad() async {
-    await super.onLoad();
+  void onMount() {
+    super.onMount();
+
+    // 计算砖墙的左上角（地图坐标是中心点，需要转换为左上角）
+    final topLeftX = absolutePosition.x - _size.x / 2;
+    final topLeftY = absolutePosition.y - _size.y / 2;
 
     // 计算需要多少个原子砖块来填充这个区域
-    final numColumns = (size.x / AtomicBrickComponent.atomicSize).ceil();
-    final numRows = (size.y / AtomicBrickComponent.atomicSize).ceil();
+    final numColumns = (_size.x / AtomicBrickComponent.atomicSize).ceil();
+    final numRows = (_size.y / AtomicBrickComponent.atomicSize).ceil();
 
     // 创建原子砖块网格
     for (int row = 0; row < numRows; row++) {
@@ -132,16 +171,26 @@ class BrickWallComponent extends PositionComponent with HasGameReference {
         final brickY = row * AtomicBrickComponent.atomicSize;
 
         // 确保砖块不超出定义的大小
-        if (brickX < size.x && brickY < size.y) {
-          // 砖块位置是相对于父组件的
+        if (brickX < _size.x && brickY < _size.y) {
+          // 计算原子砖块的中心位置
+          final brickCenterX =
+              topLeftX + brickX + AtomicBrickComponent.atomicSize / 2;
+          final brickCenterY =
+              topLeftY + brickY + AtomicBrickComponent.atomicSize / 2;
           final atomicBrick = AtomicBrickComponent(
-            position: Vector2(brickX, brickY),
+            position: Vector2(brickCenterX, brickCenterY),
           );
           _atomicBricks.add(atomicBrick);
-          await add(atomicBrick);
+          add(atomicBrick);
         }
       }
     }
+  }
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    // 原子砖块在 onMount() 中创建
   }
 
   @override
@@ -169,7 +218,6 @@ class WoodWallComponent extends BrickWallComponent {
 /// 岩石组件：被球击中后反弹，不消失
 class RockComponent extends ObstacleComponent {
   Sprite? _rockSprite; // 岩石图片精灵
-  Set<int> _collidedBallIds = {}; // 记录已碰撞的球ID，防止重复处理
 
   RockComponent({required Vector2 position, required Vector2 size})
     : super(position: position, size: size);
@@ -183,31 +231,63 @@ class RockComponent extends ObstacleComponent {
       _rockSprite = await Sprite.load('stone_30_30.png');
     } catch (e) {}
 
-    // 添加矩形碰撞箱
-    add(RectangleHitbox());
+    // 添加矩形碰撞体
+    final shape = PolygonShape();
+    shape.setAsBoxXY(_size.x / 100.0, _size.y / 100.0); // 转换为物理世界的单位
+    final fixtureDef = FixtureDef(
+      shape,
+      friction: 0.5,
+      restitution: 0.8, // 岩石反弹
+    );
+    body.createFixture(fixtureDef);
+
+    // 添加渲染组件
+    final renderComponent = _RockRenderComponent(
+      size: _size,
+      sprite: _rockSprite,
+    );
+    add(renderComponent);
   }
 
   @override
-  void render(ui.Canvas canvas) {
-    super.render(canvas);
+  void handleBallCollision(BallComponent ball) {
+    // Forge2D 会自动处理物理反弹，这里只需要减少弹跳次数
+    ball.reflectOnHorizontalWall(); // 水平或垂直会由 Forge2D 自动判断
+  }
+}
 
-    if (_rockSprite != null) {
+/// 岩石的渲染组件
+class _RockRenderComponent extends PositionComponent {
+  final Sprite? sprite;
+  final Vector2 _size;
+
+  _RockRenderComponent({required Vector2 size, this.sprite})
+    : _size = size,
+      super(size: size, anchor: Anchor.center);
+
+  @override
+  void render(ui.Canvas canvas) {
+    if (sprite != null) {
       // 使用图片渲染（平铺方式填充整个区域）
       final tileSize = 30.0;
-      final tilesX = (size.x / tileSize).ceil();
-      final tilesY = (size.y / tileSize).ceil();
+      final tilesX = (_size.x / tileSize).ceil();
+      final tilesY = (_size.y / tileSize).ceil();
+
+      final halfSize = _size / 2;
+      canvas.save();
+      canvas.translate(-halfSize.x, -halfSize.y);
 
       for (int row = 0; row < tilesY; row++) {
         for (int col = 0; col < tilesX; col++) {
-          final offsetX = col * tileSize;
-          final offsetY = row * tileSize;
+          final offsetX = col * tileSize - halfSize.x;
+          final offsetY = row * tileSize - halfSize.y;
 
           // 计算需要绘制的部分大小
-          final drawWidth = (offsetX + tileSize > size.x)
-              ? size.x - offsetX
+          final drawWidth = (offsetX + tileSize > halfSize.x)
+              ? halfSize.x - offsetX
               : tileSize;
-          final drawHeight = (offsetY + tileSize > size.y)
-              ? size.y - offsetY
+          final drawHeight = (offsetY + tileSize > halfSize.y)
+              ? halfSize.y - offsetY
               : tileSize;
 
           canvas.save();
@@ -216,20 +296,30 @@ class RockComponent extends ObstacleComponent {
           // 裁剪以防止超出边界
           canvas.clipRect(ui.Rect.fromLTWH(0, 0, drawWidth, drawHeight));
 
-          _rockSprite!.render(canvas, size: Vector2(tileSize, tileSize));
+          sprite!.render(
+            canvas,
+            size: Vector2(tileSize, tileSize),
+            anchor: Anchor.topLeft,
+          );
 
           canvas.restore();
         }
       }
+      canvas.restore();
     } else {
       // 降级方案：使用代码绘制
+      final halfSize = _size / 2;
+
       // 绘制岩石：灰色矩形
       final paint = ui.Paint()
         ..color =
             const ui.Color(0xFF696969) // 灰色
         ..style = ui.PaintingStyle.fill;
 
-      canvas.drawRect(ui.Rect.fromLTWH(0, 0, size.x, size.y), paint);
+      canvas.drawRect(
+        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, _size.x, _size.y),
+        paint,
+      );
 
       // 绘制边框
       final borderPaint = ui.Paint()
@@ -238,7 +328,10 @@ class RockComponent extends ObstacleComponent {
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 2.0;
 
-      canvas.drawRect(ui.Rect.fromLTWH(0, 0, size.x, size.y), borderPaint);
+      canvas.drawRect(
+        ui.Rect.fromLTWH(-halfSize.x, -halfSize.y, _size.x, _size.y),
+        borderPaint,
+      );
 
       // 绘制岩石纹理（随机点状）
       final texturePaint = ui.Paint()
@@ -247,88 +340,16 @@ class RockComponent extends ObstacleComponent {
 
       // 简单的点状纹理
       for (int i = 0; i < 10; i++) {
-        final x = (i * size.x / 10) % size.x;
-        final y = (i * size.y / 10) % size.y;
+        final x = (i * _size.x / 10 - halfSize.x) % _size.x;
+        final y = (i * _size.y / 10 - halfSize.y) % _size.y;
         canvas.drawCircle(ui.Offset(x, y), 2.0, texturePaint);
       }
-    }
-  }
-
-  @override
-  void handleBallCollision(BallComponent ball) {
-    // 使用球的hashCode作为唯一标识，防止同一球在短时间内重复碰撞
-    final ballId = ball.hashCode;
-
-    // 如果这个球在最近已经与这个岩石碰撞过，跳过
-    if (_collidedBallIds.contains(ballId)) {
-      return;
-    }
-
-    // 记录已碰撞的球
-    _collidedBallIds.add(ballId);
-
-    // 延迟清除碰撞标记（0.2秒后）
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _collidedBallIds.remove(ballId);
-    });
-
-    // 岩石反弹：计算反弹方向
-    final ballCenter = ball.center;
-    final obstacleRect = Rect.fromLTWH(position.x, position.y, size.x, size.y);
-
-    // 计算球中心到障碍物各边的距离
-    final distToLeft = (ballCenter.x - obstacleRect.left).abs();
-    final distToRight = (ballCenter.x - obstacleRect.right).abs();
-    final distToTop = (ballCenter.y - obstacleRect.top).abs();
-    final distToBottom = (ballCenter.y - obstacleRect.bottom).abs();
-
-    // 找到最近的边
-    final minDist = [
-      distToLeft,
-      distToRight,
-      distToTop,
-      distToBottom,
-    ].reduce((a, b) => a < b ? a : b);
-
-    // 根据最近的边决定反弹方向
-    if (minDist == distToLeft || minDist == distToRight) {
-      // 左右碰撞：水平反弹
-      ball.reflectOnVerticalWall();
-    } else {
-      // 上下碰撞：垂直反弹
-      ball.reflectOnHorizontalWall();
-    }
-
-    // 调整球的位置，防止穿透
-    if (ballCenter.x < obstacleRect.left) {
-      ball.position.x = obstacleRect.left - ball.ballRadius;
-    } else if (ballCenter.x > obstacleRect.right) {
-      ball.position.x = obstacleRect.right + ball.ballRadius;
-    }
-
-    if (ballCenter.y < obstacleRect.top) {
-      ball.position.y = obstacleRect.top - ball.ballRadius;
-    } else if (ballCenter.y > obstacleRect.bottom) {
-      ball.position.y = obstacleRect.bottom + ball.ballRadius;
-    }
-  }
-
-  @override
-  void onCollisionStart(
-    Set<Vector2> intersectionPoints,
-    PositionComponent other,
-  ) {
-    super.onCollisionStart(intersectionPoints, other);
-
-    if (other is BallComponent) {
-      handleBallCollision(other);
     }
   }
 }
 
 /// 从障碍物数据创建障碍物组件
-/// 注意：BrickWallComponent 不再是 ObstacleComponent，而是一个容器组件
-PositionComponent createObstacleFromData(Obstacle obstacle) {
+BodyComponent createObstacleFromData(Obstacle obstacle) {
   final position = Vector2(obstacle.x, obstacle.y);
   final size = Vector2(obstacle.width, obstacle.height);
 

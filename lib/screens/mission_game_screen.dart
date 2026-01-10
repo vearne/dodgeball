@@ -204,50 +204,49 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
         }
       },
       child: Scaffold(
-        body: Stack(
-          children: [
-            // 游戏主体 - 使用FittedBox确保1280x720分辨率固定，不受窗口缩放影响
-            Center(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: SizedBox(
-                  width: 1280,
-                  height: 720,
-                  child: Container(
+        body: Center(
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: 1280,
+              height: 720,
+              child: Stack(
+                children: [
+                  // 游戏主体
+                  Container(
+                    width: 1280,
+                    height: 720,
                     decoration: BoxDecoration(
                       border: Border.all(color: Colors.black, width: 2),
                     ),
                     child: GameWidget.controlled(gameFactory: () => game),
                   ),
-                ),
-              ),
-            ),
 
-            // 顶部信息栏
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(child: _buildTopBar()),
-            ),
-
-            // 冷却时间进度条（支持多个玩家）
-            Positioned(
-              top: 70,
-              left: 100,
-              right: 100,
-              child: SafeArea(
-                child: Container(
-                  constraints: const BoxConstraints(maxHeight: 100),
-                  // 使用 FutureBuilder 等待游戏加载完成
-                  child: StreamBuilder(
-                    stream: Stream.periodic(const Duration(milliseconds: 100)),
-                    builder: (context, snapshot) => _buildCooldownBars(),
+                  // 顶部信息栏（现在在FittedBox内部）
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _buildTopBar(),
                   ),
-                ),
+
+                  // 冷却时间进度条（支持多个玩家）
+                  Positioned(
+                    top: 70,
+                    left: 100,
+                    right: 100,
+                    child: Container(
+                      constraints: const BoxConstraints(maxHeight: 100),
+                      child: StreamBuilder(
+                        stream: Stream.periodic(const Duration(milliseconds: 100)),
+                        builder: (context, snapshot) => _buildCooldownBars(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

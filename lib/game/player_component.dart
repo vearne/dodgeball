@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flame/collisions.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 
@@ -11,8 +11,7 @@ import 'game_mode.dart';
 import 'input_controller.dart';
 import 'team.dart';
 
-class PlayerComponent extends PositionComponent
-    with CollisionCallbacks, HasGameReference {
+class PlayerComponent extends BodyComponent {
   PlayerComponent({
     required this.team,
     required this.playerId,
@@ -27,10 +26,20 @@ class PlayerComponent extends PositionComponent
        _maxHealth = maxHealth,
        _currentHealth = maxHealth,
        super(
-         // 将中心位置转换为topLeft位置（左上角 = 中心 - 半径）
-         position: position - Vector2.all(radius),
-         size: Vector2.all(radius * 2),
-         anchor: Anchor.topLeft, // 统一使用topLeft，与障碍物保持一致
+         bodyDef: BodyDef(
+           position: position, // 直接使用像素坐标
+           type: BodyType.kinematic, // kinematic body：可以移动但不受力影响
+           fixedRotation: true, // 防止玩家旋转
+           linearDamping: 0.0,
+         ),
+         fixtureDefs: [
+           FixtureDef(
+             CircleShape()..radius = radius,
+             friction: 0.0,
+             restitution: 0.0,
+             density: 0.0, // 玩家不被球推动
+           ),
+         ],
        ) {
     // 设置随机初始冷却时间（1-10秒）
     final random = math.Random();
@@ -47,14 +56,19 @@ class PlayerComponent extends PositionComponent
   bool isEliminated = false;
   bool _pendingRemoval = false; // 新增：标记是否待移除
 
-  /// 获取玩家中心位置（因为anchor是topLeft，中心在position + radius）
-  /// 用于逻辑计算（距离、方向等），与absoluteCenter等效
-  Vector2 get center => position + Vector2.all(radius);
+  /// 获取玩家中心位置（像素坐标）
+  Vector2 get center => body.position;
 
-  /// 设置玩家中心位置
+  /// 设置玩家中心位置（像素坐标）
   set center(Vector2 centerPos) {
-    position = centerPos - Vector2.all(radius);
+    body.setTransform(centerPos, 0);
   }
+
+  /// 兼容：获取大小（像素坐标）
+  Vector2 get size => Vector2.all(radius * 2);
+
+  /// 兼容：获取绝对位置（像素坐标）
+  Vector2 get absolutePosition => center;
 
   // 新增：生命值系统
   int _maxHealth; // 最大生命值
@@ -200,7 +214,7 @@ class PlayerComponent extends PositionComponent
   void setDirection(Vector2 direction) {
     if (direction.length > 0.1) {
       _currentDirection = direction.normalized();
-      // 更新箭头方向，确保碰撞检测与视觉一致
+      // 更新箭头方向
       _arrowIcon?.updateDirection(_currentDirection);
     }
   }
@@ -226,16 +240,6 @@ class PlayerComponent extends PositionComponent
   @override
   Future<void> onLoad() async {
     await super.onLoad();
-
-    // 添加圆形碰撞体作为主要碰撞检测
-    // 父组件anchor是topLeft，所以碰撞体中心应该在(radius, radius)位置
-    add(
-      CircleHitbox(
-        radius: radius,
-        position: Vector2.all(radius), // 碰撞体中心在(radius, radius)，即正方形的中心
-        anchor: Anchor.center,
-      ),
-    );
 
     // 设置玩家视觉效果
     _setupPlayerVisuals();
@@ -361,7 +365,7 @@ class PlayerComponent extends PositionComponent
         ),
       ),
       anchor: Anchor.center,
-      position: Vector2(0, -radius - 15), // 在玩家上方显示
+      position: Vector2(0, -radius + 15), // 在玩家上方显示（注意：因为现在是原点中心）
     );
     add(_healthText!);
   }
@@ -392,7 +396,6 @@ class PlayerComponent extends PositionComponent
     _lastThrowTime += dt;
 
     // 注意：人类玩家的移动由 MissionDodgeballGame._applyKeyboardMovement 处理
-    // 这里不再调用 _updateMovement，避免两套移动系统冲突
     // AI 玩家的移动由 AIController 处理
 
     // 更新箭头方向 - 使用当前朝向方向
@@ -429,7 +432,7 @@ class PlayerComponent extends PositionComponent
       // 使用当前朝向方向作为投掷方向
       final throwDirection = _currentDirection;
       final throwDistance = 200.0;
-      final targetPosition = absoluteCenter + throwDirection * throwDistance;
+      final targetPosition = center + throwDirection * throwDistance;
 
       (game as HasPlayerThrowRequest).requestThrowFromPlayer(
         this,
@@ -458,7 +461,7 @@ class PlayerComponent extends PositionComponent
 
   // 简单投掷接口：朝向某个方向扔球
   Vector2 throwDirectionTowards(Vector2 target) {
-    final dir = (target - absoluteCenter).normalized();
+    final dir = (target - center).normalized();
     if (dir.x.isNaN || dir.y.isNaN) {
       return Vector2(1, 0);
     }

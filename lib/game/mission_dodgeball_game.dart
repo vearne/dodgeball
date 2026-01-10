@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
-import 'package:flame/game.dart';
+import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'ai_controller.dart';
@@ -21,9 +21,8 @@ import 'team.dart';
 import 'power_up_component.dart';
 
 /// Mission模式游戏：消灭敌人
-class MissionDodgeballGame extends FlameGame
+class MissionDodgeballGame extends Forge2DGame
     with
-        HasCollisionDetection,
         TapCallbacks,
         DoubleTapCallbacks,
         KeyboardEvents,
@@ -37,7 +36,10 @@ class MissionDodgeballGame extends FlameGame
     this.onMissionComplete,
     this.onMissionFailed, // 新增：任务失败回调
     this.playerCount = 1, // 玩家数量（1或2）
-  });
+  }) : super(
+         gravity: Vector2.zero(), // 俯视视角游戏，无重力
+         camera: CameraComponent.withFixedResolution(width: 1280, height: 720),
+       );
 
   final MissionMap missionMap;
   final double aiIntelligenceLevel;
@@ -144,9 +146,6 @@ class MissionDodgeballGame extends FlameGame
     // 初始化关卡计时器
     _elapsedTime = 0.0;
 
-    // 初始化音频管理器
-    await _audioManager.initialize();
-
     // 添加场地背景
     add(FieldBackground(gameSize: size));
 
@@ -163,8 +162,8 @@ class MissionDodgeballGame extends FlameGame
     await _spawnPlayerAndEnemies();
 
     // 延迟一小段时间后播放背景音乐，确保关卡完全加载
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _audioManager.playBackgroundMusic();
+    Future.delayed(const Duration(milliseconds: 200), () async {
+      await _audioManager.playBackgroundMusic();
     });
 
     // 设置调试模式
@@ -181,7 +180,40 @@ class MissionDodgeballGame extends FlameGame
 
   /// 添加外围边界墙壁
   void _addBoundaryWalls() {
-    // 边界墙壁由FieldBackground处理，这里不需要额外添加
+    // 添加静态边界墙壁
+    final wallThickness = FieldConfig.wallThickness;
+    final left = _createWall(
+      start: Vector2(wallThickness, wallThickness),
+      end: Vector2(wallThickness, size.y - wallThickness),
+    );
+    final right = _createWall(
+      start: Vector2(size.x - wallThickness, wallThickness),
+      end: Vector2(size.x - wallThickness, size.y - wallThickness),
+    );
+    final top = _createWall(
+      start: Vector2(wallThickness, wallThickness),
+      end: Vector2(size.x - wallThickness, wallThickness),
+    );
+    final bottom = _createWall(
+      start: Vector2(wallThickness, size.y - wallThickness),
+      end: Vector2(size.x - wallThickness, size.y - wallThickness),
+    );
+
+    addAll([left, right, top, bottom]);
+  }
+
+  /// 创建边界墙壁
+  BodyComponent _createWall({required Vector2 start, required Vector2 end}) {
+    return BodyComponent(
+      bodyDef: BodyDef(position: Vector2.zero(), type: BodyType.static),
+      fixtureDefs: [
+        FixtureDef(
+          EdgeShape()..set(start, end),
+          friction: 0.0,
+          restitution: 0.8,
+        ),
+      ],
+    );
   }
 
   /// 加载地图障碍物
@@ -262,7 +294,7 @@ class MissionDodgeballGame extends FlameGame
       },
       onThrow: (direction) {
         if (player1.isEliminated || !player1.canThrow) return;
-        final throwTarget = player1.position + direction * 100;
+        final throwTarget = player1.center + direction * 100;
         _throwFromPlayer(player1, throwTarget);
       },
     );
@@ -336,7 +368,7 @@ class MissionDodgeballGame extends FlameGame
         },
         onThrow: (direction) {
           if (player2.isEliminated || !player2.canThrow) return;
-          final throwTarget = player2.position + direction * 100;
+          final throwTarget = player2.center + direction * 100;
           _throwFromPlayer(player2, throwTarget);
         },
       );
@@ -382,8 +414,12 @@ class MissionDodgeballGame extends FlameGame
     final playerSize = Vector2.all(playerRadius * 2); // 玩家矩形碰撞区域大小
 
     // 首先尝试首选位置
-    final obstacleCheck = _isPositionOnObstacle(preferredPosition, playerSize);
-    final playerCheck = _isPositionTooCloseToPlayers(
+    final obstacleCheck = _checkPositionCollisionWithObstacles(
+      preferredPosition,
+      playerSize,
+      area,
+    );
+    final playerCheck = _checkPositionTooCloseToPlayers(
       preferredPosition,
       minDistanceBetweenPlayers,
     );
@@ -398,11 +434,17 @@ class MissionDodgeballGame extends FlameGame
       final randomY = area.top + _random.nextDouble() * area.height;
       final testPosition = Vector2(randomX, randomY);
 
-      if (!_isPositionOnObstacle(testPosition, playerSize) &&
-          !_isPositionTooCloseToPlayers(
-            testPosition,
-            minDistanceBetweenPlayers,
-          )) {
+      final obstacleCheck2 = _checkPositionCollisionWithObstacles(
+        testPosition,
+        playerSize,
+        area,
+      );
+      final playerCheck2 = _checkPositionTooCloseToPlayers(
+        testPosition,
+        minDistanceBetweenPlayers,
+      );
+
+      if (!obstacleCheck2 && !playerCheck2) {
         return testPosition;
       }
     }
@@ -412,7 +454,7 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 检查位置是否离其他已生成的玩家太近
-  bool _isPositionTooCloseToPlayers(Vector2 position, double minDistance) {
+  bool _checkPositionTooCloseToPlayers(Vector2 position, double minDistance) {
     // 检查与已添加到游戏中的所有玩家的距离
     for (final player in children.whereType<PlayerComponent>()) {
       final distance = position.distanceTo(player.center);
@@ -424,7 +466,11 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 检查位置是否在障碍物上（使用圆形碰撞检测）
-  bool _isPositionOnObstacle(Vector2 position, Vector2 playerSize) {
+  bool _checkPositionCollisionWithObstacles(
+    Vector2 position,
+    Vector2 playerSize,
+    Rect area,
+  ) {
     // playerSize 转换为半径（取较小的一边）
     final radius = playerSize.x / 2;
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
@@ -450,13 +496,18 @@ class MissionDodgeballGame extends FlameGame
           child.size.x,
           child.size.y,
         );
-        if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
+        if (_checkCircleRectCollision(
+          circleCenter,
+          circleRadius,
+          obstacleRect,
+        )) {
           return true;
         }
       }
 
       // 递归检查子组件（例如 BrickWallComponent 的子组件）
-      if (_checkObstacleCollisionRecursive(child, circleCenter, circleRadius)) {
+      if (child.children.isNotEmpty &&
+          _checkObstacleCollisionRecursive(child, circleCenter, circleRadius)) {
         return true;
       }
     }
@@ -464,7 +515,7 @@ class MissionDodgeballGame extends FlameGame
   }
 
   /// 圆形与矩形碰撞检测
-  bool _circleRectCollision(
+  bool _checkCircleRectCollision(
     Vector2 circleCenter,
     double circleRadius,
     Rect rect,
@@ -552,51 +603,43 @@ class MissionDodgeballGame extends FlameGame
     final player = playerTeam.first;
     if (player.isEliminated) return;
 
-    final speed = player.movementSpeed;
-    final moveVector = direction.normalized() * speed * 0.016; // 使用固定时间步长
-    final newPosition = player.center + moveVector;
+    // 检查 body 是否已初始化（组件是否已加载完成）
+    try {
+      final speed = player.movementSpeed; // 直接使用像素单位
+      final velocity = direction.normalized() * speed;
 
-    // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
-    final isRedTeam = player.team == Team.red;
-    final isInArea = isRedTeam
-        ? FieldConfig.isInRedTeamArea(
-            newPosition,
-            size,
-            playerRadius: player.radius,
-          )
-        : FieldConfig.isInBlueTeamArea(
-            newPosition,
-            size,
-            playerRadius: player.radius,
-          );
+      // 检查移动后是否仍在队伍区域内
+      final currentPos = player.center;
+      final dt = 1.0 / 60.0; // 假设60fps
+      final newPos = currentPos + velocity * dt; // 像素坐标
 
-    // 只有在区域内且不与障碍物碰撞时才移动
-    if (isInArea && !_isPositionOnObstacle(newPosition, player.size)) {
-      player.center = newPosition;
-    } else {
-      // 如果不在区域内，尝试限制到边界内（考虑玩家半径）
-      final clampedPosition = FieldConfig.clampToTeamArea(
-        newPosition,
-        isRedTeam,
+      // 检查新位置是否在红队区域内
+      if (FieldConfig.isInRedTeamArea(
+        newPos,
         size,
         playerRadius: player.radius,
-      );
-      // 只有当限制后的位置仍在区域内时才更新
-      final clampedInArea = isRedTeam
-          ? FieldConfig.isInRedTeamArea(
-              clampedPosition,
-              size,
-              playerRadius: player.radius,
-            )
-          : FieldConfig.isInBlueTeamArea(
-              clampedPosition,
-              size,
-              playerRadius: player.radius,
-            );
-      if (clampedInArea &&
-          !_isPositionOnObstacle(clampedPosition, player.size)) {
-        player.center = clampedPosition;
+      )) {
+        player.body.linearVelocity = velocity;
+      } else {
+        // 如果会越界，限制到边界内
+        final clampedPos = FieldConfig.clampToTeamArea(
+          newPos,
+          true, // 红队
+          size,
+          playerRadius: player.radius,
+        );
+        if ((clampedPos - currentPos).length < 0.1) {
+          player.body.linearVelocity = Vector2.zero();
+        } else {
+          final limitedVelocity = (clampedPos - currentPos) / dt;
+          final clampedVelocity = limitedVelocity.clone();
+          clampedVelocity.clampLength(0, speed);
+          player.body.linearVelocity = clampedVelocity;
+        }
       }
+    } catch (e) {
+      // body 尚未初始化，跳过（等待下一帧）
+      return;
     }
   }
 
@@ -621,14 +664,17 @@ class MissionDodgeballGame extends FlameGame
     // 应用键盘输入移动玩家
     _applyKeyboardMovement(dt);
 
+    // 限制所有玩家在各自的活动区域内
+    _clampPlayersToTeamAreas();
+
     // 更新人类玩家冷却时间显示
     _updateHumanCooldownNotifier();
 
     // 更新玩家生命值显示
     _updatePlayerHealthNotifier();
 
-    // 处理边界反弹
-    _handleWallBounces();
+    // 处理边界反弹（现在由 Forge2D 自动处理）
+    // _handleWallBounces(); // 不再需要手动处理
 
     // 检查游戏结束条件
     _checkGameOver();
@@ -646,76 +692,103 @@ class MissionDodgeballGame extends FlameGame
       final input = _keyboardMoveInputs[player.playerId];
       if (input == null || input.length < 0.01) continue;
 
-      final speed = player.movementSpeed;
-      final moveVector = input.normalized() * speed * dt;
-      final newPosition = player.center + moveVector;
+      // 检查 body 是否已初始化（组件是否已加载完成）
+      try {
+        // 计算新位置
+        final speed = player.movementSpeed; // 直接使用像素单位
+        final velocity = input.normalized() * speed;
 
-      // 检查新位置是否在对应的队伍区域内（考虑玩家半径）
-      final isRedTeam = player.team == Team.red;
-      final isInArea = isRedTeam
-          ? FieldConfig.isInRedTeamArea(
-              newPosition,
-              size,
-              playerRadius: player.radius,
-            )
-          : FieldConfig.isInBlueTeamArea(
-              newPosition,
-              size,
-              playerRadius: player.radius,
-            );
+        // 检查移动后是否仍在队伍区域内
+        final currentPos = player.center;
+        final newPos = currentPos + velocity * dt; // 像素坐标
 
-      // 只有在区域内且不与障碍物碰撞时才移动
-      final obstacleCollision = _isPositionOnObstacle(newPosition, player.size);
-
-      if (isInArea && !obstacleCollision) {
-        player.center = newPosition;
-        // 更新玩家朝向
-        player.setDirection(input.normalized());
-      } else {
-        // 如果不在区域内或与障碍物碰撞，尝试分轴移动（沿墙滑动）
-        bool moved = false;
-
-        // 先尝试只在 X 轴移动
-        final newPosX = Vector2(newPosition.x, player.center.y);
-        final isInAreaX = isRedTeam
-            ? FieldConfig.isInRedTeamArea(
-                newPosX,
-                size,
-                playerRadius: player.radius,
-              )
-            : FieldConfig.isInBlueTeamArea(
-                newPosX,
-                size,
-                playerRadius: player.radius,
-              );
-
-        if (isInAreaX && !_isPositionOnObstacle(newPosX, player.size)) {
-          player.center = newPosX;
+        // 检查新位置是否在红队区域内
+        if (FieldConfig.isInRedTeamArea(
+          newPos,
+          size,
+          playerRadius: player.radius,
+        )) {
+          player.body.linearVelocity = velocity; // 设置物理体的速度
+          // 更新玩家朝向
           player.setDirection(input.normalized());
-          moved = true;
-        }
-
-        // 如果 X 轴没移动，再尝试只在 Y 轴移动
-        if (!moved) {
-          final newPosY = Vector2(player.center.x, newPosition.y);
-          final isInAreaY = isRedTeam
-              ? FieldConfig.isInRedTeamArea(
-                  newPosY,
-                  size,
-                  playerRadius: player.radius,
-                )
-              : FieldConfig.isInBlueTeamArea(
-                  newPosY,
-                  size,
-                  playerRadius: player.radius,
-                );
-
-          if (isInAreaY && !_isPositionOnObstacle(newPosY, player.size)) {
-            player.center = newPosY;
+        } else {
+          // 如果会越界，限制速度方向，使其不越界
+          final clampedPos = FieldConfig.clampToTeamArea(
+            newPos,
+            true, // 红队
+            size,
+            playerRadius: player.radius,
+          );
+          // 如果新位置被限制，说明会越界，停止移动
+          if ((clampedPos - currentPos).length < 0.1) {
+            player.body.linearVelocity = Vector2.zero();
+          } else {
+            // 允许移动到限制位置
+            final limitedVelocity = (clampedPos - currentPos) / dt;
+            final clampedVelocity = limitedVelocity.clone();
+            clampedVelocity.clampLength(0, speed);
+            player.body.linearVelocity = clampedVelocity;
             player.setDirection(input.normalized());
           }
         }
-        // 如果都不行，玩家保持原位
+      } catch (e) {
+        // body 尚未初始化，跳过这个玩家（等待下一帧）
+        continue;
+      }
+    }
+  }
+
+  /// 限制所有玩家在各自的活动区域内
+  void _clampPlayersToTeamAreas() {
+    // 限制红队玩家（人类玩家）在红队区域内
+    for (final player in playerTeam) {
+      if (player.isEliminated) continue;
+
+      // 检查 body 是否已初始化（组件是否已加载完成）
+      try {
+        final currentPos = player.center;
+        final clampedPos = FieldConfig.clampToTeamArea(
+          currentPos,
+          true, // 红队
+          size,
+          playerRadius: player.radius,
+        );
+
+        // 如果位置被限制，说明越界了，立即修正位置
+        if ((clampedPos - currentPos).length > 0.1) {
+          player.center = clampedPos;
+          // 如果玩家正在移动，停止移动
+          player.body.linearVelocity = Vector2.zero();
+        }
+      } catch (e) {
+        // body 尚未初始化，跳过这个玩家（等待下一帧）
+        continue;
+      }
+    }
+
+    // 限制蓝队玩家（AI敌人）在蓝队区域内
+    for (final enemy in enemyTeam) {
+      if (enemy.isEliminated) continue;
+
+      // 检查 body 是否已初始化（组件是否已加载完成）
+      try {
+        final currentPos = enemy.center;
+        final clampedPos = FieldConfig.clampToTeamArea(
+          currentPos,
+          false, // 蓝队
+          size,
+          playerRadius: enemy.radius,
+        );
+
+        // 如果位置被限制，说明越界了，立即修正位置
+        if ((clampedPos - currentPos).length > 0.1) {
+          enemy.center = clampedPos;
+          // 如果敌人正在移动，停止移动
+          enemy.body.linearVelocity = Vector2.zero();
+        }
+      } catch (e) {
+        // body 尚未初始化，跳过这个敌人（等待下一帧）
+        continue;
       }
     }
   }
@@ -810,39 +883,6 @@ class MissionDodgeballGame extends FlameGame
 
     if (playerHealthNotifier.value != totalHealth) {
       playerHealthNotifier.value = totalHealth;
-    }
-  }
-
-  void _handleWallBounces() {
-    for (final ball in children.whereType<BallComponent>()) {
-      final r = ball.ballRadius;
-      final px = ball.position.x;
-      final py = ball.position.y;
-      final wallThickness = FieldConfig.wallThickness;
-
-      // 顶部边界
-      if (py - r <= wallThickness && ball.velocity.y < 0) {
-        ball.position.y = wallThickness + r;
-        ball.reflectOnHorizontalWall();
-      }
-
-      // 底部边界
-      if (py + r >= size.y - wallThickness && ball.velocity.y > 0) {
-        ball.position.y = size.y - wallThickness - r;
-        ball.reflectOnHorizontalWall();
-      }
-
-      // 左侧边界
-      if (px - r <= wallThickness && ball.velocity.x < 0) {
-        ball.position.x = wallThickness + r;
-        ball.reflectOnVerticalWall();
-      }
-
-      // 右侧边界
-      if (px + r >= size.x - wallThickness && ball.velocity.x > 0) {
-        ball.position.x = size.x - wallThickness - r;
-        ball.reflectOnVerticalWall();
-      }
     }
   }
 
@@ -995,7 +1035,8 @@ class MissionDodgeballGame extends FlameGame
       // 有概率掉落道具
       if (_random.nextDouble() < 0.3) {
         // 30%概率掉落道具
-        _dropPowerUp(hitPlayer.position);
+        // 使用 center 而不是 position，因为 PlayerComponent 使用 BodyComponent
+        _dropPowerUp(hitPlayer.center);
       }
     }
   }
@@ -1071,7 +1112,11 @@ class MissionDodgeballGame extends FlameGame
       final testPosition = Vector2(randomX, randomY);
 
       // 检查是否在障碍物上（使用矩形碰撞检测）
-      if (_isPositionOnObstacle(testPosition, powerUpSizeVec)) {
+      if (_checkPositionCollisionWithObstacles(
+        testPosition,
+        powerUpSizeVec,
+        playableArea,
+      )) {
         continue;
       }
 

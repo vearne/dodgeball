@@ -69,26 +69,40 @@ class AudioManager {
   }
 
   /// 播放背景音乐
-  void playBackgroundMusic() {
+  Future<void> playBackgroundMusic() async {
     if (!_isMusicEnabled) return;
 
     try {
-      // 如果音乐已经在播放，不需要重复播放
-      if (FlameAudio.bgm.isPlaying) {
-        return;
+      // 先停止当前播放的音乐（如果有）
+      await FlameAudio.bgm.stop();
+      
+      // 延迟一小段时间后播放，确保停止操作完成
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      if (_isMusicEnabled) {
+        // 使用 await 确保播放操作完成
+        await FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
       }
-
-      // 不要 await，避免重复响应问题
-      FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
-    } catch (e) {}
+    } catch (e) {
+      // 如果出错，尝试直接播放（不检查状态）
+      try {
+        if (_isMusicEnabled) {
+          await FlameAudio.bgm.play(_backgroundMusicPath, volume: _musicVolume);
+        }
+      } catch (e2) {
+        // 忽略错误，可能是音频文件不存在或权限问题
+        print('Failed to play background music: $e2');
+      }
+    }
   }
 
   /// 停止背景音乐
-  void stopBackgroundMusic() {
+  Future<void> stopBackgroundMusic() async {
     try {
-      // 不要 await，避免重复响应问题
-      FlameAudio.bgm.stop();
-    } catch (e) {}
+      await FlameAudio.bgm.stop();
+    } catch (e) {
+      // 忽略错误
+    }
   }
 
   /// 播放击中音效
@@ -143,9 +157,9 @@ class AudioManager {
     await _saveSettings();
 
     if (enabled) {
-      playBackgroundMusic();
+      await playBackgroundMusic();
     } else {
-      stopBackgroundMusic();
+      await stopBackgroundMusic();
     }
   }
 
@@ -180,7 +194,7 @@ class AudioManager {
   double get soundVolume => _soundVolume;
 
   /// 释放资源
-  void dispose() {
-    stopBackgroundMusic();
+  Future<void> dispose() async {
+    await stopBackgroundMusic();
   }
 }

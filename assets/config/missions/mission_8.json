@@ -36,7 +36,8 @@
   "allowedPowerUps": [
     "health",
     "speedBoost",
-    "attackSpeed"
+    "attackSpeed",
+    "coin"
   ],
   "maxPowerUps": 10,
   "powerUpSpawnInterval": 21.0

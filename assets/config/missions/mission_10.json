@@ -42,7 +42,8 @@
   ],
   "allowedPowerUps": [
     "speedBoost",
-    "attackSpeed"
+    "attackSpeed",
+    "coin"
   ],
   "maxPowerUps": 10,
   "powerUpSpawnInterval": 19.0

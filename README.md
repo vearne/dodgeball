@@ -4,7 +4,9 @@ mkdir -p ~/flutter_tmp
 ```
 ## 开始模式
 ```
-export TMPDIR=~/flutter_tmp && flutter run -d macos
+export TMPDIR=$HOME/tmp
+mkdir -p $HOME/tmp
+flutter run -d macos
 ```
 ## 发布
 ```
