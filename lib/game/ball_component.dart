@@ -8,7 +8,7 @@ import 'obstacle_component.dart';
 import 'player_component.dart';
 import 'team.dart';
 
-class BallComponent extends BodyComponent {
+class BallComponent extends BodyComponent with ContactCallbacks {
   BallComponent({
     required this.team,
     required this.ownerPlayerId,
@@ -74,6 +74,12 @@ class BallComponent extends BodyComponent {
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
+    body.userData = this;
+
+    // 设置碰撞回调
+    _setupCollisionCallbacks();
+
     // 根据队伍加载相应的球图片
     final spritePath = _getSpritePathForTeam(team);
     final sprite = await Sprite.load(spritePath);
@@ -90,6 +96,24 @@ class BallComponent extends BodyComponent {
     add(remainingLabel);
   }
 
+  /// 设置碰撞回调
+  void _setupCollisionCallbacks() {
+    onBeginContact = (other, contact) {
+      // 处理与玩家的碰撞
+      if (other is PlayerComponent) {
+        handlePlayerCollision(other as PlayerComponent);
+      }
+      // 处理与障碍物的碰撞
+      else if (other is ObstacleComponent) {
+        other.handleBallCollision(this);
+      }
+    };
+
+    onEndContact = (other, contact) {
+      // 碰撞结束时的处理（如果需要）
+    };
+  }
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -101,7 +125,7 @@ class BallComponent extends BodyComponent {
     // 保持恒定速度（忽略碰撞后的速度损失，只使用弹性系数）
     final currentSpeed = body.linearVelocity.length;
     if (currentSpeed > 0.01) {
-      final targetSpeed = 300.0; // 直接使用像素单位
+      final targetSpeed = 400.0; // 直接使用像素单位
       if (currentSpeed != targetSpeed) {
         body.linearVelocity = body.linearVelocity.normalized() * targetSpeed;
       }

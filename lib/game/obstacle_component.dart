@@ -29,7 +29,7 @@ abstract class ObstacleComponent extends BodyComponent {
 }
 
 /// 原子砖块组件：30px*30px 的基本砖块单元
-class AtomicBrickComponent extends BodyComponent {
+class AtomicBrickComponent extends BodyComponent with ContactCallbacks {
   static const double atomicSize = 30.0; // 原子砖块大小
   Sprite? _brickSprite; // 砖块图片精灵
 
@@ -49,6 +49,12 @@ class AtomicBrickComponent extends BodyComponent {
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
+    body.userData = this;
+
+    // 设置碰撞回调
+    _setupCollisionCallbacks();
+
     // 加载砖块图片
     try {
       _brickSprite = await Sprite.load('wall_30_30.png');
@@ -60,6 +66,20 @@ class AtomicBrickComponent extends BodyComponent {
       sprite: _brickSprite,
     );
     add(renderComponent);
+  }
+
+  /// 设置碰撞回调
+  void _setupCollisionCallbacks() {
+    onBeginContact = (other, contact) {
+      // 处理与球的碰撞
+      if (other is BallComponent) {
+        handleBallCollision(other as BallComponent);
+      }
+    };
+
+    onEndContact = (other, contact) {
+      // 碰撞结束时的处理（如果需要）
+    };
   }
 
   @override
@@ -150,7 +170,7 @@ class BrickWallComponent extends BodyComponent {
   Vector2 get size => _size;
 
   /// 兼容：获取绝对位置
-  Vector2 get absolutePosition => body.position * 50.0;
+  Vector2 get absolutePosition => body.position;
 
   @override
   void onMount() {
@@ -216,7 +236,7 @@ class WoodWallComponent extends BrickWallComponent {
 }
 
 /// 岩石组件：被球击中后反弹，不消失
-class RockComponent extends ObstacleComponent {
+class RockComponent extends ObstacleComponent with ContactCallbacks {
   Sprite? _rockSprite; // 岩石图片精灵
 
   RockComponent({required Vector2 position, required Vector2 size})
@@ -225,6 +245,12 @@ class RockComponent extends ObstacleComponent {
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
+    body.userData = this;
+
+    // 设置碰撞回调
+    _setupCollisionCallbacks();
 
     // 加载岩石图片
     try {
@@ -247,6 +273,20 @@ class RockComponent extends ObstacleComponent {
       sprite: _rockSprite,
     );
     add(renderComponent);
+  }
+
+  /// 设置碰撞回调
+  void _setupCollisionCallbacks() {
+    onBeginContact = (other, contact) {
+      // 处理与球的碰撞
+      if (other is BallComponent) {
+        handleBallCollision(other as BallComponent);
+      }
+    };
+
+    onEndContact = (other, contact) {
+      // 碰撞结束时的处理（如果需要）
+    };
   }
 
   @override

@@ -7,11 +7,14 @@ import 'package:flutter/material.dart';
 
 import 'ai_controller.dart';
 import 'arrow_component.dart';
+import 'ball_component.dart';
 import 'game_mode.dart';
 import 'input_controller.dart';
+import 'obstacle_component.dart';
+import 'power_up_component.dart';
 import 'team.dart';
 
-class PlayerComponent extends BodyComponent {
+class PlayerComponent extends BodyComponent with ContactCallbacks {
   PlayerComponent({
     required this.team,
     required this.playerId,
@@ -241,6 +244,12 @@ class PlayerComponent extends BodyComponent {
   Future<void> onLoad() async {
     await super.onLoad();
 
+    // 设置 body.userData 为 this，使 WorldContactListener 能够调用此组件的碰撞回调
+    body.userData = this;
+
+    // 设置碰撞回调
+    _setupCollisionCallbacks();
+
     // 设置玩家视觉效果
     _setupPlayerVisuals();
 
@@ -258,6 +267,61 @@ class PlayerComponent extends BodyComponent {
     if (_inputController != null && !_inputController!.isMounted) {
       add(_inputController!);
     }
+  }
+
+  /// 设置碰撞回调
+  void _setupCollisionCallbacks() {
+    onBeginContact = (other, contact) {
+      // 处理与球的碰撞
+      if (other is BallComponent) {
+        // 球会处理击中玩家的逻辑，这里不需要额外处理
+      }
+      // 处理与道具的碰撞
+      else if (other is PowerUpComponent) {
+        final powerUp = other as PowerUpComponent;
+        if (!powerUp.isCollected) {
+          _applyPowerUpFromComponent(powerUp);
+          powerUp.markAsCollected();
+        }
+      }
+      // 处理与障碍物的碰撞
+      else if (other is ObstacleComponent) {
+        // 物理引擎会自动处理碰撞和位置修正
+        // 这里可以添加额外的游戏逻辑，例如音效或视觉反馈
+      }
+    };
+
+    onEndContact = (other, contact) {
+      // 碰撞结束时的处理（如果需要）
+    };
+  }
+
+  /// 从 PowerUpComponent 应用道具效果
+  void _applyPowerUpFromComponent(PowerUpComponent powerUp) {
+    switch (powerUp.type) {
+      case PowerUpType.speedBoost:
+        _applySpeedBoostEffect();
+        break;
+      case PowerUpType.attackSpeed:
+        setAttackSpeedBoost(true);
+        // 需要通过游戏类添加定时器来重置
+        break;
+      case PowerUpType.health:
+        setCurrentHealth(currentHealth + 1);
+        break;
+      case PowerUpType.coin:
+        // 金币计数需要在游戏类中处理
+        break;
+    }
+  }
+
+  /// 应用速度提升效果
+  void _applySpeedBoostEffect() {
+    const originalSpeed = 120.0;
+    movementSpeed = originalSpeed * 1.2; // 20%增速
+
+    // 需要通过游戏类添加定时器，这里先简单处理
+    // 实际应该由 MissionDodgeballGame 处理定时器
   }
 
   @override

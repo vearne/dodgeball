@@ -27,6 +27,13 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
   // 道具配置
   final Set<PowerUpType> _selectedPowerUps = {};
 
+  // 滚动控制器
+  final ScrollController _horizontalScrollController = ScrollController();
+  final ScrollController _verticalScrollController = ScrollController();
+
+  // 控制左侧面板的展开/收起
+  bool _isPanelExpanded = true;
+
   // 地图尺寸（与游戏实际尺寸一致：1280x720）
   static const double mapWidth = 1280.0;
   static const double mapHeight = 720.0;
@@ -39,6 +46,13 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
   @override
   void initState() {
     super.initState();
+
+    // 添加滚动监听器，用于更新底部滚动条
+    _horizontalScrollController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
 
     if (widget.existingMap != null) {
       // 编辑现有地图
@@ -160,6 +174,8 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
     _descriptionController.dispose();
     _enemyCountController.dispose();
     _powerUpIntervalController.dispose();
+    _horizontalScrollController.dispose();
+    _verticalScrollController.dispose();
     super.dispose();
   }
 
@@ -261,9 +277,80 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
       ),
       body: Row(
         children: [
-          // 左侧：编辑器控制面板
-          SizedBox(width: 300, child: _buildControlPanel()),
-
+          // 左侧：编辑器控制面板（可收起）
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            width: _isPanelExpanded ? 300 : 0,
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.centerLeft,
+                minWidth: 0,
+                maxWidth: 300,
+                child: SizedBox(
+                  width: 300,
+                  child: Stack(
+                    children: [
+                      _buildControlPanel(),
+                      // 收起按钮
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Material(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          child: IconButton(
+                            icon: const Icon(Icons.chevron_left, size: 20),
+                            onPressed: () {
+                              setState(() {
+                                _isPanelExpanded = false;
+                              });
+                            },
+                            tooltip: '收起面板',
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 展开按钮（当面板收起时显示）
+          if (!_isPanelExpanded)
+            Container(
+              width: 40,
+              color: Colors.grey[200],
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  Material(
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(20),
+                    child: IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _isPanelExpanded = true;
+                        });
+                      },
+                      tooltip: '展开面板',
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // 右侧：地图画布
           Expanded(child: _buildMapCanvas()),
         ],
@@ -650,46 +737,173 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
 
           // 地图画布（可滚动，保持实际游戏尺寸1280x720）
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: Container(
-                    width: mapWidth,
-                    height: mapHeight,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black, width: 2),
-                    ),
-                    child: GestureDetector(
-                      onTapDown: (details) {
-                        final localPosition = details.localPosition;
-                        final col = (localPosition.dx / gridSize).floor();
-                        final row = (localPosition.dy / gridSize).floor();
+            child: Column(
+              children: [
+                // 主要内容区域（带垂直滚动条）
+                Expanded(
+                  child: Row(
+                    children: [
+                      // 地图内容区域
+                      Expanded(
+                        child: Scrollbar(
+                          controller: _verticalScrollController,
+                          thumbVisibility: true,
+                          interactive: true,
+                          child: SingleChildScrollView(
+                            controller: _verticalScrollController,
+                            scrollDirection: Axis.vertical,
+                            child: SizedBox(
+                              height: mapHeight,
+                              child: NotificationListener<ScrollNotification>(
+                                onNotification: (notification) {
+                                  // 监听水平滚动通知，触发重建以更新底部滚动条
+                                  if (notification is ScrollUpdateNotification) {
+                                    setState(() {});
+                                  }
+                                  return false;
+                                },
+                                child: SingleChildScrollView(
+                                  controller: _horizontalScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  child: SizedBox(
+                                    width: mapWidth,
+                                    child: Container(
+                                      width: mapWidth,
+                                      height: mapHeight,
+                                      decoration: BoxDecoration(
+                                        border: Border.all(color: Colors.black, width: 2),
+                                      ),
+                                      child: GestureDetector(
+                                        onTapDown: (details) {
+                                          final localPosition = details.localPosition;
+                                          final col = (localPosition.dx / gridSize).floor();
+                                          final row = (localPosition.dy / gridSize).floor();
 
-                        if (col >= 0 &&
-                            col < gridCols &&
-                            row >= 0 &&
-                            row < gridRows) {
-                          // 直接更新状态，不等待重建
-                          _toggleGridCell(row, col);
-                        }
-                      },
-                      child: RepaintBoundary(
-                        child: CustomPaint(
-                          painter: GridMapCanvasPainter(
-                            gridObstacles: _gridObstacles,
-                            gridSize: gridSize,
-                            gridCols: gridCols,
-                            gridRows: gridRows,
+                                          if (col >= 0 &&
+                                              col < gridCols &&
+                                              row >= 0 &&
+                                              row < gridRows) {
+                                            // 直接更新状态，不等待重建
+                                            _toggleGridCell(row, col);
+                                          }
+                                        },
+                                        child: RepaintBoundary(
+                                          child: CustomPaint(
+                                            painter: GridMapCanvasPainter(
+                                              gridObstacles: _gridObstacles,
+                                              gridSize: gridSize,
+                                              gridCols: gridCols,
+                                              gridRows: gridRows,
+                                            ),
+                                            size: const Size(mapWidth, mapHeight),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          size: const Size(mapWidth, mapHeight),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-              ),
+                // 水平滚动条（显示在底部，使用自定义滚动条）
+                Container(
+                  height: 20,
+                  color: Colors.grey[200],
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // 安全地访问滚动位置
+                      if (!_horizontalScrollController.hasClients) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      // 使用 positions 列表来安全访问
+                      final positions = _horizontalScrollController.positions;
+                      if (positions.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      // 使用第一个位置（应该只有一个）
+                      final position = positions.first;
+                      
+                      // 安全地访问滚动位置属性，使用 try-catch 防止空值错误
+                      double viewportDimension;
+                      double maxScrollExtent;
+                      double minScrollExtent;
+                      double scrollOffset;
+                      
+                      try {
+                        viewportDimension = position.viewportDimension;
+                        maxScrollExtent = position.maxScrollExtent;
+                        minScrollExtent = position.minScrollExtent;
+                        scrollOffset = position.pixels;
+                      } catch (e) {
+                        // 如果滚动位置尚未完全初始化，返回空 widget
+                        return const SizedBox.shrink();
+                      }
+                      
+                      // 检查 viewportDimension 是否有效
+                      if (viewportDimension <= 0) {
+                        return const SizedBox.shrink();
+                      }
+
+                      if (maxScrollExtent <= 0) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final trackWidth = constraints.maxWidth;
+                      final thumbWidth = (trackWidth * viewportDimension / (maxScrollExtent + viewportDimension)).clamp(20.0, trackWidth);
+                      final thumbLeft = maxScrollExtent > 0
+                          ? ((trackWidth - thumbWidth) * (scrollOffset - minScrollExtent) / (maxScrollExtent - minScrollExtent)).clamp(0.0, trackWidth - thumbWidth)
+                          : 0.0;
+
+                      return GestureDetector(
+                        onPanUpdate: (details) {
+                          if (maxScrollExtent > 0 && _horizontalScrollController.hasClients && _horizontalScrollController.positions.isNotEmpty) {
+                            final delta = details.delta.dx;
+                            final scrollDelta = delta * (maxScrollExtent + viewportDimension) / trackWidth;
+                            final newOffset = (scrollOffset + scrollDelta).clamp(minScrollExtent, maxScrollExtent);
+                            _horizontalScrollController.jumpTo(newOffset);
+                          }
+                        },
+                        onTapDown: (details) {
+                          if (maxScrollExtent > 0 && _horizontalScrollController.hasClients && _horizontalScrollController.positions.isNotEmpty) {
+                            final tapX = details.localPosition.dx;
+                            final scrollTo = (tapX / trackWidth) * (maxScrollExtent + viewportDimension) - viewportDimension / 2;
+                            _horizontalScrollController.jumpTo(scrollTo.clamp(minScrollExtent, maxScrollExtent));
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            // 滚动条轨道
+                            Container(
+                              width: trackWidth,
+                              height: 20,
+                              color: Colors.grey[300],
+                            ),
+                            // 滚动条滑块
+                            Positioned(
+                              left: thumbLeft,
+                              child: Container(
+                                width: thumbWidth,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[600],
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],

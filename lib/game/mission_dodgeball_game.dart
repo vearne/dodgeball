@@ -998,7 +998,7 @@ class MissionDodgeballGame extends Forge2DGame
         ? player.currentDirection.normalized()
         : (target - player.center).normalized(); // 回退：如果没有方向，使用目标方向
 
-    final speed = 300.0; // 投掷速度
+    final speed = 400.0; // 投掷速度
     final velocity = direction * speed;
 
     final ball = BallComponent(
