@@ -1,11 +1,7 @@
-## 创建临时目录
+# dodgeball 
+
+## 调试
 ```
-mkdir -p ~/flutter_tmp
-```
-## 开始模式
-```
-export TMPDIR=$HOME/tmp
-mkdir -p $HOME/tmp
 flutter run -d macos
 ```
 ## 发布
