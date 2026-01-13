@@ -383,17 +383,36 @@ class AIController extends Component {
     double circleRadius,
   ) {
     for (final child in parent.children) {
-      // 如果是 ObstacleComponent（AtomicBrickComponent 或 RockComponent），检查碰撞
+      // 检查 ObstacleComponent（RockComponent 等）
       if (child is ObstacleComponent) {
-        final obstacleAbsPos = child.absolutePosition;
+        // ObstacleComponent 的 body.position 是中心位置
+        final obstacleCenter = child.body.position;
+        // 计算障碍物的矩形（左上角坐标）
         final obstacleRect = Rect.fromLTWH(
-          obstacleAbsPos.x,
-          obstacleAbsPos.y,
+          obstacleCenter.x - child.size.x / 2,
+          obstacleCenter.y - child.size.y / 2,
           child.size.x,
           child.size.y,
         );
         // 使用圆形与矩形碰撞检测
         if (_circleRectCollision(circleCenter, circleRadius, obstacleRect)) {
+          return true;
+        }
+      }
+      // 检查 AtomicBrickComponent（砖墙的原子砖块）
+      else if (child is AtomicBrickComponent) {
+        // AtomicBrickComponent 的 body.position 是中心位置
+        final brickCenter = child.body.position;
+        final brickSize = AtomicBrickComponent.atomicSize;
+        // 计算砖块的矩形（左上角坐标）
+        final brickRect = Rect.fromLTWH(
+          brickCenter.x - brickSize / 2,
+          brickCenter.y - brickSize / 2,
+          brickSize,
+          brickSize,
+        );
+        // 使用圆形与矩形碰撞检测
+        if (_circleRectCollision(circleCenter, circleRadius, brickRect)) {
           return true;
         }
       }

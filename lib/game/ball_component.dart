@@ -92,11 +92,6 @@ class BallComponent extends BodyComponent with ContactCallbacks {
       _targetSpeed = 300.0; // 默认速度
     }
 
-    // 调试信息：打印目标速度
-    print(
-      '球加载: 初始速度=${_initialVelocity.length}, 目标速度=$_targetSpeed, 初始速度向量=$_initialVelocity',
-    );
-
     // 初始化位置跟踪
     _lastUpdatePosition = body.position.clone();
 
@@ -188,30 +183,9 @@ class BallComponent extends BodyComponent with ContactCallbacks {
         // 手动移动球到预期位置，绕过 Forge2D 的移动距离限制
         final expectedPos = _lastUpdatePosition! + expectedMovement;
         body.setTransform(expectedPos, body.angle);
-        print(
-          '手动调整位置: 实际移动=${actualMovement.length.toStringAsFixed(2)}, 预期移动=${expectedMovement.length.toStringAsFixed(2)}, 调整=${movementDiff.toStringAsFixed(2)}',
-        );
       }
-
-      // 调试信息：如果速度被修改，打印
-      if ((currentSpeed - _targetSpeed).abs() > 0.1) {
-        print('球速度被修改: $currentSpeed -> $_targetSpeed (目标速度)');
-      }
-    } else if (currentSpeed > 0 && currentSpeed <= 0.01) {
-      // 调试信息：速度过小被忽略
-      print('球速度过小被忽略: $currentSpeed');
     }
 
-    // 调试信息：每10帧打印一次移动信息
-    _updateCount++;
-    if (_lastUpdatePosition != null && _updateCount % 10 == 0) {
-      final currentPos = body.position;
-      final distance = (currentPos - _lastUpdatePosition!).length;
-      final expectedDistance = currentSpeed * dt * 10; // 10帧的预期距离
-      print(
-        '球移动调试 (每10帧): dt=$dt, 速度=$currentSpeed, 实际移动距离=$distance, 预期移动距离=$expectedDistance, 位置=$currentPos',
-      );
-    }
     _lastUpdatePosition = body.position.clone();
 
     // 检测墙壁碰撞

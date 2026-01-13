@@ -551,13 +551,12 @@ class MissionDodgeballGame extends Forge2DGame
     for (final child in parent.children) {
       // 检查 ObstacleComponent（RockComponent 等）
       if (child is ObstacleComponent) {
-        // 使用 absolutePosition 获取障碍物在世界坐标系中的位置
-        // ObstacleComponent 的 anchor 是 Anchor.topLeft
-        // 所以 absolutePosition 就是左上角坐标
-        final obstacleAbsPos = child.absolutePosition;
+        // ObstacleComponent 的 body.position 是中心位置
+        final obstacleCenter = child.body.position;
+        // 计算障碍物的矩形（左上角坐标）
         final obstacleRect = Rect.fromLTWH(
-          obstacleAbsPos.x,
-          obstacleAbsPos.y,
+          obstacleCenter.x - child.size.x / 2,
+          obstacleCenter.y - child.size.y / 2,
           child.size.x,
           child.size.y,
         );
@@ -612,6 +611,63 @@ class MissionDodgeballGame extends Forge2DGame
 
     // 如果距离小于半径，则发生碰撞
     return distanceSquared < circleRadius * circleRadius;
+  }
+
+  /// 将玩家移出障碍物
+  void _pushPlayerOutOfObstacle(PlayerComponent player) {
+    final currentPos = player.center;
+    final radius = player.radius;
+
+    // 如果当前不在障碍物中，不需要移动
+    if (!_checkPositionCollisionWithObstaclesSimple(currentPos, radius)) {
+      return;
+    }
+
+    // 尝试向8个方向移动，找到最近的安全位置
+    final directions = [
+      Vector2(1, 0), // 右
+      Vector2(-1, 0), // 左
+      Vector2(0, 1), // 下
+      Vector2(0, -1), // 上
+      Vector2(1, 1), // 右下
+      Vector2(-1, 1), // 左下
+      Vector2(1, -1), // 右上
+      Vector2(-1, -1), // 左上
+    ];
+
+    const stepSize = 2.0; // 每次移动2像素
+    const maxSteps = 20; // 最多尝试20步
+
+    for (final direction in directions) {
+      final normalizedDir = direction.normalized();
+      for (int step = 1; step <= maxSteps; step++) {
+        final testPos = currentPos + normalizedDir * (stepSize * step);
+
+        // 检查位置是否有效（不碰撞障碍物，在队伍区域内）
+        final isRedTeam = player.team == Team.red;
+        final isInTeamArea = isRedTeam
+            ? FieldConfig.isInRedTeamArea(testPos, size, playerRadius: radius)
+            : FieldConfig.isInBlueTeamArea(testPos, size, playerRadius: radius);
+
+        if (isInTeamArea &&
+            !_checkPositionCollisionWithObstaclesSimple(testPos, radius)) {
+          // 找到安全位置，移动玩家
+          player.center = testPos;
+          return;
+        }
+      }
+    }
+
+    // 如果所有方向都尝试失败，强制移到队伍区域中心
+    final isRedTeam = player.team == Team.red;
+    final area = isRedTeam
+        ? FieldConfig.getRedTeamArea(size)
+        : FieldConfig.getBluTeamArea(size);
+    final centerPos = Vector2(
+      area.left + area.width / 2,
+      area.top + area.height / 2,
+    );
+    player.center = centerPos;
   }
 
   /// 在指定区域内生成敌人位置
@@ -806,8 +862,9 @@ class MissionDodgeballGame extends Forge2DGame
         } else {
           // 如果会越界或碰撞障碍物，尝试调整移动方向
           if (wouldCollideWithObstacle) {
-            // 与障碍物碰撞，停止移动
+            // 与障碍物碰撞，停止移动并修正位置
             player.body.linearVelocity = Vector2.zero();
+            _pushPlayerOutOfObstacle(player);
           } else {
             // 只是越界，限制速度方向，使其不越界
             final clampedPos = FieldConfig.clampToTeamArea(
@@ -1110,16 +1167,6 @@ class MissionDodgeballGame extends Forge2DGame
     final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
 
-    // 调试信息：打印投掷参数
-    print('=== 投掷球调试信息 ===');
-    print('玩家位置: ${player.center}');
-    print('目标位置: $target');
-    print('玩家当前方向: ${player.currentDirection}');
-    print('归一化方向: $direction');
-    print('设置的速度标量: $speed');
-    print('计算的速度向量: $velocity');
-    print('速度向量长度: ${velocity.length}');
-
     final ball = BallComponent(
       team: player.team,
       ownerPlayerId: player.playerId,
@@ -1130,15 +1177,6 @@ class MissionDodgeballGame extends Forge2DGame
     );
 
     add(ball);
-
-    // 等待球加载完成后打印实际速度
-    ball.loaded.then((_) {
-      print('球加载后的实际位置: ${ball.body.position}');
-      print('球加载后的实际速度: ${ball.body.linearVelocity}');
-      print('球加载后的速度长度: ${ball.body.linearVelocity.length}');
-      print('==================');
-    });
-
     player.onThrow();
   }
 
