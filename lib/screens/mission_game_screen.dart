@@ -688,9 +688,9 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
 
   @override
   void dispose() {
-    // 只清理游戏资源，不停止背景音乐
-    // 这样在关卡切换时音乐可以连续播放
-    game.onRemove();
+    // 不要在这里调用 game.onRemove()
+    // GameWidget 会自动管理游戏的生命周期和资源清理
+    // 手动调用 onRemove() 会导致 KeyboardEvents 的键盘监听器没有被正确注销
     super.dispose();
   }
 }
