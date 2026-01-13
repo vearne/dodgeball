@@ -41,6 +41,7 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
              friction: 0.0,
              restitution: 0.0,
              density: 0.0, // 玩家不被球推动
+             // 确保可以与传感器（道具）碰撞
            ),
          ],
        ) {
@@ -276,14 +277,8 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
       if (other is BallComponent) {
         // 球会处理击中玩家的逻辑，这里不需要额外处理
       }
-      // 处理与道具的碰撞
-      else if (other is PowerUpComponent) {
-        final powerUp = other as PowerUpComponent;
-        if (!powerUp.isCollected) {
-          _applyPowerUpFromComponent(powerUp);
-          powerUp.markAsCollected();
-        }
-      }
+      // 注意：道具使用传感器，不会触发 Forge2D 碰撞
+      // 道具收集通过距离检测在 PowerUpComponent.update() 中处理
     };
 
     onEndContact = (other, contact) {

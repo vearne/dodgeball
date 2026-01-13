@@ -3,6 +3,9 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'package:flutter/foundation.dart';
 
+import 'mission_dodgeball_game.dart';
+import 'player_component.dart';
+
 /// 道具类型
 enum PowerUpType {
   speedBoost, // 速度靴子：移动速度增加20%，持续10秒
@@ -32,6 +35,61 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
 
   /// 获取道具是否已被收集
   bool get isCollected => _collected;
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    if (_collected) return;
+
+    // 备用检测：检查是否有玩家在碰撞范围内（防止物理引擎漏检）
+    try {
+      final game = findGame();
+      if (game != null && game is MissionDodgeballGame) {
+        final players = [
+          ...(game as MissionDodgeballGame).playerTeam,
+          ...(game as MissionDodgeballGame).enemyTeam,
+        ];
+
+        for (final player in players) {
+          if (player.isEliminated) continue;
+
+          final distance = body.position.distanceTo(player.center);
+          // 碰撞半径：道具20 + 玩家16 = 36，留一点余量，使用34作为触发阈值
+          if (distance < 34.0) {
+            // 玩家在碰撞范围内，手动触发收集
+            if (!_collected) {
+              print('距离检测触发：玩家 ${player.playerId} 收集道具 $type，距离=$distance');
+
+              // 通过game来应用道具效果
+              final gameInstance = game as MissionDodgeballGame;
+
+              switch (type) {
+                case PowerUpType.speedBoost:
+                  gameInstance.applySpeedBoost(player);
+                  break;
+                case PowerUpType.attackSpeed:
+                  gameInstance.applyAttackSpeedBoost(player);
+                  break;
+                case PowerUpType.health:
+                  player.setCurrentHealth(player.currentHealth + 1);
+                  break;
+                case PowerUpType.coin:
+                  gameInstance.addCoin(1);
+                  break;
+              }
+
+              // 标记为已收集
+              markAsCollected();
+              return; // 只能被一个玩家收集
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // 忽略错误，继续下一帧
+    }
+  }
 
   /// 标记道具为已收集
   void markAsCollected() {
@@ -64,16 +122,20 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
 
     // 动态创建带偏移的碰撞体
     // 使用 CircleShape 的 position 属性来设置偏移（相对于 body 中心）
-    final shape = CircleShape()
-      ..radius = 16.0;
+    // 注意：碰撞体半径设置为20，比玩家半径（16）大，确保碰撞可靠触发
+    final shape = CircleShape()..radius = 20.0;
     final fixtureDef = FixtureDef(
       shape,
-      isSensor: true, // 设置为传感器，不会对玩家产生物理碰撞
+      isSensor: true, // 恢复为传感器，避免与球碰撞
     );
-    body.createFixture(fixtureDef);
+    final fixture = body.createFixture(fixtureDef);
 
     // 设置碰撞回调
     _setupCollisionCallbacks();
+
+    print(
+      '道具加载完成: 位置=${body.position}, 类型=$type, 碰撞体半径=${shape.radius}, 传感器=${fixtureDef.isSensor}',
+    );
 
     // 加载道具图片，使用 Sprite.load 确保正确加载透明 PNG
     try {
@@ -93,8 +155,8 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
 
   /// 设置碰撞回调
   void _setupCollisionCallbacks() {
-    // 不需要在这里处理碰撞，碰撞逻辑由 PlayerComponent 处理
-    // PowerUpComponent 作为传感器，被玩家触发碰撞时调用 PlayerComponent 的方法
+    // 道具使用传感器，不会触发物理碰撞
+    // 距离检测在 update() 中处理
     onBeginContact = (other, contact) {};
     onEndContact = (other, contact) {};
   }
@@ -136,7 +198,6 @@ class _PowerUpRenderComponent extends PositionComponent {
       final paint = ui.Paint()
         ..isAntiAlias = true
         ..filterQuality = ui.FilterQuality.high;
-
 
       // 渲染道具图片（支持透明PNG）
       final srcRect = sprite!.src;
@@ -196,15 +257,6 @@ class FloatingComponent extends Component {
   Future<void> onLoad() async {
     await super.onLoad();
     _baseY = parent.body.position.y;
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    _time += dt * 3.0; // 浮动频率
-
-    // 使用正弦函数创建上下浮动效果
-    parent.body.position.y = _baseY + 4.0 * _sin(_time);
   }
 
   double _sin(double x) {
