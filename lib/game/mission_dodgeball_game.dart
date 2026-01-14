@@ -50,6 +50,9 @@ class MissionDodgeballGame extends Forge2DGame
   final int playerCount; // 玩家数量
   final Random _random = Random();
 
+  /// 提供公共访问器以供其他组件使用
+  Random get random => _random;
+
   // 关卡时间跟踪
   double _elapsedTime = 0.0;
 
@@ -97,6 +100,47 @@ class MissionDodgeballGame extends Forge2DGame
   /// 增加金币（由PowerUpComponent调用）
   void addCoin(int amount) {
     coinsNotifier.value += amount;
+  }
+
+  /// 设置额外弹跳次数（由PowerUpComponent调用）
+  void setExtraBounces(PlayerComponent player, int extraBounces) {
+    player.extraBounces = extraBounces;
+    print('玩家 ${player.playerId} 下一次投掷将额外弹跳 $extraBounces 次');
+  }
+
+  /// 生成支援AI玩家（由PowerUpComponent调用）
+  void spawnSupportAI(PlayerComponent player) {
+    // 在玩家附近生成一个友军AI
+    final spawnPosition =
+        player.center +
+        Vector2(_random.nextDouble() * 60 - 30, _random.nextDouble() * 60 - 30);
+
+    // 生成一个新的玩家ID（使用当前玩家团队的最大ID + 1）
+    final newPlayerId =
+        playerTeam
+            .map((p) => p.playerId)
+            .fold(0, (max, id) => id > max ? id : max) +
+        1;
+
+    // 创建友军AI玩家
+    final supportAI = PlayerComponent(
+      team: player.team,
+      playerId: newPlayerId,
+      position: spawnPosition,
+      controllerType: PlayerControllerType.ai,
+      aiIntelligenceLevel: aiIntelligenceLevel,
+      name: '支援AI',
+      maxHealth: 2, // 支援AI只有2条命
+    );
+
+    // 标记为支援AI，不受活动区域限制
+    supportAI.isSupport = true;
+
+    // 添加到玩家团队
+    playerTeam.add(supportAI);
+    add(supportAI);
+
+    print('生成了支援AI：玩家ID=$newPlayerId, 位置=$spawnPosition');
   }
 
   // 玩家和敌人列表
@@ -910,6 +954,9 @@ class MissionDodgeballGame extends Forge2DGame
     for (final player in playerTeam) {
       if (player.isEliminated) continue;
 
+      // 支援AI不受活动区域限制
+      if (player.isSupport) continue;
+
       // 检查 body 是否已初始化（组件是否已加载完成）
       try {
         final currentPos = player.center;
@@ -1167,12 +1214,23 @@ class MissionDodgeballGame extends Forge2DGame
     final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
 
+    // 计算弹跳次数：基础弹跳(1-5) + 额外弹跳(来自道具)
+    final extraBounces = player.extraBounces;
+    player.extraBounces = 0; // 重置额外弹跳次数
+    final bounceCount = (1 + _random.nextInt(5)) + extraBounces;
+
+    if (extraBounces > 0) {
+      print(
+        '玩家 ${player.playerId} 投掷了额外弹跳球，额外次数=$extraBounces, 总弹跳次数=$bounceCount',
+      );
+    }
+
     final ball = BallComponent(
       team: player.team,
       ownerPlayerId: player.playerId,
       position: player.center + direction * (player.radius + 10),
       initialVelocity: velocity,
-      bounceCount: 1 + _random.nextInt(5), // 1-5次弹跳
+      bounceCount: bounceCount,
       onHitPlayer: _onEnemyHit,
     );
 

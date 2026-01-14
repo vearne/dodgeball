@@ -60,6 +60,10 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
   bool isEliminated = false;
   bool _pendingRemoval = false; // 新增：标记是否待移除
 
+  // 道具效果标记
+  bool isSupport = false; // 是否为支援AI（不受活动区域限制）
+  int extraBounces = 0; // 下一次投掷的额外弹跳次数
+
   /// 获取玩家中心位置（像素坐标）
   Vector2 get center => body.position;
 
@@ -301,6 +305,12 @@ class PlayerComponent extends BodyComponent with ContactCallbacks {
         break;
       case PowerUpType.coin:
         // 金币计数需要在游戏类中处理
+        break;
+      case PowerUpType.support:
+        // 支援AI的生成需要在游戏类中处理
+        break;
+      case PowerUpType.extraBounce:
+        // 额外弹跳需要在游戏类中处理
         break;
     }
   }

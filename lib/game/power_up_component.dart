@@ -12,6 +12,8 @@ enum PowerUpType {
   attackSpeed, // 攻速球：投掷冷却时间缩短（保留原有功能）
   health, // 血瓶：增加1条生命
   coin, // 金币：增加1个金币
+  support, // 支援：召唤一个友军AI玩家，不受活动区域限制
+  extraBounce, // 额外弹跳：下一次投掷增加1-3次弹跳
 }
 
 /// 道具组件
@@ -77,6 +79,14 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
                 case PowerUpType.coin:
                   gameInstance.addCoin(1);
                   break;
+                case PowerUpType.support:
+                  gameInstance.spawnSupportAI(player);
+                  break;
+                case PowerUpType.extraBounce:
+                  final extraBounces =
+                      gameInstance.random.nextInt(3) + 1; // 1-3随机
+                  gameInstance.setExtraBounces(player, extraBounces);
+                  break;
               }
 
               // 标记为已收集
@@ -110,6 +120,10 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
         return 'speed_ball_36_36.png';
       case PowerUpType.coin:
         return 'coin_36_36.png';
+      case PowerUpType.support:
+        return 'support_36_36.png';
+      case PowerUpType.extraBounce:
+        return 'extra_bounce_36_36.png';
     }
   }
 
@@ -230,6 +244,12 @@ class _PowerUpRenderComponent extends PositionComponent {
         break;
       case PowerUpType.coin:
         paint.color = const ui.Color(0xFFFFD700); // 金色
+        break;
+      case PowerUpType.support:
+        paint.color = const ui.Color(0xFF00CED1); // 青色
+        break;
+      case PowerUpType.extraBounce:
+        paint.color = const ui.Color(0xFF9932CC); // 紫色
         break;
     }
 
