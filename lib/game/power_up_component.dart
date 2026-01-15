@@ -265,24 +265,3 @@ class _PowerUpRenderComponent extends PositionComponent {
   }
 }
 
-/// 浮动组件：让道具上下浮动
-class FloatingComponent extends Component {
-  FloatingComponent({required this.parent});
-
-  final PowerUpComponent parent;
-  double _time = 0.0;
-  late final double _baseY;
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    _baseY = parent.body.position.y;
-  }
-
-  double _sin(double x) {
-    // 简单的正弦近似
-    x = x % 6.28318;
-    if (x > 3.14159) x -= 6.28318;
-    return x - (x * x * x) / 6.0 + (x * x * x * x * x * x) / 120.0;
-  }
-}

@@ -130,7 +130,7 @@ class MissionDodgeballGame extends Forge2DGame
       controllerType: PlayerControllerType.ai,
       aiIntelligenceLevel: aiIntelligenceLevel,
       name: '支援AI',
-      maxHealth: 2, // 支援AI只有2条命
+      maxHealth: 1, // 支援AI只有1条命
     );
 
     // 标记为支援AI，不受活动区域限制
