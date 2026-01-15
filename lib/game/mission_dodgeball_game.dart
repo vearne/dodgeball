@@ -1362,8 +1362,8 @@ class MissionDodgeballGame extends Forge2DGame
       _audioManager.playHitSound();
 
       // 有概率掉落道具
-      if (_random.nextDouble() < 0.3) {
-        // 30%概率掉落道具
+      if (_random.nextDouble() < 0.2) {
+        // 20%概率掉落道具
         // 使用 center 而不是 position，因为 PlayerComponent 使用 BodyComponent
         _dropPowerUp(hitPlayer.center);
       }
