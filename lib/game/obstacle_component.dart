@@ -3,6 +3,7 @@ import 'package:flame_forge2d/flame_forge2d.dart';
 import 'package:flame/components.dart';
 import 'mission_map.dart';
 import 'ball_component.dart';
+import 'mission_dodgeball_game.dart';
 
 /// 障碍物组件基类
 abstract class ObstacleComponent extends BodyComponent {
@@ -402,8 +403,29 @@ class RockComponent extends ObstacleComponent with ContactCallbacks {
 
   @override
   void handleBallCollision(BallComponent ball) {
-    // Forge2D 会自动处理物理反弹，这里只需要减少弹跳次数
-    ball.reflectOnHorizontalWall(); // 水平或垂直会由 Forge2D 自动判断
+    // 检查是否可以处理碰撞（防止重复扣减 bounceCount）
+    // 获取当前游戏时间
+    try {
+      final game = findGame();
+      if (game != null && game is MissionDodgeballGame) {
+        final gameInstance = game as MissionDodgeballGame;
+        final currentTime = gameInstance.elapsedTimeInSeconds;
+        
+        if (ball.canHandleObstacleCollision(this, currentTime)) {
+          // 允许处理碰撞：减少弹跳次数
+          ball.reflectOnHorizontalWall(); // 水平或垂直会由 Forge2D 自动判断
+          // 记录碰撞
+          ball.recordObstacleCollision(this, currentTime);
+        }
+        // 否则：忽略此次碰撞（防止重复扣减）
+      } else {
+        // 无法获取游戏时间，使用旧逻辑（兼容性）
+        ball.reflectOnHorizontalWall();
+      }
+    } catch (e) {
+      // 出现异常，使用旧逻辑（容错）
+      ball.reflectOnHorizontalWall();
+    }
   }
 }
 

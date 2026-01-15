@@ -8,6 +8,7 @@ import 'field_config.dart';
 import 'obstacle_component.dart';
 import 'player_component.dart';
 import 'team.dart';
+import 'mission_dodgeball_game.dart';
 
 class BallComponent extends BodyComponent with ContactCallbacks {
   BallComponent({
@@ -55,10 +56,20 @@ class BallComponent extends BodyComponent with ContactCallbacks {
   final double ballRadius; // 球的半径，用于碰撞检测
   bool _hasHitPlayer = false; // 防止重复扣血：记录是否已经击中玩家
   Vector2? _lastPosition; // 上一次的位置，用于检测墙壁碰撞
-  bool _hasHitWallThisFrame = false; // 防止同一帧重复触发墙壁碰撞
+
   final Vector2 _initialVelocity; // 保存初始速度
   double _targetSpeed = 300.0; // 目标速度，从初始速度获取
 
+  // 障碍物碰撞冷却时间
+  double _lastObstacleCollisionTime = -1.0;
+  static const double _obstacleCollisionCooldown = 0.05; // 50ms 冷却时间
+  Component? _currentCollidingObstacle; // 当前正在碰撞的障碍物
+  
+  // 墙壁碰撞冷却时间
+  double _lastWallCollisionTime = -1.0;
+  static const double _wallCollisionCooldown = 0.05; // 50ms 冷却时间
+  String? _currentCollidingWall; // 当前正在碰撞的墙壁 ("top", "bottom", "left", "right")
+  
   // 调试模式：显示碰撞检测范围
   static bool showDebugCollision = false;
 
@@ -125,8 +136,32 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     };
 
     onEndContact = (other, contact) {
-      // 碰撞结束时的处理（如果需要）
+      // 障碍物碰撞结束：重置碰撞状态
+      if (other is ObstacleComponent && _currentCollidingObstacle == other) {
+        _currentCollidingObstacle = null;
+      }
     };
+  }
+
+  /// 检查是否可以处理障碍物碰撞（防止重复扣减）
+  bool canHandleObstacleCollision(Component obstacle, double currentTime) {
+    // 如果是同一个障碍物，需要等冷却时间
+    if (_currentCollidingObstacle == obstacle) {
+      return false;
+    }
+    
+    // 检查冷却时间
+    if (currentTime - _lastObstacleCollisionTime < _obstacleCollisionCooldown) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  /// 记录障碍物碰撞
+  void recordObstacleCollision(Component obstacle, double currentTime) {
+    _currentCollidingObstacle = obstacle;
+    _lastObstacleCollisionTime = currentTime;
   }
 
   Vector2? _lastUpdatePosition; // 上一次update时的位置，用于计算移动距离
@@ -140,9 +175,6 @@ class BallComponent extends BodyComponent with ContactCallbacks {
         : null;
 
     super.update(dt);
-
-    // 重置墙壁碰撞标记
-    _hasHitWallThisFrame = false;
 
     // 同步 sprite 位置和旋转到物理体
     _spriteComponent.position = Vector2.zero();
@@ -258,9 +290,6 @@ class BallComponent extends BodyComponent with ContactCallbacks {
 
   /// 检测墙壁碰撞
   void _checkWallCollision() {
-    // 如果已经在这一帧处理过墙壁碰撞，跳过
-    if (_hasHitWallThisFrame) return;
-
     final game = findGame();
     if (game == null) return;
 
@@ -272,14 +301,19 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     // 如果速度太小，不检测碰撞
     if (velocity.length < 0.01) return;
 
+    // 获取当前游戏时间（用于冷却机制）
+    final gameInstance = game as MissionDodgeballGame;
+    final currentTime = gameInstance.elapsedTimeInSeconds;
+
     // 检测左边界（垂直墙壁）
     // 球已经越过或接触到左边界，且速度向左
     if (currentPos.x - ballRadius <= wallThickness && velocity.x < 0) {
-      // 检查上一次是否在边界外（避免重复触发）
-      if (_lastPosition == null ||
-          _lastPosition!.x - ballRadius > wallThickness - 5) {
+      // 检查冷却时间和是否是同一面墙壁
+      if (_currentCollidingWall != "left" &&
+          (currentTime - _lastWallCollisionTime) >= _wallCollisionCooldown) {
         reflectOnVerticalWall();
-        _hasHitWallThisFrame = true;
+        _lastWallCollisionTime = currentTime;
+        _currentCollidingWall = "left";
         return;
       }
     }
@@ -288,11 +322,12 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     // 球已经越过或接触到右边界，且速度向右
     if (currentPos.x + ballRadius >= gameSize.x - wallThickness &&
         velocity.x > 0) {
-      // 检查上一次是否在边界内（避免重复触发）
-      if (_lastPosition == null ||
-          _lastPosition!.x + ballRadius < gameSize.x - wallThickness + 5) {
+      // 检查冷却时间和是否是同一面墙壁
+      if (_currentCollidingWall != "right" &&
+          (currentTime - _lastWallCollisionTime) >= _wallCollisionCooldown) {
         reflectOnVerticalWall();
-        _hasHitWallThisFrame = true;
+        _lastWallCollisionTime = currentTime;
+        _currentCollidingWall = "right";
         return;
       }
     }
@@ -300,11 +335,12 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     // 检测上边界（水平墙壁）
     // 球已经越过或接触到上边界，且速度向上
     if (currentPos.y - ballRadius <= wallThickness && velocity.y < 0) {
-      // 检查上一次是否在边界外（避免重复触发）
-      if (_lastPosition == null ||
-          _lastPosition!.y - ballRadius > wallThickness - 5) {
+      // 检查冷却时间和是否是同一面墙壁
+      if (_currentCollidingWall != "top" &&
+          (currentTime - _lastWallCollisionTime) >= _wallCollisionCooldown) {
         reflectOnHorizontalWall();
-        _hasHitWallThisFrame = true;
+        _lastWallCollisionTime = currentTime;
+        _currentCollidingWall = "top";
         return;
       }
     }
@@ -313,13 +349,22 @@ class BallComponent extends BodyComponent with ContactCallbacks {
     // 球已经越过或接触到下边界，且速度向下
     if (currentPos.y + ballRadius >= gameSize.y - wallThickness &&
         velocity.y > 0) {
-      // 检查上一次是否在边界内（避免重复触发）
-      if (_lastPosition == null ||
-          _lastPosition!.y + ballRadius < gameSize.y - wallThickness + 5) {
+      // 检查冷却时间和是否是同一面墙壁
+      if (_currentCollidingWall != "bottom" &&
+          (currentTime - _lastWallCollisionTime) >= _wallCollisionCooldown) {
         reflectOnHorizontalWall();
-        _hasHitWallThisFrame = true;
+        _lastWallCollisionTime = currentTime;
+        _currentCollidingWall = "bottom";
         return;
       }
+    }
+    
+    // 如果球没有与任何墙壁接触，重置碰撞状态
+    if (currentPos.x - ballRadius > wallThickness &&
+        currentPos.x + ballRadius < gameSize.x - wallThickness &&
+        currentPos.y - ballRadius > wallThickness &&
+        currentPos.y + ballRadius < gameSize.y - wallThickness) {
+      _currentCollidingWall = null;
     }
   }
 
