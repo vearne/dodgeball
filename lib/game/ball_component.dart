@@ -130,7 +130,6 @@ class BallComponent extends BodyComponent with ContactCallbacks {
   }
 
   Vector2? _lastUpdatePosition; // 上一次update时的位置，用于计算移动距离
-  int _updateCount = 0; // 更新计数
 
   @override
   void update(double dt) {
