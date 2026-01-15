@@ -1427,7 +1427,7 @@ class MissionDodgeballGame extends Forge2DGame
 
   /// 查找有效的道具生成位置（不在障碍物和玩家位置）
   Vector2? _findValidPowerUpPosition() {
-    const powerUpSize = 32.0; // 道具大小
+    const powerUpSize = 36.0; // 道具大小（与视觉36x36一致）
     const maxAttempts = 50;
     final playableArea = FieldConfig.getPlayableArea(size);
     final powerUpSizeVec = Vector2.all(powerUpSize);

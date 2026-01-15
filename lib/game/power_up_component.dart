@@ -57,8 +57,8 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
           if (player.isEliminated) continue;
 
           final distance = body.position.distanceTo(player.center);
-          // 碰撞半径：道具20 + 玩家16 = 36，留一点余量，使用34作为触发阈值
-          if (distance < 34.0) {
+          // 碰撞半径：道具18 + 玩家16 = 34，留一点余量，使用32作为触发阈值
+          if (distance < 32.0) {
             // 玩家在碰撞范围内，手动触发收集
             if (!_collected) {
               print('距离检测触发：玩家 ${player.playerId} 收集道具 $type，距离=$distance');
@@ -136,8 +136,8 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
 
     // 动态创建带偏移的碰撞体
     // 使用 CircleShape 的 position 属性来设置偏移（相对于 body 中心）
-    // 注意：碰撞体半径设置为20，比玩家半径（16）大，确保碰撞可靠触发
-    final shape = CircleShape()..radius = 20.0;
+    // 注意：碰撞体半径设置为18，与视觉半径一致
+    final shape = CircleShape()..radius = 18.0;
     final fixtureDef = FixtureDef(
       shape,
       isSensor: true, // 恢复为传感器，避免与球碰撞
