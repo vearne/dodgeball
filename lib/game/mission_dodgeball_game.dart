@@ -110,10 +110,8 @@ class MissionDodgeballGame extends Forge2DGame
 
   /// 生成支援AI玩家（由PowerUpComponent调用）
   void spawnSupportAI(PlayerComponent player) {
-    // 在玩家附近生成一个友军AI
-    final spawnPosition =
-        player.center +
-        Vector2(_random.nextDouble() * 60 - 30, _random.nextDouble() * 60 - 30);
+    // 在玩家附近查找一个不碰撞的有效位置
+    final spawnPosition = _findValidSpawnPositionForSupport(player);
 
     // 生成一个新的玩家ID（使用当前玩家团队的最大ID + 1）
     final newPlayerId =
@@ -551,6 +549,48 @@ class MissionDodgeballGame extends Forge2DGame
 
     // 如果实在找不到，返回首选位置（容错）
     return preferredPosition;
+  }
+
+  /// 为支援AI查找有效的生成位置（在玩家附近，不碰撞）
+  Vector2 _findValidSpawnPositionForSupport(PlayerComponent player) {
+    const playerRadius = 16.0;
+    const maxAttempts = 50;
+    const searchRadius = 100.0; // 在玩家半径100像素内搜索
+    const minDistanceBetweenPlayers = playerRadius * 2 + 2.0; // 玩家之间的最小距离
+
+    // 在玩家附近随机尝试位置
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      // 在圆形区域内随机生成位置
+      final angle = _random.nextDouble() * 2 * pi;
+      final distance = _random.nextDouble() * searchRadius;
+      final offsetX = cos(angle) * distance;
+      final offsetY = sin(angle) * distance;
+      final testPosition = player.center + Vector2(offsetX, offsetY);
+
+      // 检查是否与障碍物碰撞
+      final obstacleCheck = _checkPositionCollisionWithObstaclesSimple(
+        testPosition,
+        playerRadius,
+      );
+
+      // 检查是否与其他玩家碰撞
+      final playerCheck = _checkPositionCollisionWithPlayers(
+        testPosition,
+        playerRadius,
+        player, // 排除自己
+      );
+
+      if (!obstacleCheck && !playerCheck) {
+        return testPosition;
+      }
+    }
+
+    // 如果找不到有效位置，返回玩家团队区域的中心位置
+    final teamArea = FieldConfig.getRedTeamArea(size);
+    return Vector2(
+      teamArea.left + teamArea.width / 2,
+      teamArea.top + teamArea.height / 2,
+    );
   }
 
   /// 检查位置是否离其他已生成的玩家太近
