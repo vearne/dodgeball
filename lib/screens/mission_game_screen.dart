@@ -209,25 +209,29 @@ class _MissionGameScreenState extends State<MissionGameScreen> {
             fit: BoxFit.contain,
             child: SizedBox(
               width: 1380,
-              height: 720,
+              height: 800, // 增加高度，为UI元素留出空间（720 + 80）
               child: Stack(
                 children: [
-                  // 游戏主体
-                  Container(
-                    width: 1380,
-                    height: 720,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black, width: 2),
+                  // 游戏主体（向下移动，为顶部UI留出空间）
+                  Positioned(
+                    top: 80, // 向下移动80px，为顶部UI留出空间
+                    left: 0,
+                    child: Container(
+                      width: 1380,
+                      height: 720,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black, width: 2),
+                      ),
+                      child: GameWidget.controlled(gameFactory: () => game),
                     ),
-                    child: GameWidget.controlled(gameFactory: () => game),
                   ),
 
-                  // 顶部信息栏（现在在FittedBox内部）
+                  // 顶部信息栏（在游戏区域上方）
                   Positioned(top: 0, left: 0, right: 0, child: _buildTopBar()),
 
-                  // 冷却时间进度条（支持多个玩家）
+                  // 冷却时间进度条（在游戏区域上方，信息栏下方）
                   Positioned(
-                    top: 70,
+                    top: 60, // 调整位置，在信息栏下方
                     left: 100,
                     right: 100,
                     child: Container(

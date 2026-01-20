@@ -50,6 +50,9 @@ class MissionDodgeballGame extends Forge2DGame
   final int playerCount; // 玩家数量
   final Random _random = Random();
 
+  /// 提供公共访问器以供其他组件使用
+  Random get random => _random;
+
   // 关卡时间跟踪
   double _elapsedTime = 0.0;
 
@@ -97,6 +100,45 @@ class MissionDodgeballGame extends Forge2DGame
   /// 增加金币（由PowerUpComponent调用）
   void addCoin(int amount) {
     coinsNotifier.value += amount;
+  }
+
+  /// 设置额外弹跳次数（由PowerUpComponent调用）
+  void setExtraBounces(PlayerComponent player, int extraBounces) {
+    player.extraBounces = extraBounces;
+    print('玩家 ${player.playerId} 下一次投掷将额外弹跳 $extraBounces 次');
+  }
+
+  /// 生成支援AI玩家（由PowerUpComponent调用）
+  void spawnSupportAI(PlayerComponent player) {
+    // 在玩家附近查找一个不碰撞的有效位置
+    final spawnPosition = _findValidSpawnPositionForSupport(player);
+
+    // 生成一个新的玩家ID（使用当前玩家团队的最大ID + 1）
+    final newPlayerId =
+        playerTeam
+            .map((p) => p.playerId)
+            .fold(0, (max, id) => id > max ? id : max) +
+        1;
+
+    // 创建友军AI玩家
+    final supportAI = PlayerComponent(
+      team: player.team,
+      playerId: newPlayerId,
+      position: spawnPosition,
+      controllerType: PlayerControllerType.ai,
+      aiIntelligenceLevel: aiIntelligenceLevel,
+      name: '支援AI',
+      maxHealth: 1, // 支援AI只有1条命
+    );
+
+    // 标记为支援AI，不受活动区域限制
+    supportAI.isSupport = true;
+
+    // 添加到玩家团队
+    playerTeam.add(supportAI);
+    add(supportAI);
+
+    print('生成了支援AI：玩家ID=$newPlayerId, 位置=$spawnPosition');
   }
 
   // 玩家和敌人列表
@@ -466,7 +508,7 @@ class MissionDodgeballGame extends Forge2DGame
   Vector2 _findValidSpawnPosition(Rect area, Vector2 preferredPosition) {
     const playerRadius = 16.0;
     const maxAttempts = 50;
-    const minDistanceBetweenPlayers = playerRadius * 2 + 4.0; // 玩家之间的最小距离
+    const minDistanceBetweenPlayers = playerRadius * 2 + 2.0; // 玩家之间的最小距离
     final playerSize = Vector2.all(playerRadius * 2); // 玩家矩形碰撞区域大小
 
     // 首先尝试首选位置
@@ -509,6 +551,48 @@ class MissionDodgeballGame extends Forge2DGame
     return preferredPosition;
   }
 
+  /// 为支援AI查找有效的生成位置（在玩家附近，不碰撞）
+  Vector2 _findValidSpawnPositionForSupport(PlayerComponent player) {
+    const playerRadius = 16.0;
+    const maxAttempts = 50;
+    const searchRadius = 100.0; // 在玩家半径100像素内搜索
+    const minDistanceBetweenPlayers = playerRadius * 2 + 2.0; // 玩家之间的最小距离
+
+    // 在玩家附近随机尝试位置
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      // 在圆形区域内随机生成位置
+      final angle = _random.nextDouble() * 2 * pi;
+      final distance = _random.nextDouble() * searchRadius;
+      final offsetX = cos(angle) * distance;
+      final offsetY = sin(angle) * distance;
+      final testPosition = player.center + Vector2(offsetX, offsetY);
+
+      // 检查是否与障碍物碰撞
+      final obstacleCheck = _checkPositionCollisionWithObstaclesSimple(
+        testPosition,
+        playerRadius,
+      );
+
+      // 检查是否与其他玩家碰撞
+      final playerCheck = _checkPositionCollisionWithPlayers(
+        testPosition,
+        playerRadius,
+        player, // 排除自己
+      );
+
+      if (!obstacleCheck && !playerCheck) {
+        return testPosition;
+      }
+    }
+
+    // 如果找不到有效位置，返回玩家团队区域的中心位置
+    final teamArea = FieldConfig.getRedTeamArea(size);
+    return Vector2(
+      teamArea.left + teamArea.width / 2,
+      teamArea.top + teamArea.height / 2,
+    );
+  }
+
   /// 检查位置是否离其他已生成的玩家太近
   bool _checkPositionTooCloseToPlayers(Vector2 position, double minDistance) {
     // 检查与已添加到游戏中的所有玩家的距离
@@ -540,6 +624,85 @@ class MissionDodgeballGame extends Forge2DGame
   ) {
     // 递归检查所有障碍物组件（包括嵌套在 BrickWallComponent 中的原子砖块）
     return _checkObstacleCollisionRecursive(this, position, playerRadius);
+  }
+
+  /// 检查位置是否与任何玩家碰撞（除了指定的玩家）
+  bool _checkPositionCollisionWithPlayers(
+    Vector2 position,
+    double playerRadius,
+    PlayerComponent? excludePlayer,
+  ) {
+    final minDistance = playerRadius * 2 + 2.0; // 玩家之间的最小距离（两倍半径+缓冲）
+
+    for (final player in [...playerTeam, ...enemyTeam]) {
+      // 跳过自己（如果有指定）和已淘汰的玩家
+      if (player == excludePlayer || player.isEliminated) {
+        continue;
+      }
+
+      final distance = position.distanceTo(player.center);
+      if (distance < minDistance) {
+        return true; // 与玩家碰撞
+      }
+    }
+
+    return false; // 没有碰撞
+  }
+
+  /// 将玩家移出其他玩家
+  void _pushPlayerOutOfOtherPlayers(PlayerComponent player) {
+    final currentPos = player.center;
+    final radius = player.radius;
+    final minDistance = radius * 2 + 4.0; // 玩家之间的最小距离（两倍半径+缓冲）
+
+    // 检查当前是否与其他玩家碰撞
+    bool isColliding = false;
+    PlayerComponent? collidingPlayer;
+    double smallestDistance = double.infinity;
+
+    for (final other in [...playerTeam, ...enemyTeam]) {
+      // 跳过自己和已淘汰的玩家
+      if (other == player || other.isEliminated) {
+        continue;
+      }
+
+      final distance = currentPos.distanceTo(other.center);
+      if (distance < minDistance) {
+        isColliding = true;
+        if (distance < smallestDistance) {
+          smallestDistance = distance;
+          collidingPlayer = other;
+        }
+      }
+    }
+
+    // 如果没有碰撞，不需要移动
+    if (!isColliding || collidingPlayer == null) {
+      return;
+    }
+
+    // 计算推开方向（从其他玩家指向自己）
+    final pushDirection = (currentPos - collidingPlayer!.center).normalized();
+    final overlap = minDistance - smallestDistance;
+
+    // 将玩家推开重叠的距离
+    final newPos = currentPos + pushDirection * overlap;
+
+    // 检查推开后的位置是否有效（不与障碍物碰撞）
+    if (!_checkPositionCollisionWithObstaclesSimple(newPos, radius)) {
+      player.center = newPos;
+    } else {
+      // 如果推开位置会与障碍物碰撞，尝试沿其他方向移动
+      final perpendicular = Vector2(-pushDirection.y, pushDirection.x);
+      final newPos2 = currentPos + perpendicular * overlap;
+      final newPos3 = currentPos - perpendicular * overlap;
+
+      if (!_checkPositionCollisionWithObstaclesSimple(newPos2, radius)) {
+        player.center = newPos2;
+      } else if (!_checkPositionCollisionWithObstaclesSimple(newPos3, radius)) {
+        player.center = newPos3;
+      }
+    }
   }
 
   /// 递归检查组件树中的障碍物碰撞（圆形与矩形碰撞检测）
@@ -854,17 +1017,30 @@ class MissionDodgeballGame extends Forge2DGame
         final wouldCollideWithObstacle =
             _checkPositionCollisionWithObstaclesSimple(newPos, player.radius);
 
-        if (isInTeamArea && !wouldCollideWithObstacle) {
+        // 检查新位置是否与其他玩家碰撞
+        final wouldCollideWithPlayer = _checkPositionCollisionWithPlayers(
+          newPos,
+          player.radius,
+          player,
+        );
+
+        if (isInTeamArea &&
+            !wouldCollideWithObstacle &&
+            !wouldCollideWithPlayer) {
           // 位置有效，允许移动
           player.body.linearVelocity = velocity; // 设置物理体的速度
           // 更新玩家朝向
           player.setDirection(input.normalized());
         } else {
-          // 如果会越界或碰撞障碍物，尝试调整移动方向
+          // 如果会越界或碰撞障碍物/玩家，尝试调整移动方向
           if (wouldCollideWithObstacle) {
             // 与障碍物碰撞，停止移动并修正位置
             player.body.linearVelocity = Vector2.zero();
             _pushPlayerOutOfObstacle(player);
+          } else if (wouldCollideWithPlayer) {
+            // 与玩家碰撞，停止移动并修正位置
+            player.body.linearVelocity = Vector2.zero();
+            _pushPlayerOutOfOtherPlayers(player);
           } else {
             // 只是越界，限制速度方向，使其不越界
             final clampedPos = FieldConfig.clampToTeamArea(
@@ -883,7 +1059,16 @@ class MissionDodgeballGame extends Forge2DGame
                     clampedPos,
                     player.radius,
                   );
-              if (!wouldCollideAtClamped) {
+
+              // 检查限制后的位置是否与其他玩家碰撞
+              final wouldCollidePlayerAtClamped =
+                  _checkPositionCollisionWithPlayers(
+                    clampedPos,
+                    player.radius,
+                    player,
+                  );
+
+              if (!wouldCollideAtClamped && !wouldCollidePlayerAtClamped) {
                 // 允许移动到限制位置
                 final limitedVelocity = (clampedPos - currentPos) / dt;
                 final clampedVelocity = limitedVelocity.clone();
@@ -893,6 +1078,10 @@ class MissionDodgeballGame extends Forge2DGame
               } else {
                 // 限制位置也会碰撞，停止移动
                 player.body.linearVelocity = Vector2.zero();
+                // 如果与玩家碰撞，推开玩家
+                if (wouldCollidePlayerAtClamped) {
+                  _pushPlayerOutOfOtherPlayers(player);
+                }
               }
             }
           }
@@ -909,6 +1098,9 @@ class MissionDodgeballGame extends Forge2DGame
     // 限制红队玩家（人类玩家）在红队区域内
     for (final player in playerTeam) {
       if (player.isEliminated) continue;
+
+      // 支援AI不受活动区域限制
+      if (player.isSupport) continue;
 
       // 检查 body 是否已初始化（组件是否已加载完成）
       try {
@@ -1167,12 +1359,23 @@ class MissionDodgeballGame extends Forge2DGame
     final speed = 300.0; // 投掷速度
     final velocity = direction * speed;
 
+    // 计算弹跳次数：基础弹跳(1-5) + 额外弹跳(来自道具)
+    final extraBounces = player.extraBounces;
+    player.extraBounces = 0; // 重置额外弹跳次数
+    final bounceCount = (1 + _random.nextInt(5)) + extraBounces;
+
+    if (extraBounces > 0) {
+      print(
+        '玩家 ${player.playerId} 投掷了额外弹跳球，额外次数=$extraBounces, 总弹跳次数=$bounceCount',
+      );
+    }
+
     final ball = BallComponent(
       team: player.team,
       ownerPlayerId: player.playerId,
       position: player.center + direction * (player.radius + 10),
       initialVelocity: velocity,
-      bounceCount: 1 + _random.nextInt(5), // 1-5次弹跳
+      bounceCount: bounceCount,
       onHitPlayer: _onEnemyHit,
     );
 
@@ -1199,8 +1402,8 @@ class MissionDodgeballGame extends Forge2DGame
       _audioManager.playHitSound();
 
       // 有概率掉落道具
-      if (_random.nextDouble() < 0.3) {
-        // 30%概率掉落道具
+      if (_random.nextDouble() < 0.2) {
+        // 20%概率掉落道具
         // 使用 center 而不是 position，因为 PlayerComponent 使用 BodyComponent
         _dropPowerUp(hitPlayer.center);
       }
@@ -1264,7 +1467,7 @@ class MissionDodgeballGame extends Forge2DGame
 
   /// 查找有效的道具生成位置（不在障碍物和玩家位置）
   Vector2? _findValidPowerUpPosition() {
-    const powerUpSize = 32.0; // 道具大小
+    const powerUpSize = 36.0; // 道具大小（与视觉36x36一致）
     const maxAttempts = 50;
     final playableArea = FieldConfig.getPlayableArea(size);
     final powerUpSizeVec = Vector2.all(powerUpSize);

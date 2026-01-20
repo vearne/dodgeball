@@ -12,6 +12,8 @@ enum PowerUpType {
   attackSpeed, // 攻速球：投掷冷却时间缩短（保留原有功能）
   health, // 血瓶：增加1条生命
   coin, // 金币：增加1个金币
+  support, // 支援：召唤一个友军AI玩家，不受活动区域限制
+  extraBounce, // 额外弹跳：下一次投掷增加1-3次弹跳
 }
 
 /// 道具组件
@@ -55,8 +57,8 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
           if (player.isEliminated) continue;
 
           final distance = body.position.distanceTo(player.center);
-          // 碰撞半径：道具20 + 玩家16 = 36，留一点余量，使用34作为触发阈值
-          if (distance < 34.0) {
+          // 碰撞半径：道具18 + 玩家16 = 34，留一点余量，使用32作为触发阈值
+          if (distance < 32.0) {
             // 玩家在碰撞范围内，手动触发收集
             if (!_collected) {
               print('距离检测触发：玩家 ${player.playerId} 收集道具 $type，距离=$distance');
@@ -76,6 +78,14 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
                   break;
                 case PowerUpType.coin:
                   gameInstance.addCoin(1);
+                  break;
+                case PowerUpType.support:
+                  gameInstance.spawnSupportAI(player);
+                  break;
+                case PowerUpType.extraBounce:
+                  final extraBounces =
+                      gameInstance.random.nextInt(3) + 1; // 1-3随机
+                  gameInstance.setExtraBounces(player, extraBounces);
                   break;
               }
 
@@ -110,6 +120,10 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
         return 'speed_ball_36_36.png';
       case PowerUpType.coin:
         return 'coin_36_36.png';
+      case PowerUpType.support:
+        return 'support_36_36.png';
+      case PowerUpType.extraBounce:
+        return 'extra_bounce_36_36.png';
     }
   }
 
@@ -122,8 +136,8 @@ class PowerUpComponent extends BodyComponent with ContactCallbacks {
 
     // 动态创建带偏移的碰撞体
     // 使用 CircleShape 的 position 属性来设置偏移（相对于 body 中心）
-    // 注意：碰撞体半径设置为20，比玩家半径（16）大，确保碰撞可靠触发
-    final shape = CircleShape()..radius = 20.0;
+    // 注意：碰撞体半径设置为18，与视觉半径一致
+    final shape = CircleShape()..radius = 18.0;
     final fixtureDef = FixtureDef(
       shape,
       isSensor: true, // 恢复为传感器，避免与球碰撞
@@ -231,6 +245,12 @@ class _PowerUpRenderComponent extends PositionComponent {
       case PowerUpType.coin:
         paint.color = const ui.Color(0xFFFFD700); // 金色
         break;
+      case PowerUpType.support:
+        paint.color = const ui.Color(0xFF00CED1); // 青色
+        break;
+      case PowerUpType.extraBounce:
+        paint.color = const ui.Color(0xFF9932CC); // 紫色
+        break;
     }
 
     final center = ui.Offset(0, 0);
@@ -245,24 +265,3 @@ class _PowerUpRenderComponent extends PositionComponent {
   }
 }
 
-/// 浮动组件：让道具上下浮动
-class FloatingComponent extends Component {
-  FloatingComponent({required this.parent});
-
-  final PowerUpComponent parent;
-  double _time = 0.0;
-  late final double _baseY;
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-    _baseY = parent.body.position.y;
-  }
-
-  double _sin(double x) {
-    // 简单的正弦近似
-    x = x % 6.28318;
-    if (x > 3.14159) x -= 6.28318;
-    return x - (x * x * x) / 6.0 + (x * x * x * x * x * x) / 120.0;
-  }
-}

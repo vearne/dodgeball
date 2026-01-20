@@ -728,6 +728,54 @@ class _MapEditorScreenState extends State<MapEditorScreen> {
           },
           activeColor: Colors.yellow,
         ),
+        CheckboxListTile(
+          title: const Row(
+            children: [
+              Icon(Icons.support_agent, color: Colors.cyan),
+              SizedBox(width: 8),
+              Flexible(child: Text('支援')),
+            ],
+          ),
+          subtitle: const Padding(
+            padding: EdgeInsets.only(left: 32),
+            child: Text('召唤一个友军AI玩家，不受活动区域限制', style: TextStyle(fontSize: 12)),
+          ),
+          value: _selectedPowerUps.contains(PowerUpType.support),
+          onChanged: (value) {
+            setState(() {
+              if (value == true) {
+                _selectedPowerUps.add(PowerUpType.support);
+              } else {
+                _selectedPowerUps.remove(PowerUpType.support);
+              }
+            });
+          },
+          activeColor: Colors.cyan,
+        ),
+        CheckboxListTile(
+          title: const Row(
+            children: [
+              Icon(Icons.refresh, color: Colors.purple),
+              SizedBox(width: 8),
+              Flexible(child: Text('额外弹跳')),
+            ],
+          ),
+          subtitle: const Padding(
+            padding: EdgeInsets.only(left: 32),
+            child: Text('下一次投掷增加1-3次弹跳', style: TextStyle(fontSize: 12)),
+          ),
+          value: _selectedPowerUps.contains(PowerUpType.extraBounce),
+          onChanged: (value) {
+            setState(() {
+              if (value == true) {
+                _selectedPowerUps.add(PowerUpType.extraBounce);
+              } else {
+                _selectedPowerUps.remove(PowerUpType.extraBounce);
+              }
+            });
+          },
+          activeColor: Colors.purple,
+        ),
       ],
     );
   }
